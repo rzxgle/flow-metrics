@@ -1,0 +1,20 @@
+{
+  "name": "jira-flow-metrics",
+  "version": "1.0.0",
+  "description": "Dashboard de Flow Metrics (SAFe) alimentado diretamente pela API do Jira, em Clean Architecture + SOLID.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "node --watch src/main.js",
+    "discover:fields": "node scripts/discover-fields.js",
+    "test:transform": "node test/transform.spec.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "license": "MIT"
+}

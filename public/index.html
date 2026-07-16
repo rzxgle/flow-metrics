@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Metrics — Afya Bridge &amp; Afya One</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<style>
+  :root{
+    --ink:#0F2438;
+    --ink-2:#16324A;
+    --ink-3:#1E425F;
+    --paper:#F6F5F1;
+    --card:#FFFFFF;
+    --teal:#1B8F86;
+    --teal-d:#136B64;
+    --teal-light:#DCEFEA;
+    --amber:#D98E3B;
+    --amber-light:#F8E9D4;
+    --coral:#C1543A;
+    --coral-light:#F5DAD3;
+    --slate:#3D4C5B;
+    --slate-soft:#6B7A88;
+    --line:#E1DFD8;
+    --line-dark:#2A4A66;
+    --radius:10px;
+    --shadow: 0 1px 2px rgba(15,36,56,.06), 0 4px 16px rgba(15,36,56,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--slate);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4{
+    font-family:'Space Grotesk',sans-serif;
+    margin:0;
+    color:var(--ink);
+    letter-spacing:-0.01em;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--teal-d);
+    font-weight:600;
+  }
+  /* ===== Header ===== */
+  header.topbar{
+    background:linear-gradient(155deg,var(--ink) 0%, var(--ink-2) 60%, var(--ink-3) 100%);
+    color:#EAF1F5;
+    padding:22px 28px 18px;
+    position:sticky; top:0; z-index:50;
+    box-shadow:0 6px 20px rgba(0,0,0,.18);
+  }
+  .topbar-inner{max-width:1520px;margin:0 auto;}
+  .topbar-row1{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:baseline;gap:12px;}
+  .brand .flow-mark{
+    display:inline-flex;align-items:center;gap:3px;
+  }
+  .flow-mark span{
+    width:6px;height:18px;border-radius:3px;background:var(--teal);
+    display:inline-block;
+    animation:flowpulse 2.4s ease-in-out infinite;
+  }
+  .flow-mark span:nth-child(2){background:var(--amber);animation-delay:.25s;}
+  .flow-mark span:nth-child(3){background:#EAF1F5;opacity:.55;animation-delay:.5s;}
+  @keyframes flowpulse{0%,100%{transform:scaleY(.55);}50%{transform:scaleY(1);}}
+  .brand h1{color:#fff;font-size:21px;font-weight:700;}
+  .brand .sub{font-size:12.5px;color:#9FB6C6;font-family:'JetBrains Mono',monospace;}
+  .updated{font-size:11.5px;color:#8FA6B7;font-family:'JetBrains Mono',monospace;text-align:right;}
+  .tabs{display:flex;gap:4px;margin-top:16px;flex-wrap:wrap;}
+  .tab-btn{
+    background:transparent;border:1px solid rgba(255,255,255,.14);
+    color:#C7D8E2;padding:8px 14px;border-radius:8px;
+    font-family:'Space Grotesk',sans-serif;font-size:13.5px;font-weight:600;
+    cursor:pointer;transition:all .15s ease;
+  }
+  .tab-btn:hover{background:rgba(255,255,255,.08);}
+  .tab-btn.active{background:var(--teal);border-color:var(--teal);color:#fff;}
+
+  /* ===== Filter bar ===== */
+  .filterbar{
+    background:var(--ink-2);
+    border-top:1px solid rgba(255,255,255,.08);
+    padding:12px 28px;
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    position:sticky; top:96px; z-index:49;
+  }
+  .filterbar .flabel{
+    font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#8FA6B7;
+    text-transform:uppercase;letter-spacing:.08em;margin-right:2px;
+  }
+  .dropdown{position:relative;}
+  .dd-btn{
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.14);
+    color:#EAF1F5;padding:7px 11px;border-radius:7px;
+    font-size:12.5px;font-family:'Inter',sans-serif;cursor:pointer;
+    display:flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .dd-btn:hover{border-color:var(--teal);}
+  .dd-btn .count{
+    background:var(--teal);color:#fff;border-radius:10px;font-size:10px;
+    padding:1px 6px;font-family:'JetBrains Mono',monospace;
+  }
+  .dd-panel{
+    display:none;position:absolute;top:calc(100% + 6px);left:0;
+    background:#fff;border-radius:8px;box-shadow:0 10px 34px rgba(0,0,0,.24);
+    min-width:230px;max-height:320px;overflow-y:auto;z-index:60;padding:8px;
+    border:1px solid var(--line);
+  }
+  .dd-panel.open{display:block;}
+  .dd-search{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;margin-bottom:6px;font-family:'Inter',sans-serif;}
+  .dd-item{display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:5px;font-size:12.5px;cursor:pointer;color:var(--slate);}
+  .dd-item:hover{background:var(--teal-light);}
+  .dd-actions{display:flex;justify-content:space-between;padding:5px 6px 2px;border-top:1px solid var(--line);margin-top:4px;}
+  .dd-actions button{background:none;border:none;color:var(--teal-d);font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+  .clear-btn{
+    background:transparent;border:1px dashed rgba(255,255,255,.3);color:#C7D8E2;
+    padding:6px 11px;border-radius:7px;font-size:12px;cursor:pointer;
+  }
+  .clear-btn:hover{border-color:var(--coral);color:#fff;}
+
+  /* ===== Layout ===== */
+  main{max-width:1520px;margin:0 auto;padding:26px 28px 60px;}
+  .tabpanel{display:none;}
+  .tabpanel.active{display:block;animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;margin:30px 0 14px;flex-wrap:wrap;gap:8px;}
+  .section-head h2{font-size:18px;}
+  .section-head .note{font-size:12px;color:var(--slate-soft);max-width:520px;text-align:right;}
+  main > .section-head:first-child{margin-top:0;}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;}
+  .kpi{
+    background:var(--card);border-radius:var(--radius);padding:16px 16px 14px;
+    box-shadow:var(--shadow);border:1px solid var(--line);
+    border-top:3px solid var(--teal);
+  }
+  .kpi.amber{border-top-color:var(--amber);}
+  .kpi.coral{border-top-color:var(--coral);}
+  .kpi .eyebrow{margin-bottom:6px;display:block;}
+  .kpi .val{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--ink);}
+  .kpi .val .unit{font-size:13px;font-weight:500;color:var(--slate-soft);margin-left:3px;}
+  .kpi .delta{font-size:11.5px;margin-top:4px;font-weight:600;}
+  .kpi .delta.up{color:var(--teal-d);}
+  .kpi .delta.down{color:var(--coral);}
+  .kpi .delta.flat{color:var(--slate-soft);}
+
+  .grid{display:grid;gap:14px;}
+  .grid-2{grid-template-columns:1.3fr 1fr;}
+  .grid-3{grid-template-columns:repeat(3,1fr);}
+  @media (max-width:980px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--card);border-radius:var(--radius);border:1px solid var(--line);
+    box-shadow:var(--shadow);padding:16px 18px 12px;
+  }
+  .card h3{font-size:14.5px;margin-bottom:2px;}
+  .card .cap{font-size:11.5px;color:var(--slate-soft);margin-bottom:10px;}
+  .card .chartwrap{position:relative;height:260px;}
+  .card .chartwrap.tall{height:340px;}
+  .card .chartwrap.short{height:190px;}
+
+  table.datatable{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.datatable th{
+    text-align:left;font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.05em;color:var(--slate-soft);
+    padding:6px 8px;border-bottom:2px solid var(--line);position:sticky;top:0;background:var(--card);
+  }
+  table.datatable td{padding:6px 8px;border-bottom:1px solid var(--line);}
+  table.datatable tr:hover td{background:var(--teal-light);}
+  .barcell{background:var(--teal-light);border-radius:3px;height:8px;position:relative;overflow:hidden;}
+  .barcell i{position:absolute;left:0;top:0;bottom:0;background:var(--teal);border-radius:3px;}
+
+  .heat-table{border-collapse:collapse;font-size:11px;width:100%;}
+  .heat-table th{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--slate-soft);padding:4px 6px;text-align:center;}
+  .heat-table th:first-child{text-align:left;}
+  .heat-table td{padding:0;text-align:center;}
+  .heat-table td:first-child{text-align:left;padding:4px 8px;font-size:11.5px;color:var(--slate);white-space:nowrap;}
+  .heat-cell{width:100%;height:28px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;border-radius:3px;margin:1px;}
+
+  .callout{
+    background:var(--amber-light);border:1px solid #EAD2A8;border-radius:8px;
+    padding:12px 14px;font-size:12.5px;color:#6B4E1E;margin-bottom:14px;
+    display:flex;gap:10px;align-items:flex-start;
+  }
+  .callout.info{background:var(--teal-light);border-color:#B9DED8;color:#124C46;}
+  .callout .icon{font-size:15px;line-height:1;}
+  .callout b{font-weight:700;}
+
+  .legend-row{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--slate-soft);margin-top:6px;}
+  .legend-row span{display:inline-flex;align-items:center;gap:5px;}
+  .legend-row i{width:9px;height:9px;border-radius:2px;display:inline-block;}
+
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600;font-family:'JetBrains Mono',monospace;}
+  .badge.ok{background:var(--teal-light);color:var(--teal-d);}
+  .badge.warn{background:var(--amber-light);color:#8A5D18;}
+  .badge.risk{background:var(--coral-light);color:var(--coral);}
+
+  .progressbar{background:var(--teal-light);border-radius:20px;height:16px;overflow:hidden;position:relative;}
+  .progressbar i{position:absolute;left:0;top:0;bottom:0;background:var(--teal);}
+  .progressbar span{position:relative;z-index:2;font-size:10px;font-family:'JetBrains Mono',monospace;padding-left:8px;line-height:16px;color:var(--ink);font-weight:600;}
+
+  footer{padding:30px 28px 60px;max-width:1520px;margin:0 auto;color:var(--slate-soft);font-size:12px;}
+  footer h4{font-size:13px;margin-bottom:8px;}
+  footer ul{margin:0;padding-left:18px;}
+  footer li{margin-bottom:5px;}
+
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:#C9C6BC;border-radius:4px;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-row1">
+      <div class="brand">
+        <span class="flow-mark"><span></span><span></span><span></span></span>
+        <div>
+          <h1>Flow Metrics — Afya Bridge &amp; Afya One</h1>
+          <div class="sub">Dashboard ágil · SAFe / Flow Metrics · dados extraídos do Jira</div>
+        </div>
+      </div>
+      <div class="updated">ATUALIZADO EM<br><span id="exportDate" class="mono"></span></div>
+    </div>
+    <nav class="tabs" id="tabNav">
+      <button class="tab-btn active" data-tab="exec">Visão Executiva</button>
+      <button class="tab-btn" data-tab="throughput">Throughput</button>
+      <button class="tab-btn" data-tab="sp">Story Points</button>
+      <button class="tab-btn" data-tab="flow">Lead &amp; Cycle Time</button>
+      <button class="tab-btn" data-tab="wip">Entregas, WIP &amp; Aging</button>
+      <button class="tab-btn" data-tab="rank">Rankings &amp; Heatmap</button>
+      <button class="tab-btn" data-tab="notas">Notas sobre os Dados</button>
+    </nav>
+  </div>
+  <div class="filterbar" id="filterBar">
+    <span class="flabel">Filtros</span>
+    <!-- dropdowns injected by JS -->
+  </div>
+</header>
+
+<main id="mainContent">
+<!-- ===================== TAB: VISÃO EXECUTIVA ===================== -->
+<section class="tabpanel active" id="panel-exec">
+  <div class="section-head">
+    <h2>Visão Executiva</h2>
+  </div>
+
+  <div class="kpi-row" id="exec-kpis"></div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>Throughput mensal (itens concluídos)</h3>
+      <div class="cap">Contagem de itens concluídos por mês de conclusão, todos os tipos.</div>
+      <div class="chartwrap tall"><canvas id="chart-exec-throughput-month"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Story Points: planejado x concluído por PI</h3>
+      <div class="cap">Planejado = soma de SP dos itens não cancelados; Concluído = soma de SP dos itens com status Concluído.</div>
+      <div class="chartwrap tall"><canvas id="chart-exec-sp-pi"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-3" style="margin-top:14px;">
+    <div class="card">
+      <h3>Distribuição por tipo de item</h3>
+      <div class="cap">Épico · História · Sub-task · Bug · Débito Técnico</div>
+      <div class="chartwrap"><canvas id="chart-exec-tipo-donut"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Distribuição por status (top 8)</h3>
+      <div class="cap">Concentração do fluxo de trabalho por etapa atual.</div>
+      <div class="chartwrap"><canvas id="chart-exec-status-donut"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Comparativos período a período</h3>
+      <div class="cap">Mês atual x anterior, e PI atual x anterior (dentro do recorte filtrado).</div>
+      <div id="exec-compare-box" style="font-size:12.5px;"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TAB: THROUGHPUT ===================== -->
+<section class="tabpanel" id="panel-throughput">
+  <div class="section-head">
+    <h2>Throughput</h2>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Throughput por Squad</h3>
+      <div class="cap">Ranking de itens concluídos no recorte atual.</div>
+      <div class="chartwrap tall"><canvas id="chart-tp-squad"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Throughput por Value Stream</h3>
+      <div class="chartwrap tall"><canvas id="chart-tp-vs"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-3" style="margin-top:14px;">
+    <div class="card">
+      <h3>Throughput por Programa</h3>
+      <div class="chartwrap short"><canvas id="chart-tp-programa"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Throughput por PI</h3>
+      <div class="chartwrap short"><canvas id="chart-tp-pi"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Throughput por tipo de item</h3>
+      <div class="chartwrap short"><canvas id="chart-tp-tipo"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3>Throughput mensal por tipo de item</h3>
+    <div class="cap">Barras empilhadas — evolução mês a mês do que está sendo entregue.</div>
+    <div class="chartwrap tall"><canvas id="chart-tp-month-stacked"></canvas></div>
+  </div>
+
+  <div class="section-head"><h2 style="font-size:15.5px;">Comparativo: mês atual x mês anterior</h2></div>
+  <div class="card">
+    <table class="datatable" id="tp-compare-table">
+      <thead><tr><th>Squad</th><th>Mês anterior</th><th>Mês atual</th><th>Variação</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== TAB: STORY POINTS ===================== -->
+<section class="tabpanel" id="panel-sp">
+  <div class="section-head">
+    <h2>Story Points</h2>
+  </div>
+
+  <div class="kpi-row" id="sp-kpis"></div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>SP planejado x concluído por Squad</h3>
+      <div class="chartwrap tall"><canvas id="chart-sp-squad"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>SP planejado x concluído por Value Stream</h3>
+      <div class="chartwrap tall"><canvas id="chart-sp-vs"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>SP planejado x concluído por PI</h3>
+      <div class="chartwrap"><canvas id="chart-sp-pi"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Evolução mensal de SP concluídos</h3>
+      <div class="cap">Linha de tendência (média móvel de 3 meses) sobreposta.</div>
+      <div class="chartwrap"><canvas id="chart-sp-month"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== TAB: LEAD & CYCLE TIME ===================== -->
+<section class="tabpanel" id="panel-flow">
+  <div class="section-head">
+    <h2>Lead Time &amp; Cycle Time</h2>
+  </div>
+
+  <div class="callout info" id="flow-coverage-callout"><span class="icon">ℹ️</span><div></div></div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Lead Time (Criação → Conclusão)</h3>
+      <div class="kpi-row" id="lead-kpis" style="margin-bottom:10px;"></div>
+      <div class="chartwrap"><canvas id="chart-flow-lead-hist"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Cycle Time (Início real → Fim real)</h3>
+      <div class="kpi-row" id="cycle-kpis" style="margin-bottom:10px;"></div>
+      <div class="chartwrap"><canvas id="chart-flow-cycle-hist"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>Tendência mensal do Lead Time médio</h3>
+      <div class="chartwrap"><canvas id="chart-flow-lead-trend"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Lead Time médio por Squad (top 12 por volume)</h3>
+      <div class="chartwrap"><canvas id="chart-flow-lead-squad"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3>Cycle Time médio por Value Stream</h3>
+    <div class="chartwrap short"><canvas id="chart-flow-cycle-vs"></canvas></div>
+  </div>
+</section>
+
+<!-- ===================== TAB: ENTREGAS / WIP / AGING ===================== -->
+<section class="tabpanel" id="panel-wip">
+  <div class="section-head">
+    <h2>Entregas, WIP &amp; Aging</h2>
+  </div>
+
+  <div class="kpi-row" id="wip-kpis"></div>
+
+  <div class="grid grid-3" style="margin-top:14px;">
+    <div class="card">
+      <h3>Entregas por Squad</h3>
+      <div class="cap">Épicos, Histórias e Sub-tasks concluídos.</div>
+      <div class="chartwrap"><canvas id="chart-wip-entregas-squad"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Entregas por Value Stream</h3>
+      <div class="chartwrap"><canvas id="chart-wip-entregas-vs"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Entregas por Programa</h3>
+      <div class="chartwrap"><canvas id="chart-wip-entregas-programa"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>WIP por status atual</h3>
+      <div class="cap">Itens que não estão Concluídos nem Cancelados.</div>
+      <div class="chartwrap tall"><canvas id="chart-wip-status"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>WIP por Squad</h3>
+      <div class="chartwrap tall"><canvas id="chart-wip-squad"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>Distribuição de Aging (itens em WIP)</h3>
+      <div class="cap">Dias desde o início real (ou criação, se não iniciado) até hoje (15/07/2026).</div>
+      <div class="chartwrap"><canvas id="chart-wip-aging-hist"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Aging médio por Squad — top 10 mais antigos</h3>
+      <div class="chartwrap"><canvas id="chart-wip-aging-squad"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-head"><h2 style="font-size:15.5px;">Progresso de Épicos</h2>
+    <div class="note">% de itens concluídos entre todos os descendentes vinculados (Histórias e Sub-tasks) de cada Épico.</div>
+  </div>
+  <div class="card">
+    <table class="datatable" id="epic-table">
+      <thead><tr><th>Épico</th><th>Squad</th><th>Itens</th><th>Concluídos</th><th>SP concl./total</th><th style="width:180px;">Progresso</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== TAB: RANKINGS & HEATMAP ===================== -->
+<section class="tabpanel" id="panel-rank">
+  <div class="section-head">
+    <h2>Rankings &amp; Heatmap</h2>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Ranking de Squads por Throughput</h3>
+      <div class="chartwrap tall"><canvas id="chart-rank-squad"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Ranking de Value Streams por Throughput</h3>
+      <div class="chartwrap tall"><canvas id="chart-rank-vs"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3>Heatmap — Entregas por Squad x Mês</h3>
+    <div class="cap">Intensidade da cor reflete o volume de itens concluídos no mês (dentro do recorte filtrado).</div>
+    <div style="overflow-x:auto;" id="heatmap-container"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3>Tabela consolidada por Squad</h3>
+    <table class="datatable" id="rank-table">
+      <thead><tr><th>Squad</th><th>VS</th><th>Throughput</th><th>SP concluído</th><th>WIP</th><th>Lead Time médio (d)</th><th>% conclusão</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===================== TAB: NOTAS SOBRE OS DADOS ===================== -->
+<section class="tabpanel" id="panel-notas">
+  <div class="section-head"><h2>Notas Metodológicas e Limitações dos Dados</h2></div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Como os campos foram derivados</h3>
+      <ul style="font-size:12.5px;line-height:1.7;padding-left:18px;margin:0;">
+        <li><b>Programa</b>: a planilha não possui uma coluna nativa "Programa". Foi inferido como <i>Afya Bridge</i> quando o Projeto ou Team contém "Bridge"; caso contrário, <i>Afya One</i>. No dataset atual, apenas 24 de 3.202 itens (0,7%) são identificáveis como Bridge — na prática este export é quase inteiramente Afya One.</li>
+        <li><b>Value Stream (VS)</b>: mapeado a partir da coluna <span class="mono">Projeto</span> (ex.: APRENDER, CORE EXPERIENCE, DESCOBRIR, CONVERSÃO, APP, PLATAFORMA).</li>
+        <li><b>Squad</b>: mapeado diretamente da coluna <span class="mono">Team</span>.</li>
+        <li><b>PI</b>: extraído da coluna <span class="mono">Categorias</span>, que traz múltiplas tags separadas por ";" (ex.: "PI2AfyaOne;buscaerecomendacao"). Quando mais de um PI aparece (itens transbordados), foi considerado o PI mais recente mencionado.</li>
+        <li><b>Sprint</b>: <b>não existe nenhuma coluna de Sprint nesta exportação.</b> Por isso, todos os filtros e gráficos usam PI, Ano e Mês como granularidade temporal — não é possível abrir por Sprint até que esse campo seja incluído no export do Jira (normalmente disponível via o campo "Sprint" do board, que não veio nesta consulta).</li>
+        <li><b>Tipo de item agrupado</b>: os 15 tipos brutos do Jira foram agrupados em 5 categorias: Épico (Epic, Enabler Epic), História (História, Melhoria), Sub-task (Sub-imp, Sub-test, Subtarefa, Sub-bug, Sub-block, Sub-script, Sub-design, Correção Staging), Bug (Bug, Bug hotfix) e Débito Técnico (Technical Debt) — foram tratados à parte para não distorcer a leitura de "Sub-task" pura.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Limitações identificadas</h3>
+      <ul style="font-size:12.5px;line-height:1.7;padding-left:18px;margin:0;">
+        <li><b>Sem histórico de status</b>: a planilha é um snapshot único (extraído em 15/07/2026). Não há registro de quando cada item mudou de status ao longo do tempo. Isso <b>impede o cálculo de CFD (Cumulative Flow Diagram), Burndown e Burnup clássicos</b>, que exigem série temporal de status por dia. O que este dashboard oferece como aproximação é a evolução de itens concluídos por mês (throughput), que é a melhor proxy disponível.</li>
+        <li><b>Cycle Time com cobertura parcial</b>: apenas 437 dos 1.684 itens Concluídos (26%) têm tanto "Data de início real" quanto "Data de fim real" preenchidas. Os demais 74% não permitem calcular Cycle Time e foram excluídos dessa métrica especificamente (mas continuam contando em Throughput e Story Points).</li>
+        <li><b>Lead Time com cobertura maior, mas não total</b>: 1.382 dos 1.684 Concluídos (82%) têm "Data de fim real" preenchida, permitindo Lead Time = Data de fim real − Criado. A coluna "Resolvido" quase não é usada neste projeto (apenas 204 registros no total), por isso não foi a base do cálculo.</li>
+        <li><b>Story Points ausentes em 715 itens (22%)</b> — tratados como 0 nos totais, o que pode subestimar levemente o volume de esforço, especialmente em Sub-tasks menores.</li>
+        <li><b>Inconsistências de datas</b>: 10 itens tinham Cycle Time negativo e 7 tinham Lead Time negativo (datas de início posteriores às de fim, provavelmente reaberturas ou correções manuais no Jira). Esses registros foram excluídos do cálculo de tempo, mas mantidos nas demais métricas.</li>
+        <li><b>Hierarquia Épico → História → Sub-task incompleta</b>: 1.165 itens (36%) não têm um Épico identificável na cadeia de "parent" (podem ser itens órfãos, ou Bugs/Débitos Técnicos que não estão vinculados a um Épico formal). O rollup de progresso de Épicos considera apenas os 2.037 itens com vínculo identificado.</li>
+        <li><b>Velocity / Capacidade por Sprint não calculável</b> — pela ausência do campo Sprint. Como proxy, este dashboard apresenta SP concluído por PI e por mês.</li>
+        <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados), usando a Data de início real (ou Criação, se ainda não iniciado) até a data de referência 15/07/2026.</li>
+        <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Apenas Sub-tasks são consistentemente marcadas como Concluído. Por isso, além do Throughput estrito (Status = Concluído), a aba de Entregas mostra também "Entregue (amplo)", que considera todos os status pós-desenvolvimento. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:14px;">
+    <span class="icon">💡</span>
+    <div><b>Recomendação para times de Agilidade/RTE:</b> para viabilizar CFD, Burndown/Burnup por Sprint e Velocity real, recomenda-se (1) incluir o campo "Sprint" no export do Jira, e (2) configurar um pipeline que capture snapshots diários de status (ou usar o changelog do Jira) para reconstruir o histórico de transições. Isso também melhoraria a precisão de Cycle Time, hoje limitado a 26% dos itens concluídos.</div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <h4>Sobre este dashboard</h4>
+  <ul>
+    <li>Construído a partir de uma exportação pontual do Jira (snapshot), sem histórico de mudança de status — por isso métricas que dependem de série temporal de status (CFD, burndown clássico) são aproximadas. Veja a aba <b>Notas sobre os Dados</b> para detalhes completos.</li>
+    <li>Todos os gráficos respondem aos filtros globais no topo da página. Combine Programa, VS, Squad, PI, Ano, Mês, Tipo de item e Status livremente.</li>
+  </ul>
+</footer>
+
+
+<!-- Dados carregados dinamicamente da API /api/dashboard (backend -> Jira). -->
+<script>
+/* ===================== Setup ===================== */
+// Os dados agora vêm da API do backend (que fala com o Jira), em vez de
+// virem embutidos no HTML. DATA e EPICS são preenchidos no bootstrap().
+let DATA = [];
+let EPICS = [];
+
+const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const COLORS = ['#1B8F86','#D98E3B','#3D4C5B','#C1543A','#6FA8A2','#E9C88B','#8AA0B0','#7C4E3A','#9BC4BE','#B8863F'];
+const TIPO_COLOR = {'Épico':'#0F2438','História':'#1B8F86','Sub-task':'#8AA0B0','Bug':'#C1543A','Débito Técnico':'#D98E3B'};
+
+function normalizeData(){
+  DATA.forEach(d=>{
+    d.Mes = d.AnoMesCriacao ? d.AnoMesCriacao.split('-')[1] : null;
+    d.MesConclusao = d.AnoMesConclusao ? d.AnoMesConclusao.split('-')[1] : null;
+  });
+}
+
+/* ===================== Filter state ===================== */
+const FILTER_DIMS = [
+  {key:'Programa', label:'Programa'},
+  {key:'VS', label:'Value Stream'},
+  {key:'Squad', label:'Squad'},
+  {key:'PI', label:'PI'},
+  {key:'AnoCriacao', label:'Ano'},
+  {key:'Mes', label:'Mês (criação)'},
+  {key:'Tipo Agrupado', label:'Tipo de item'},
+  {key:'Status', label:'Status'}
+];
+const selections = {};
+FILTER_DIMS.forEach(f=> selections[f.key] = new Set());
+
+function uniqueVals(key){
+  const set = new Set();
+  DATA.forEach(d=>{
+    let v = d[key];
+    if(v===null || v===undefined || v==='') v='(Não informado)';
+    set.add(v);
+  });
+  let arr = Array.from(set);
+  if(key==='Mes' || key==='MesConclusao'){
+    arr = arr.filter(x=>x!=='(Não informado)').sort();
+  } else if(key==='AnoCriacao'){
+    arr = arr.sort((a,b)=>a-b);
+  } else if(key==='PI'){
+    arr = arr.sort();
+  } else {
+    arr = arr.sort((a,b)=>String(a).localeCompare(String(b),'pt'));
+  }
+  return arr;
+}
+
+function buildFilterBar(){
+  const bar = document.getElementById('filterBar');
+  FILTER_DIMS.forEach(f=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'dropdown';
+    wrap.id = 'dd-'+f.key.replace(/\s/g,'_');
+    const btn = document.createElement('button');
+    btn.className = 'dd-btn';
+    btn.innerHTML = `<span>${f.label}</span><span class="count" style="display:none">0</span>`;
+    const panel = document.createElement('div');
+    panel.className = 'dd-panel';
+
+    const search = document.createElement('input');
+    search.className = 'dd-search';
+    search.placeholder = 'Buscar...';
+    panel.appendChild(search);
+
+    const list = document.createElement('div');
+    list.className = 'dd-list';
+    const opts = uniqueVals(f.key);
+    opts.forEach(val=>{
+      const item = document.createElement('label');
+      item.className = 'dd-item';
+      const displayVal = (f.key==='Mes') ? (MESES[parseInt(val,10)]||val) : val;
+      item.innerHTML = `<input type="checkbox" value="${String(val).replace(/"/g,'&quot;')}"> <span>${displayVal}</span>`;
+      list.appendChild(item);
+    });
+    panel.appendChild(list);
+
+    const actions = document.createElement('div');
+    actions.className = 'dd-actions';
+    actions.innerHTML = `<button data-act="all">Todos</button><button data-act="none">Limpar</button>`;
+    panel.appendChild(actions);
+
+    wrap.appendChild(btn);
+    wrap.appendChild(panel);
+    bar.appendChild(wrap);
+
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      document.querySelectorAll('.dd-panel.open').forEach(p=>{ if(p!==panel) p.classList.remove('open'); });
+      panel.classList.toggle('open');
+    });
+    search.addEventListener('click', e=>e.stopPropagation());
+    search.addEventListener('input', ()=>{
+      const q = search.value.toLowerCase();
+      list.querySelectorAll('.dd-item').forEach(it=>{
+        it.style.display = it.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+      });
+    });
+    list.addEventListener('click', e=>e.stopPropagation());
+    list.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        if(cb.checked) selections[f.key].add(cb.value);
+        else selections[f.key].delete(cb.value);
+        updateFilterBtn(f.key, btn);
+        renderAll();
+      });
+    });
+    actions.querySelector('[data-act="all"]').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      list.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked=true; selections[f.key].add(cb.value); });
+      updateFilterBtn(f.key, btn); renderAll();
+    });
+    actions.querySelector('[data-act="none"]').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      list.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked=false; });
+      selections[f.key].clear();
+      updateFilterBtn(f.key, btn); renderAll();
+    });
+  });
+
+  const clearAll = document.createElement('button');
+  clearAll.className = 'clear-btn';
+  clearAll.textContent = 'Limpar todos os filtros';
+  clearAll.addEventListener('click', ()=>{
+    FILTER_DIMS.forEach(f=>{
+      selections[f.key].clear();
+      const wrap = document.getElementById('dd-'+f.key.replace(/\s/g,'_'));
+      wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+      updateFilterBtn(f.key, wrap.querySelector('.dd-btn'));
+    });
+    renderAll();
+  });
+  bar.appendChild(clearAll);
+
+  document.addEventListener('click', ()=>{
+    document.querySelectorAll('.dd-panel.open').forEach(p=>p.classList.remove('open'));
+  });
+}
+function updateFilterBtn(key, btn){
+  const n = selections[key].size;
+  const countEl = btn.querySelector('.count');
+  if(n>0){ countEl.style.display='inline-block'; countEl.textContent = n; }
+  else { countEl.style.display='none'; }
+}
+
+function getFiltered(){
+  return DATA.filter(d=>{
+    for(const f of FILTER_DIMS){
+      const sel = selections[f.key];
+      if(sel.size===0) continue;
+      let v = d[f.key];
+      if(v===null||v===undefined||v==='') v='(Não informado)';
+      if(!sel.has(String(v))) return false;
+    }
+    return true;
+  });
+}
+
+/* ===================== Utility stats ===================== */
+function sum(arr, fn){ return arr.reduce((a,d)=>a+(fn(d)||0),0); }
+function median(arr){
+  if(!arr.length) return null;
+  const s = [...arr].sort((a,b)=>a-b);
+  const mid = Math.floor(s.length/2);
+  return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2;
+}
+function percentile(arr, p){
+  if(!arr.length) return null;
+  const s = [...arr].sort((a,b)=>a-b);
+  const idx = (p/100)*(s.length-1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  if(lo===hi) return s[lo];
+  return s[lo] + (s[hi]-s[lo])*(idx-lo);
+}
+function mean(arr){ return arr.length ? sum(arr,x=>x)/arr.length : null; }
+function fmt1(n){ return (n===null||n===undefined||isNaN(n)) ? '—' : n.toFixed(1); }
+function fmt0(n){ return (n===null||n===undefined||isNaN(n)) ? '—' : Math.round(n).toLocaleString('pt-BR'); }
+function groupBy(arr, fn){
+  const m = new Map();
+  arr.forEach(d=>{
+    const k = fn(d);
+    if(!m.has(k)) m.set(k,[]);
+    m.get(k).push(d);
+  });
+  return m;
+}
+function monthLabel(ym){
+  if(!ym) return '—';
+  const [y,m] = ym.split('-');
+  return MESES[parseInt(m,10)]+'/'+y.slice(2);
+}
+function sortedMonthKeys(arr, fieldYM){
+  const set = new Set(arr.map(d=>d[fieldYM]).filter(Boolean));
+  return Array.from(set).sort();
+}
+function piSortKey(pi){
+  if(!pi) return 'zzz';
+  return pi;
+}
+
+/* ===================== Chart registry ===================== */
+const chartsReg = {};
+function upsertChart(id, config){
+  const canvas = document.getElementById(id);
+  if(!canvas) return null;
+  if(chartsReg[id]){ chartsReg[id].destroy(); }
+  chartsReg[id] = new Chart(canvas.getContext('2d'), config);
+  return chartsReg[id];
+}
+const baseFont = {family:"'Inter',sans-serif", size:11};
+Chart.defaults.font = baseFont;
+Chart.defaults.color = '#6B7A88';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.boxWidth = 8;
+
+/* ===================== Tabs ===================== */
+document.getElementById('tabNav').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.tab-btn');
+  if(!btn) return;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+});
+
+/* ===================== Render orchestrator ===================== */
+function renderAll(){
+  const f = getFiltered();
+  renderExec(f);
+  renderThroughput(f);
+  renderSP(f);
+  renderFlow(f);
+  renderWip(f);
+  renderRank(f);
+}
+
+/* ===================== KPI card helper ===================== */
+function kpiCard(eyebrow, value, unit, extraClass, delta){
+  return `<div class="kpi ${extraClass||''}">
+    <span class="eyebrow">${eyebrow}</span>
+    <div class="val">${value}${unit?`<span class="unit">${unit}</span>`:''}</div>
+    ${delta?`<div class="delta ${delta.cls}">${delta.text}</div>`:''}
+  </div>`;
+}
+
+/* ===================== TAB: EXEC ===================== */
+function renderExec(f){
+  const total = f.length;
+  const concl = f.filter(d=>d.Concluido);
+  const cancel = f.filter(d=>d.Cancelado).length;
+  const ativos = total - cancel;
+  const pct = ativos? (concl.length/ativos*100) : 0;
+  const spTotal = sum(f.filter(d=>!d.Cancelado), d=>d['Story Points']);
+  const spConcl = sum(concl, d=>d['Story Points']);
+  const leadVals = f.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
+  const cycleVals = f.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
+  const wip = f.filter(d=>d.WIP).length;
+
+  document.getElementById('exec-kpis').innerHTML = [
+    kpiCard('Itens no recorte', fmt0(total)),
+    kpiCard('Concluídos', fmt0(concl.length), null, '', {cls:'up', text:pct.toFixed(0)+'% dos itens ativos'}),
+    kpiCard('Story Points concluídos', fmt0(spConcl), 'sp'),
+    kpiCard('Story Points planejados', fmt0(spTotal), 'sp'),
+    kpiCard('Lead Time médio', fmt1(mean(leadVals)), 'dias', 'amber'),
+    kpiCard('Cycle Time médio', fmt1(mean(cycleVals)), 'dias', 'amber'),
+    kpiCard('WIP atual', fmt0(wip), 'itens', 'coral'),
+  ].join('');
+
+  // Throughput mensal
+  const months = sortedMonthKeys(concl, 'AnoMesConclusao');
+  const monthCounts = months.map(m=> concl.filter(d=>d.AnoMesConclusao===m).length);
+  upsertChart('chart-exec-throughput-month', {
+    type:'line',
+    data:{ labels:months.map(monthLabel), datasets:[{
+      label:'Itens concluídos', data:monthCounts, borderColor:'#1B8F86', backgroundColor:'rgba(27,143,134,.12)',
+      fill:true, tension:.35, pointRadius:3, pointBackgroundColor:'#1B8F86'
+    }]},
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+  });
+
+  // SP por PI planejado x concluído
+  const pis = Array.from(new Set(f.map(d=>d.PI))).sort();
+  const spPlanByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && !d.Cancelado), d=>d['Story Points']));
+  const spConclByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && d.Concluido), d=>d['Story Points']));
+  upsertChart('chart-exec-sp-pi', {
+    type:'bar',
+    data:{labels:pis, datasets:[
+      {label:'Planejado', data:spPlanByPi, backgroundColor:'#C9E4E0', borderRadius:4},
+      {label:'Concluído', data:spConclByPi, backgroundColor:'#1B8F86', borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false, scales:{y:{beginAtZero:true, grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+  });
+
+  // Tipo donut
+  const tipos = Array.from(new Set(f.map(d=>d['Tipo Agrupado'])));
+  const tipoCounts = tipos.map(t=> f.filter(d=>d['Tipo Agrupado']===t).length);
+  upsertChart('chart-exec-tipo-donut', {
+    type:'doughnut',
+    data:{labels:tipos, datasets:[{data:tipoCounts, backgroundColor:tipos.map(t=>TIPO_COLOR[t]||'#999'), borderWidth:2, borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'62%'}
+  });
+
+  // Status donut top 8
+  const statusCounts = Array.from(groupBy(f, d=>d.Status), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
+  const top8 = statusCounts.slice(0,8);
+  const outros = statusCounts.slice(8).reduce((a,c)=>a+c[1],0);
+  const labels = top8.map(x=>x[0]).concat(outros>0?['Outros']:[]);
+  const vals = top8.map(x=>x[1]).concat(outros>0?[outros]:[]);
+  upsertChart('chart-exec-status-donut', {
+    type:'doughnut',
+    data:{labels, datasets:[{data:vals, backgroundColor:COLORS, borderWidth:2, borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9.5}}}}, cutout:'55%'}
+  });
+
+  // Comparativos
+  let html = '';
+  if(months.length>=2){
+    const cur = months[months.length-1], prev = months[months.length-2];
+    const curN = concl.filter(d=>d.AnoMesConclusao===cur).length;
+    const prevN = concl.filter(d=>d.AnoMesConclusao===prev).length;
+    const diff = curN-prevN;
+    const pctDiff = prevN? (diff/prevN*100):0;
+    html += `<div style="margin-bottom:12px;"><div class="eyebrow">Mês ${monthLabel(prev)} → ${monthLabel(cur)}</div>
+      <div style="display:flex;align-items:baseline;gap:8px;"><span class="mono" style="font-size:20px;font-weight:700;color:var(--ink);">${curN}</span>
+      <span style="color:${diff>=0?'#136B64':'#C1543A'};font-weight:600;">${diff>=0?'▲':'▼'} ${Math.abs(diff)} (${pctDiff.toFixed(0)}%)</span></div>
+      <div style="color:var(--slate-soft);">itens concluídos vs. mês anterior (${prevN})</div></div>`;
+  } else {
+    html += `<div class="cap">Dados insuficientes para comparar meses (mín. 2 meses com conclusões no recorte).</div>`;
+  }
+  if(pis.length>=2){
+    const piSorted = pis.slice().sort();
+    const curPi = piSorted[piSorted.length-1], prevPi = piSorted[piSorted.length-2];
+    const curN = concl.filter(d=>d.PI===curPi).length;
+    const prevN = concl.filter(d=>d.PI===prevPi).length;
+    const diff = curN-prevN;
+    const pctDiff = prevN? (diff/prevN*100):0;
+    html += `<div><div class="eyebrow">${prevPi} → ${curPi}</div>
+      <div style="display:flex;align-items:baseline;gap:8px;"><span class="mono" style="font-size:20px;font-weight:700;color:var(--ink);">${curN}</span>
+      <span style="color:${diff>=0?'#136B64':'#C1543A'};font-weight:600;">${diff>=0?'▲':'▼'} ${Math.abs(diff)} (${pctDiff.toFixed(0)}%)</span></div>
+      <div style="color:var(--slate-soft);">itens concluídos vs. PI anterior (${prevN})</div></div>`;
+  }
+  document.getElementById('exec-compare-box').innerHTML = html;
+}
+
+/* ===================== TAB: THROUGHPUT ===================== */
+function topNGroup(f, key, n, filterFn){
+  const src = filterFn ? f.filter(filterFn) : f;
+  const arr = Array.from(groupBy(src, d=>d[key]), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
+  return n? arr.slice(0,n) : arr;
+}
+function renderThroughput(f){
+  const concl = f.filter(d=>d.Concluido);
+
+  const bySquad = topNGroup(concl,'Squad',null).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-tp-squad', {
+    type:'bar',
+    data:{labels:bySquad.map(x=>x[0]), datasets:[{data:bySquad.map(x=>x[1]), backgroundColor:'#1B8F86', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+  });
+
+  const byVS = topNGroup(concl,'VS',null).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-tp-vs', {
+    type:'bar',
+    data:{labels:byVS.map(x=>x[0]), datasets:[{data:byVS.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}}}
+  });
+
+  const byProg = topNGroup(concl,'Programa',null);
+  upsertChart('chart-tp-programa', {
+    type:'doughnut',
+    data:{labels:byProg.map(x=>x[0]), datasets:[{data:byProg.map(x=>x[1]), backgroundColor:['#1B8F86','#0F2438','#D98E3B'], borderWidth:2, borderColor:'#fff'}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%'}
+  });
+
+  const byPi = topNGroup(concl,'PI',null).sort((a,b)=>a[0].localeCompare(b[0]));
+  upsertChart('chart-tp-pi', {
+    type:'bar',
+    data:{labels:byPi.map(x=>x[0]), datasets:[{data:byPi.map(x=>x[1]), backgroundColor:'#3D4C5B', borderRadius:4}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+  });
+
+  const byTipo = topNGroup(concl,'Tipo Agrupado',null);
+  upsertChart('chart-tp-tipo', {
+    type:'doughnut',
+    data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map(x=>TIPO_COLOR[x[0]]||'#999'), borderWidth:2, borderColor:'#fff'}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9.5}}}}, cutout:'55%'}
+  });
+
+  // Monthly stacked by tipo
+  const months = sortedMonthKeys(concl,'AnoMesConclusao');
+  const tipos = ['Épico','História','Sub-task','Bug','Débito Técnico'];
+  const datasets = tipos.map(t=>({
+    label:t, backgroundColor:TIPO_COLOR[t],
+    data: months.map(m=> concl.filter(d=>d.AnoMesConclusao===m && d['Tipo Agrupado']===t).length)
+  }));
+  upsertChart('chart-tp-month-stacked', {
+    type:'bar',
+    data:{labels:months.map(monthLabel), datasets},
+    options:{responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, grid:{color:'#EFEEEA'}}}}
+  });
+
+  // Compare table by squad: current vs previous month
+  const tbody = document.querySelector('#tp-compare-table tbody');
+  if(months.length>=2){
+    const cur = months[months.length-1], prev = months[months.length-2];
+    const squads = Array.from(new Set(concl.map(d=>d.Squad))).sort();
+    const rows = squads.map(sq=>{
+      const curN = concl.filter(d=>d.Squad===sq && d.AnoMesConclusao===cur).length;
+      const prevN = concl.filter(d=>d.Squad===sq && d.AnoMesConclusao===prev).length;
+      return {sq, curN, prevN, diff:curN-prevN};
+    }).filter(r=>r.curN>0||r.prevN>0).sort((a,b)=>b.curN-a.curN);
+    tbody.innerHTML = rows.map(r=>`<tr><td>${r.sq}</td><td>${r.prevN}</td><td><b>${r.curN}</b></td>
+      <td style="color:${r.diff>=0?'#136B64':'#C1543A'};font-weight:600;">${r.diff>=0?'▲':'▼'} ${Math.abs(r.diff)}</td></tr>`).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--slate-soft);">Dados insuficientes (é necessário ao menos 2 meses com conclusões no recorte atual).</td></tr>';
+  }
+}
+
+/* ===================== TAB: STORY POINTS ===================== */
+function renderSP(f){
+  const concl = f.filter(d=>d.Concluido);
+  const naoCancel = f.filter(d=>!d.Cancelado);
+  const spTotal = sum(naoCancel, d=>d['Story Points']);
+  const spConcl = sum(concl, d=>d['Story Points']);
+  const pct = spTotal? (spConcl/spTotal*100):0;
+
+  document.getElementById('sp-kpis').innerHTML = [
+    kpiCard('SP planejado', fmt0(spTotal), 'sp'),
+    kpiCard('SP concluído', fmt0(spConcl), 'sp'),
+    kpiCard('% entregue', pct.toFixed(0), '%', pct>=70?'':'amber'),
+    kpiCard('Itens sem SP', fmt0(f.filter(d=>!d['Story Points']).length), 'itens', 'coral'),
+  ].join('');
+
+  function plannedVsCompleted(key){
+    const keys = Array.from(new Set(naoCancel.map(d=>d[key]))).sort();
+    const planned = keys.map(k=> sum(naoCancel.filter(d=>d[key]===k), d=>d['Story Points']));
+    const completed = keys.map(k=> sum(concl.filter(d=>d[key]===k), d=>d['Story Points']));
+    return {keys, planned, completed};
+  }
+
+  const bySquad = plannedVsCompleted('Squad');
+  // sort by planned desc
+  const orderSq = bySquad.keys.map((k,i)=>[k,bySquad.planned[i],bySquad.completed[i]]).sort((a,b)=>b[1]-a[1]);
+  upsertChart('chart-sp-squad', {
+    type:'bar',
+    data:{labels:orderSq.map(x=>x[0]), datasets:[
+      {label:'Planejado', data:orderSq.map(x=>x[1]), backgroundColor:'#E4D7BE', borderRadius:4},
+      {label:'Concluído', data:orderSq.map(x=>x[2]), backgroundColor:'#D98E3B', borderRadius:4}
+    ]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+  });
+
+  const byVS = plannedVsCompleted('VS');
+  const orderVs = byVS.keys.map((k,i)=>[k,byVS.planned[i],byVS.completed[i]]).sort((a,b)=>b[1]-a[1]);
+  upsertChart('chart-sp-vs', {
+    type:'bar',
+    data:{labels:orderVs.map(x=>x[0]), datasets:[
+      {label:'Planejado', data:orderVs.map(x=>x[1]), backgroundColor:'#C9E4E0', borderRadius:4},
+      {label:'Concluído', data:orderVs.map(x=>x[2]), backgroundColor:'#1B8F86', borderRadius:4}
+    ]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}}}
+  });
+
+  const byPi = plannedVsCompleted('PI');
+  const orderPi = byPi.keys.map((k,i)=>[k,byPi.planned[i],byPi.completed[i]]).sort((a,b)=>a[0].localeCompare(b[0]));
+  upsertChart('chart-sp-pi', {
+    type:'bar',
+    data:{labels:orderPi.map(x=>x[0]), datasets:[
+      {label:'Planejado', data:orderPi.map(x=>x[1]), backgroundColor:'#DCE3E8', borderRadius:4},
+      {label:'Concluído', data:orderPi.map(x=>x[2]), backgroundColor:'#3D4C5B', borderRadius:4}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+  });
+
+  const months = sortedMonthKeys(concl,'AnoMesConclusao');
+  const monthSP = months.map(m=> sum(concl.filter(d=>d.AnoMesConclusao===m), d=>d['Story Points']));
+  const movAvg = monthSP.map((_,i)=>{
+    const win = monthSP.slice(Math.max(0,i-2), i+1);
+    return mean(win);
+  });
+  upsertChart('chart-sp-month', {
+    type:'bar',
+    data:{labels:months.map(monthLabel), datasets:[
+      {type:'bar', label:'SP concluído', data:monthSP, backgroundColor:'#9BC4BE', borderRadius:4, order:2},
+      {type:'line', label:'Tendência (méd. móvel 3m)', data:movAvg, borderColor:'#C1543A', backgroundColor:'#C1543A', tension:.3, pointRadius:2, order:1}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+  });
+}
+
+/* ===================== TAB: LEAD & CYCLE TIME ===================== */
+function histogramBins(arr, nbins){
+  if(!arr.length) return {labels:[],counts:[]};
+  const max = Math.max(...arr);
+  const binSize = Math.max(1, Math.ceil((max||1)/nbins));
+  const bins = new Array(Math.ceil((max+1)/binSize)).fill(0);
+  arr.forEach(v=>{ const idx = Math.min(bins.length-1, Math.floor(v/binSize)); bins[idx]++; });
+  const labels = bins.map((_,i)=> `${i*binSize}-${(i+1)*binSize-1}d`);
+  return {labels, counts:bins};
+}
+function statBlock(vals){
+  return { n:vals.length, mean:mean(vals), median:median(vals), p85:percentile(vals,85), min:vals.length?Math.min(...vals):null, max:vals.length?Math.max(...vals):null };
+}
+function renderFlow(f){
+  const concl = f.filter(d=>d.Concluido);
+  const leadVals = concl.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
+  const cycleVals = concl.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
+  const lead = statBlock(leadVals), cycle = statBlock(cycleVals);
+
+  document.getElementById('flow-coverage-callout').querySelector('div').innerHTML =
+    `<b>Cobertura de dados no recorte atual:</b> Lead Time calculável para ${lead.n} de ${concl.length} itens concluídos
+    (${concl.length? (lead.n/concl.length*100).toFixed(0):0}%). Cycle Time calculável para ${cycle.n} de ${concl.length}
+    (${concl.length? (cycle.n/concl.length*100).toFixed(0):0}%) — cobertura menor pois depende de "Data de início real" e "Data de fim real" preenchidas.`;
+
+  document.getElementById('lead-kpis').innerHTML = [
+    kpiCard('Média', fmt1(lead.mean), 'd'),
+    kpiCard('Mediana', fmt1(lead.median), 'd'),
+    kpiCard('P85', fmt1(lead.p85), 'd', 'amber'),
+    kpiCard('Mín / Máx', `${fmt1(lead.min)}–${fmt1(lead.max)}`, 'd'),
+  ].join('');
+  document.getElementById('cycle-kpis').innerHTML = [
+    kpiCard('Média', fmt1(cycle.mean), 'd'),
+    kpiCard('Mediana', fmt1(cycle.median), 'd'),
+    kpiCard('P85', fmt1(cycle.p85), 'd', 'amber'),
+    kpiCard('Mín / Máx', `${fmt1(cycle.min)}–${fmt1(cycle.max)}`, 'd'),
+  ].join('');
+
+  const leadHist = histogramBins(leadVals, 12);
+  upsertChart('chart-flow-lead-hist', {
+    type:'bar',
+    data:{labels:leadHist.labels, datasets:[{data:leadHist.counts, backgroundColor:'#1B8F86', borderRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+  });
+  const cycleHist = histogramBins(cycleVals, 12);
+  upsertChart('chart-flow-cycle-hist', {
+    type:'bar',
+    data:{labels:cycleHist.labels, datasets:[{data:cycleHist.counts, backgroundColor:'#D98E3B', borderRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+  });
+
+  const months = sortedMonthKeys(concl.filter(d=>d.LeadTimeDias!=null), 'AnoMesConclusao');
+  const leadTrend = months.map(m=> mean(concl.filter(d=>d.AnoMesConclusao===m && d.LeadTimeDias!=null).map(d=>d.LeadTimeDias)));
+  upsertChart('chart-flow-lead-trend', {
+    type:'line',
+    data:{labels:months.map(monthLabel), datasets:[{label:'Lead Time médio (d)', data:leadTrend, borderColor:'#3D4C5B', backgroundColor:'rgba(61,76,91,.1)', fill:true, tension:.35, pointRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+  });
+
+  const squadLead = Array.from(groupBy(concl.filter(d=>d.LeadTimeDias!=null), d=>d.Squad), ([k,v])=>[k, mean(v.map(d=>d.LeadTimeDias)), v.length])
+    .sort((a,b)=>b[2]-a[2]).slice(0,12).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-flow-lead-squad', {
+    type:'bar',
+    data:{labels:squadLead.map(x=>x[0]), datasets:[{data:squadLead.map(x=>x[1].toFixed(1)), backgroundColor:'#1B8F86', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+  });
+
+  const vsCycle = Array.from(groupBy(concl.filter(d=>d.CycleTimeDias!=null), d=>d.VS), ([k,v])=>[k, mean(v.map(d=>d.CycleTimeDias)), v.length])
+    .sort((a,b)=>b[1]-a[1]);
+  upsertChart('chart-flow-cycle-vs', {
+    type:'bar',
+    data:{labels:vsCycle.map(x=>x[0]), datasets:[{data:vsCycle.map(x=>x[1].toFixed(1)), backgroundColor:'#D98E3B', borderRadius:4}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+  });
+}
+
+/* ===================== TAB: WIP / ENTREGAS / AGING ===================== */
+function renderWip(f){
+  const concl = f.filter(d=>d.Concluido);
+  const wipItems = f.filter(d=>d.WIP);
+  const epicosConcl = concl.filter(d=>d['Tipo Agrupado']==='Épico').length;
+  const historiasConcl = concl.filter(d=>d['Tipo Agrupado']==='História').length;
+  const subtasksConcl = concl.filter(d=>d['Tipo Agrupado']==='Sub-task').length;
+  const epicosEntreg = f.filter(d=>d['Tipo Agrupado']==='Épico' && d.EntregueAmplo).length;
+  const historiasEntreg = f.filter(d=>d['Tipo Agrupado']==='História' && d.EntregueAmplo).length;
+  const ativos = f.filter(d=>!d.Cancelado).length;
+  const pctGeral = ativos? (concl.length/ativos*100):0;
+
+  document.getElementById('wip-kpis').innerHTML = [
+    kpiCard('Épicos entregues', fmt0(epicosEntreg), null, '', {cls:'flat', text:`${fmt0(epicosConcl)} c/ status "Concluído"`}),
+    kpiCard('Histórias entregues', fmt0(historiasEntreg), null, '', {cls:'flat', text:`${fmt0(historiasConcl)} c/ status "Concluído"`}),
+    kpiCard('Sub-tasks concluídas', fmt0(subtasksConcl)),
+    kpiCard('% conclusão geral', pctGeral.toFixed(0), '%'),
+    kpiCard('WIP total', fmt0(wipItems.length), 'itens', 'coral'),
+  ].join('');
+
+  function entregasPor(key){
+    const arr = Array.from(groupBy(concl, d=>d[key]), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
+    return arr;
+  }
+  const eqSquad = entregasPor('Squad').slice(0,14).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-wip-entregas-squad', {
+    type:'bar',
+    data:{labels:eqSquad.map(x=>x[0]), datasets:[{data:eqSquad.map(x=>x[1]), backgroundColor:'#1B8F86', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+  });
+  const eqVs = entregasPor('VS').sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-wip-entregas-vs', {
+    type:'bar',
+    data:{labels:eqVs.map(x=>x[0]), datasets:[{data:eqVs.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}}}
+  });
+  const eqProg = entregasPor('Programa');
+  upsertChart('chart-wip-entregas-programa', {
+    type:'doughnut',
+    data:{labels:eqProg.map(x=>x[0]), datasets:[{data:eqProg.map(x=>x[1]), backgroundColor:['#1B8F86','#0F2438'], borderWidth:2, borderColor:'#fff'}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%'}
+  });
+
+  const wipStatus = Array.from(groupBy(wipItems, d=>d.Status), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]).slice(-15);
+  upsertChart('chart-wip-status', {
+    type:'bar',
+    data:{labels:wipStatus.map(x=>x[0]), datasets:[{data:wipStatus.map(x=>x[1]), backgroundColor:'#8AA0B0', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+  });
+  const wipSquad = Array.from(groupBy(wipItems, d=>d.Squad), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]).slice(-15);
+  upsertChart('chart-wip-squad', {
+    type:'bar',
+    data:{labels:wipSquad.map(x=>x[0]), datasets:[{data:wipSquad.map(x=>x[1]), backgroundColor:'#C1543A', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+  });
+
+  const agingVals = wipItems.map(d=>d.AgingDias).filter(v=>v!=null && v>=0);
+  const agingHist = histogramBins(agingVals, 12);
+  upsertChart('chart-wip-aging-hist', {
+    type:'bar',
+    data:{labels:agingHist.labels, datasets:[{data:agingHist.counts, backgroundColor:'#D98E3B', borderRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+  });
+
+  const agingSquad = Array.from(groupBy(wipItems.filter(d=>d.AgingDias!=null && d.AgingDias>=0), d=>d.Squad), ([k,v])=>[k, mean(v.map(d=>d.AgingDias)), v.length])
+    .filter(x=>x[2]>=2).sort((a,b)=>b[1]-a[1]).slice(0,10).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-wip-aging-squad', {
+    type:'bar',
+    data:{labels:agingSquad.map(x=>x[0]), datasets:[{data:agingSquad.map(x=>x[1].toFixed(1)), backgroundColor:'#C1543A', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+  });
+
+  // Epic table — recompute rollup from filtered set using EpicoChave
+  const epicMap = new Map();
+  EPICS.forEach(e=> epicMap.set(e.Chave, e.Resumo));
+  const byEpic = groupBy(f.filter(d=>d.EpicoChave), d=>d.EpicoChave);
+  const epicRows = Array.from(byEpic, ([key,items])=>{
+    const total = items.length;
+    const canc = items.filter(d=>d.Cancelado).length;
+    const conclN = items.filter(d=>d.Concluido).length;
+    const ativosN = total-canc;
+    const pct = ativosN? (conclN/ativosN*100):0;
+    const spT = sum(items, d=>d['Story Points']);
+    const spC = sum(items.filter(d=>d.Concluido), d=>d['Story Points']);
+    const squad = items[0].Squad;
+    return {key, resumo:epicMap.get(key)||key, squad, total, conclN, pct, spT, spC};
+  }).filter(r=>r.total>=3).sort((a,b)=>b.total-a.total).slice(0,25);
+
+  document.querySelector('#epic-table tbody').innerHTML = epicRows.map(r=>`
+    <tr>
+      <td><span class="mono" style="font-size:11px;color:var(--slate-soft);">${r.key}</span><br>${r.resumo}</td>
+      <td style="font-size:11.5px;">${r.squad}</td>
+      <td>${r.total}</td>
+      <td>${r.conclN}</td>
+      <td class="mono" style="font-size:11.5px;">${fmt0(r.spC)}/${fmt0(r.spT)}</td>
+      <td><div class="progressbar"><i style="width:${r.pct}%;"></i><span>${r.pct.toFixed(0)}%</span></div></td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--slate-soft);">Nenhum épico com itens vinculados suficientes no recorte atual.</td></tr>';
+}
+
+/* ===================== TAB: RANKINGS & HEATMAP ===================== */
+function heatColor(v, max){
+  if(max<=0 || v<=0) return '#F1F0EC';
+  const t = Math.min(1, v/max);
+  // interpolate between light teal and dark teal
+  const r1=220,g1=239,b1=234, r2=19,g2=107,b2=100;
+  const r = Math.round(r1+(r2-r1)*t), g = Math.round(g1+(g2-g1)*t), b = Math.round(b1+(b2-b1)*t);
+  return `rgb(${r},${g},${b})`;
+}
+function renderRank(f){
+  const concl = f.filter(d=>d.Concluido);
+
+  const squadRank = Array.from(groupBy(concl, d=>d.Squad), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-rank-squad', {
+    type:'bar',
+    data:{labels:squadRank.map(x=>x[0]), datasets:[{data:squadRank.map(x=>x[1]), backgroundColor:'#1B8F86', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+  });
+  const vsRank = Array.from(groupBy(concl, d=>d.VS), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-rank-vs', {
+    type:'bar',
+    data:{labels:vsRank.map(x=>x[0]), datasets:[{data:vsRank.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}}}
+  });
+
+  // Heatmap Squad x Month
+  const months = sortedMonthKeys(concl, 'AnoMesConclusao');
+  const squads = Array.from(new Set(concl.map(d=>d.Squad))).sort();
+  const matrix = squads.map(sq=> months.map(m=> concl.filter(d=>d.Squad===sq && d.AnoMesConclusao===m).length));
+  const maxVal = Math.max(1, ...matrix.flat());
+
+  let html = '<table class="heat-table"><thead><tr><th>Squad</th>' + months.map(m=>`<th>${monthLabel(m)}</th>`).join('') + '</tr></thead><tbody>';
+  squads.forEach((sq,i)=>{
+    html += `<tr><td>${sq}</td>` + matrix[i].map(v=>`<td><div class="heat-cell" style="background:${heatColor(v,maxVal)};color:${v/maxVal>0.55?'#fff':'#3D4C5B'};">${v||''}</div></td>`).join('') + '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('heatmap-container').innerHTML = months.length && squads.length ? html : '<div class="cap">Sem dados suficientes para montar o heatmap no recorte atual.</div>';
+
+  // Consolidated table
+  const allSquads = Array.from(new Set(f.map(d=>d.Squad))).sort();
+  const rows = allSquads.map(sq=>{
+    const items = f.filter(d=>d.Squad===sq);
+    const conclItems = items.filter(d=>d.Concluido);
+    const vs = items[0] ? items[0].VS : '';
+    const spConcl = sum(conclItems, d=>d['Story Points']);
+    const wipN = items.filter(d=>d.WIP).length;
+    const leadArr = conclItems.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
+    const ativosN = items.filter(d=>!d.Cancelado).length;
+    const pct = ativosN? (conclItems.length/ativosN*100):0;
+    return {sq, vs, throughput:conclItems.length, spConcl, wipN, leadMean:mean(leadArr), pct};
+  }).sort((a,b)=>b.throughput-a.throughput);
+
+  document.querySelector('#rank-table tbody').innerHTML = rows.map(r=>`
+    <tr><td>${r.sq}</td><td style="font-size:11.5px;color:var(--slate-soft);">${r.vs}</td>
+    <td><b>${r.throughput}</b></td><td>${fmt0(r.spConcl)}</td><td>${r.wipN}</td>
+    <td>${fmt1(r.leadMean)}</td>
+    <td><span class="badge ${r.pct>=70?'ok':r.pct>=40?'warn':'risk'}">${r.pct.toFixed(0)}%</span></td></tr>`).join('');
+}
+
+/* ===================== Init / Bootstrap ===================== */
+function showLoading(msg){
+  let el = document.getElementById('__loading');
+  if(!el){
+    el = document.createElement('div');
+    el.id = '__loading';
+    el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;'
+      + 'background:rgba(250,249,246,.92);z-index:9999;font-family:Inter,system-ui,sans-serif;'
+      + 'color:#3D4C5B;font-size:15px;flex-direction:column;gap:14px;text-align:center;padding:24px;';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = '<div style="width:34px;height:34px;border:3px solid #E4E2DC;border-top-color:#1B8F86;'
+    + 'border-radius:50%;animation:__spin .8s linear infinite;"></div>'
+    + '<div>' + msg + '</div>'
+    + '<style>@keyframes __spin{to{transform:rotate(360deg)}}</style>';
+  el.style.display = 'flex';
+}
+function hideLoading(){
+  const el = document.getElementById('__loading');
+  if(el) el.style.display = 'none';
+}
+function showError(detail){
+  let el = document.getElementById('__loading') || document.body.appendChild(document.createElement('div'));
+  el.id = '__loading';
+  el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;'
+    + 'background:rgba(250,249,246,.96);z-index:9999;font-family:Inter,system-ui,sans-serif;'
+    + 'color:#C1543A;flex-direction:column;gap:12px;text-align:center;padding:32px;';
+  el.innerHTML = '<div style="font-size:17px;font-weight:600;">Não foi possível carregar os dados do Jira</div>'
+    + '<div style="color:#3D4C5B;font-size:13.5px;max-width:520px;">' + detail + '</div>'
+    + '<button onclick="bootstrap(true)" style="margin-top:6px;padding:9px 18px;border:none;border-radius:6px;'
+    + 'background:#1B8F86;color:#fff;font-size:13.5px;cursor:pointer;">Tentar novamente</button>';
+  el.style.display = 'flex';
+}
+
+function formatExportDate(iso){
+  try{
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2,'0');
+    return `${pad(d.getUTCDate())} ${MESES[d.getUTCMonth()+1]} ${d.getUTCFullYear()}, `
+      + `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
+  }catch(e){ return iso; }
+}
+
+async function bootstrap(forceRefresh){
+  showLoading('Buscando dados do Jira...');
+  try{
+    const url = '/api/dashboard' + (forceRefresh ? '?refresh=1' : '');
+    const res = await fetch(url);
+    if(!res.ok){
+      let detail = res.status + ' ' + res.statusText;
+      try{ const j = await res.json(); detail = j.detail || j.error || detail; }catch(e){}
+      throw new Error(detail);
+    }
+    const payload = await res.json();
+    DATA = payload.issues || [];
+    EPICS = payload.epics || [];
+    document.getElementById('exportDate').textContent = formatExportDate(payload.generatedAt);
+
+    normalizeData();
+    buildFilterBar();
+    renderAll();
+    hideLoading();
+  }catch(err){
+    console.error('bootstrap error:', err);
+    showError(err.message || String(err));
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => bootstrap(false));
+
+</script>
+</body>
+</html>

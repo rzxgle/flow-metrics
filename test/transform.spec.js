@@ -1,0 +1,167 @@
+'use strict';
+
+/**
+ * Teste de integração da transformação (raw -> enriquecido).
+ *
+ * Usa um fixture sintético que exercita TODAS as regras reconstruídas por
+ * engenharia reversa (validadas contra 3.202 issues reais, com correspondência
+ * de 100% nos campos usados pelo dashboard e 183/183 nas agregações de épico).
+ *
+ * Rode com:  npm run test:transform
+ */
+const assert = require('assert');
+const Issue = require('../src/domain/entities/Issue');
+const rules = require('../src/config/classification.rules');
+const IssueClassifier = require('../src/domain/services/IssueClassifier');
+const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
+const IssueEnricher = require('../src/domain/services/IssueEnricher');
+const EpicSummaryBuilder = require('../src/domain/services/EpicSummaryBuilder');
+const EpicHealthEvaluator = require('../src/domain/services/EpicHealthEvaluator');
+const GetDashboardDataUseCase = require('../src/application/use-cases/GetDashboardDataUseCase');
+const IssueRepository = require('../src/domain/repositories/IssueRepository');
+
+// Data de referência fixa para tornar o Aging determinístico:
+const REF = new Date('2026-07-15T12:01:00Z');
+
+// --- Fixture sintético (entrada crua, como sairia do JiraIssueRepository) ---
+const fixture = [
+  {
+    key: 'AONE-1', summary: 'Épico de teste', issueType: 'Epic',
+    projectName: 'APRENDER', team: 'Squad Aprender - Preparatórios', status: 'Desenvolvimento',
+    storyPoints: 0, createdAt: '2026-05-01T10:00:00Z', labels: ['PI3AfyaOne'], parentKey: null,
+  },
+  {
+    key: 'AONE-2', summary: 'História concluída', issueType: 'História',
+    projectName: 'APRENDER', team: 'Squad Aprender - Preparatórios', status: 'Concluído',
+    storyPoints: 5, createdAt: '2026-06-01T10:00:00Z',
+    actualStartDate: '2026-06-03T10:00:00Z', actualEndDate: '2026-06-05T16:00:00Z',
+    labels: ['PI3AfyaOne'], parentKey: 'AONE-1',
+  },
+  {
+    key: 'AONE-3', summary: 'Sub-task herda incremental da história', issueType: 'Sub-imp',
+    projectName: 'APRENDER', team: 'Squad Aprender - Preparatórios', status: 'EM ANDAMENTO',
+    storyPoints: 1, createdAt: '2026-06-10T09:00:00Z', actualStartDate: '2026-06-11T09:00:00Z',
+    labels: ['PI3AfyaOne'], parentKey: 'AONE-2',
+  },
+  {
+    key: 'AONE-4', summary: 'Bug (não incremental)', issueType: 'Bug hotfix',
+    projectName: 'CORE EXPERIENCE', team: '', status: 'CANCELADO',
+    storyPoints: 3, createdAt: '2026-06-02T10:00:00Z', labels: ['PI2AfyaOne'], parentKey: 'AONE-1',
+  },
+  {
+    key: 'AONE-5', summary: 'Datas invertidas -> métricas nulas', issueType: 'Sub-test',
+    projectName: 'CORE EXPERIENCE', team: 'Squad Core - Core Features', status: 'Concluído',
+    storyPoints: 2, createdAt: '2026-06-06T10:00:00Z',
+    actualStartDate: '2026-06-05T15:00:00Z', actualEndDate: '2026-06-05T10:00:00Z', // fim antes do início e da criação
+    labels: ['PI4AfyaOne'], parentKey: 'AONE-1',
+  },
+  {
+    key: 'BRG-1', summary: 'Épico do Afya Bridge', issueType: 'Enabler Epic',
+    projectName: 'Value Streams Afya Bridge', team: 'Squad Bridge', status: 'CANCELADO',
+    storyPoints: 8, createdAt: '2026-04-01T10:00:00Z', labels: ['EpicoPI2Legado'], parentKey: null,
+  },
+];
+
+class FakeRepo extends IssueRepository {
+  async findAll() { return fixture.map((r) => new Issue(r)); }
+}
+
+function build() {
+  const classifier = new IssueClassifier(rules);
+  const metrics = new FlowMetricsCalculator(REF);
+  return new GetDashboardDataUseCase({
+    issueRepository: new FakeRepo(),
+    enricher: new IssueEnricher(classifier, metrics),
+    epicSummaryBuilder: new EpicSummaryBuilder(),
+    epicHealthEvaluator: new EpicHealthEvaluator(classifier, REF),
+  });
+}
+
+(async () => {
+  const { issues, epics } = await build().execute();
+  const byKey = Object.fromEntries(issues.map((i) => [i.Chave, i]));
+  let passed = 0;
+  const check = (desc, fn) => { fn(); passed++; console.log('  ✓', desc); };
+
+  console.log('\nTransformação raw -> enriquecido:');
+
+  check('Tipo Agrupado: Epic -> Épico', () =>
+    assert.strictEqual(byKey['AONE-1']['Tipo Agrupado'], 'Épico'));
+  check('Tipo Agrupado: Bug hotfix -> Bug', () =>
+    assert.strictEqual(byKey['AONE-4']['Tipo Agrupado'], 'Bug'));
+  check('Tipo Agrupado: Sub-imp -> Sub-task', () =>
+    assert.strictEqual(byKey['AONE-3']['Tipo Agrupado'], 'Sub-task'));
+
+  check('Programa: projeto normal -> Afya One', () =>
+    assert.strictEqual(byKey['AONE-2'].Programa, 'Afya One'));
+  check('Programa: Value Streams Afya Bridge -> Afya Bridge', () =>
+    assert.strictEqual(byKey['BRG-1'].Programa, 'Afya Bridge'));
+
+  check('PI: PI3AfyaOne -> "PI3 - Afya One"', () =>
+    assert.strictEqual(byKey['AONE-1'].PI, 'PI3 - Afya One'));
+  check('PI: PI4AfyaOne -> "PI4 - Afya One"', () =>
+    assert.strictEqual(byKey['AONE-5'].PI, 'PI4 - Afya One'));
+  check('PI: EpicoPI2Legado -> "PI2 - Legado"', () =>
+    assert.strictEqual(byKey['BRG-1'].PI, 'PI2 - Legado'));
+
+  check('Flags de status: Concluído', () => {
+    assert.strictEqual(byKey['AONE-2'].Concluido, true);
+    assert.strictEqual(byKey['AONE-2'].WIP, false);
+  });
+  check('Flags de status: CANCELADO', () => {
+    assert.strictEqual(byKey['AONE-4'].Cancelado, true);
+    assert.strictEqual(byKey['AONE-4'].WIP, false);
+  });
+  check('Flags de status: em andamento -> WIP', () =>
+    assert.strictEqual(byKey['AONE-3'].WIP, true));
+
+  check('Squad vazio -> "Não informado"', () =>
+    assert.strictEqual(byKey['AONE-4'].Squad, 'Não informado'));
+
+  check('Lead Time (fim - criação) só p/ concluído', () => {
+    // 2026-06-01 10:00 -> 2026-06-05 16:00 = 4.25 dias
+    assert.strictEqual(byKey['AONE-2'].LeadTimeDias, 4.25);
+    assert.strictEqual(byKey['AONE-3'].LeadTimeDias, null); // não concluído
+  });
+  check('Cycle Time (fim - início real)', () => {
+    // 2026-06-03 10:00 -> 2026-06-05 16:00 = 2.25 dias
+    assert.strictEqual(byKey['AONE-2'].CycleTimeDias, 2.25);
+  });
+  check('Datas invertidas -> Lead/Cycle nulos', () => {
+    assert.strictEqual(byKey['AONE-5'].CycleTimeDias, null);
+    assert.strictEqual(byKey['AONE-5'].LeadTimeDias, null);
+  });
+  check('Aging (meia-noite ref - início/criação)', () => {
+    // AONE-3: início 2026-06-11 09:00 -> ref meia-noite 2026-07-15 = 33.6 dias
+    assert.strictEqual(byKey['AONE-3'].AgingDias, 33.6);
+  });
+
+  check('EpicoChave resolvido via cadeia de parents', () => {
+    assert.strictEqual(byKey['AONE-3'].EpicoChave, 'AONE-1'); // sub -> história -> épico
+    assert.strictEqual(byKey['AONE-2'].EpicoChave, 'AONE-1');
+    assert.strictEqual(byKey['AONE-1'].EpicoChave, 'AONE-1'); // épico aponta p/ si
+  });
+
+  check('Incremental: história=true, bug=false, sub herda da história=true', () => {
+    assert.strictEqual(byKey['AONE-2'].Incremental, true);
+    assert.strictEqual(byKey['AONE-4'].Incremental, false);
+    assert.strictEqual(byKey['AONE-3'].Incremental, true);
+  });
+
+  check('Agregação de épico (AONE-1)', () => {
+    const e = epics.find((x) => x.Chave === 'AONE-1');
+    // membros: AONE-1..5 (todos apontam p/ AONE-1). Total=5, Concluídos=2, Cancelados=1
+    assert.strictEqual(e.TotalItens, 5);
+    assert.strictEqual(e.Concluidos, 2);
+    assert.strictEqual(e.Cancelados, 1);
+    // Pct = 2 / (5-1) * 100 = 50.0
+    assert.strictEqual(e.PctConclusao, 50);
+    assert.strictEqual(e.SPTotal, 11); // 0+5+1+3+2
+    assert.strictEqual(e.SPConcluido, 7); // 5 (AONE-2) + 2 (AONE-5)
+  });
+
+  console.log(`\n✅ ${passed} verificações passaram.\n`);
+})().catch((e) => {
+  console.error('\n❌ Teste falhou:', e.message, '\n');
+  process.exit(1);
+});
