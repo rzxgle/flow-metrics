@@ -12,7 +12,7 @@ function loadConfig(env = process.env) {
     'project IN (LEG, COREX, APP, "DESC", BAU, CONV, APR, PLAT) ' +
       'AND type IN (Epic, "Enabler Epic", "Bug hotfix", Bug, Sub-block, Sub-bug, Sub-imp, ' +
       'Sub-design, História, Story, Melhoria, Sub-script, Sub-task, Sub-test, ' +
-      '"Technical Debt", "Correção Staging") ORDER BY created DESC';
+      '"Technical Debt", "Correção Staging") AND created >= startOfYear() ORDER BY created DESC';
 
   return {
     port: Number(env.PORT) || 3000,

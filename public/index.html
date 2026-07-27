@@ -230,7 +230,7 @@
         <span class="flow-mark"><span></span><span></span><span></span></span>
         <div>
           <h1>Afya Metrics — Afya Bridge &amp; Afya One</h1>
-          <div class="sub">Dashboard ágil · SAFe / Afya Metrics · dados extraídos do Jira</div>
+          <div class="sub">Dashboard ágil · Afya Metrics · dados extraídos do Jira</div>
         </div>
       </div>
       <div class="updated">ATUALIZADO EM<br><span id="exportDate" class="mono"></span></div>
@@ -818,8 +818,8 @@ function renderExec(f){
     kpiCard('Concluídos', fmt0(concl.length), null, '', {cls:'up', text:pct.toFixed(0)+'% dos itens ativos'}),
     kpiCard('Story Points concluídos', fmt0(spConcl), 'sp'),
     kpiCard('Story Points planejados', fmt0(spTotal), 'sp'),
-    kpiCard('Lead Time médio', fmt1(mean(leadVals)), 'dias', 'amber'),
-    kpiCard('Cycle Time médio', fmt1(mean(cycleVals)), 'dias', 'amber'),
+    kpiCard('Lead Time (P85)', fmt1(percentile(leadVals, 85)), 'dias', 'amber'),
+    kpiCard('Cycle Time (P85)', fmt1(percentile(cycleVals, 85)), 'dias', 'amber'),
     kpiCard('WIP atual', fmt0(wip), 'itens', 'coral'),
   ].join('');
 
