@@ -231,6 +231,7 @@
         <div>
           <h1>Afya Metrics — Afya Bridge &amp; Afya One</h1>
           <div class="sub">Dashboard ágil · Afya Metrics · dados extraídos do Jira</div>
+          <div class="sub" id="periodoDados" style="margin-top:4px;font-weight:600;color:#1B8F86;"></div>
         </div>
       </div>
       <div class="updated">ATUALIZADO EM<br><span id="exportDate" class="mono"></span></div>
@@ -395,17 +396,17 @@
 
   <div class="grid grid-2" style="margin-top:14px;">
     <div class="card">
-      <h3>Tendência mensal do Lead Time médio</h3>
+      <h3>Tendência mensal do Lead Time (P85, em dias)</h3>
       <div class="chartwrap"><canvas id="chart-flow-lead-trend"></canvas></div>
     </div>
     <div class="card">
-      <h3>Lead Time médio por Squad (top 12 por volume)</h3>
+      <h3>Lead Time P85 por Squad — em dias (top 12 por volume)</h3>
       <div class="chartwrap"><canvas id="chart-flow-lead-squad"></canvas></div>
     </div>
   </div>
 
   <div class="card" style="margin-top:14px;">
-    <h3>Cycle Time médio por Value Stream</h3>
+    <h3>Cycle Time P85 por Value Stream (em dias)</h3>
     <div class="chartwrap short"><canvas id="chart-flow-cycle-vs"></canvas></div>
   </div>
 </section>
@@ -783,12 +784,27 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
 /* ===================== Render orchestrator ===================== */
 function renderAll(){
   const f = getFiltered();
+  renderPeriodo(f);
   renderExec(f);
   renderThroughput(f);
   renderSP(f);
   renderFlow(f);
   renderWip(f);
   renderRank(f);
+}
+
+/* Item 2 — mostra o intervalo de datas presente no recorte filtrado */
+function renderPeriodo(f){
+  const el = document.getElementById('periodoDados');
+  if(!el) return;
+  const criadas = f.map(d=>d.Criado).filter(Boolean).sort();
+  const concl = f.map(d=>d['Data Conclusao']).filter(Boolean).sort();
+  if(!criadas.length){ el.textContent = 'Período: sem dados no recorte atual'; return; }
+  const fmt = iso => { const [a,m,dd]=iso.split('-'); return `${dd}/${m}/${a}`; };
+  let txt = `Período dos dados · criação de ${fmt(criadas[0])} a ${fmt(criadas[criadas.length-1])}`;
+  if(concl.length) txt += ` · conclusões de ${fmt(concl[0])} a ${fmt(concl[concl.length-1])}`;
+  txt += ` · ${f.length.toLocaleString('pt-BR')} itens`;
+  el.textContent = txt;
 }
 
 /* ===================== KPI card helper ===================== */
@@ -1070,53 +1086,49 @@ function renderFlow(f){
     (${concl.length? (cycle.n/concl.length*100).toFixed(0):0}%) — cobertura menor pois depende de "Data de início real" e "Data de fim real" preenchidas.`;
 
   document.getElementById('lead-kpis').innerHTML = [
-    kpiCard('Média', fmt1(lead.mean), 'd'),
-    kpiCard('Mediana', fmt1(lead.median), 'd'),
-    kpiCard('P85', fmt1(lead.p85), 'd', 'amber'),
-    kpiCard('Mín / Máx', `${fmt1(lead.min)}–${fmt1(lead.max)}`, 'd'),
+    kpiCard('Lead Time (P85)', fmt1(lead.p85), 'dias', 'amber'),
+    kpiCard('Itens considerados', fmt0(lead.n), ''),
   ].join('');
   document.getElementById('cycle-kpis').innerHTML = [
-    kpiCard('Média', fmt1(cycle.mean), 'd'),
-    kpiCard('Mediana', fmt1(cycle.median), 'd'),
-    kpiCard('P85', fmt1(cycle.p85), 'd', 'amber'),
-    kpiCard('Mín / Máx', `${fmt1(cycle.min)}–${fmt1(cycle.max)}`, 'd'),
+    kpiCard('Cycle Time (P85)', fmt1(cycle.p85), 'dias', 'amber'),
+    kpiCard('Itens considerados', fmt0(cycle.n), ''),
   ].join('');
 
   const leadHist = histogramBins(leadVals, 12);
   upsertChart('chart-flow-lead-hist', {
     type:'bar',
     data:{labels:leadHist.labels, datasets:[{data:leadHist.counts, backgroundColor:'#1B8F86', borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}}}
   });
   const cycleHist = histogramBins(cycleVals, 12);
   upsertChart('chart-flow-cycle-hist', {
     type:'bar',
     data:{labels:cycleHist.labels, datasets:[{data:cycleHist.counts, backgroundColor:'#D98E3B', borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}}}
   });
 
   const months = sortedMonthKeys(concl.filter(d=>d.LeadTimeDias!=null), 'AnoMesConclusao');
-  const leadTrend = months.map(m=> mean(concl.filter(d=>d.AnoMesConclusao===m && d.LeadTimeDias!=null).map(d=>d.LeadTimeDias)));
+  const leadTrend = months.map(m=> percentile(concl.filter(d=>d.AnoMesConclusao===m && d.LeadTimeDias!=null).map(d=>d.LeadTimeDias), 85));
   upsertChart('chart-flow-lead-trend', {
     type:'line',
-    data:{labels:months.map(monthLabel), datasets:[{label:'Lead Time médio (d)', data:leadTrend, borderColor:'#3D4C5B', backgroundColor:'rgba(61,76,91,.1)', fill:true, tension:.35, pointRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+    data:{labels:months.map(monthLabel), datasets:[{label:'Lead Time P85 (dias)', data:leadTrend, borderColor:'#3D4C5B', backgroundColor:'rgba(61,76,91,.1)', fill:true, tension:.35, pointRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}}}
   });
 
-  const squadLead = Array.from(groupBy(concl.filter(d=>d.LeadTimeDias!=null), d=>d.Squad), ([k,v])=>[k, mean(v.map(d=>d.LeadTimeDias)), v.length])
+  const squadLead = Array.from(groupBy(concl.filter(d=>d.LeadTimeDias!=null), d=>d.Squad), ([k,v])=>[k, percentile(v.map(d=>d.LeadTimeDias),85), v.length])
     .sort((a,b)=>b[2]-a[2]).slice(0,12).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-flow-lead-squad', {
     type:'bar',
-    data:{labels:squadLead.map(x=>x[0]), datasets:[{data:squadLead.map(x=>x[1].toFixed(1)), backgroundColor:'#1B8F86', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+    data:{labels:squadLead.map(x=>x[0]), datasets:[{label:'Lead Time P85 (dias)', data:squadLead.map(x=>x[1].toFixed(1)), backgroundColor:'#1B8F86', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
   });
 
-  const vsCycle = Array.from(groupBy(concl.filter(d=>d.CycleTimeDias!=null), d=>d.VS), ([k,v])=>[k, mean(v.map(d=>d.CycleTimeDias)), v.length])
+  const vsCycle = Array.from(groupBy(concl.filter(d=>d.CycleTimeDias!=null), d=>d.VS), ([k,v])=>[k, percentile(v.map(d=>d.CycleTimeDias),85), v.length])
     .sort((a,b)=>b[1]-a[1]);
   upsertChart('chart-flow-cycle-vs', {
     type:'bar',
-    data:{labels:vsCycle.map(x=>x[0]), datasets:[{data:vsCycle.map(x=>x[1].toFixed(1)), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+    data:{labels:vsCycle.map(x=>x[0]), datasets:[{label:'Cycle Time P85 (dias)', data:vsCycle.map(x=>x[1].toFixed(1)), backgroundColor:'#D98E3B', borderRadius:4}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}}}
   });
 }
 
