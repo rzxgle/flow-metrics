@@ -584,6 +584,23 @@ const FILTER_DIMS = [
 const selections = {};
 FILTER_DIMS.forEach(f=> selections[f.key] = new Set());
 
+/* ===================== Item 6 — Filtro de calendário (por data de conclusão) =====================
+   Opção A: itens COM data de conclusão são filtrados pelo intervalo;
+   itens em aberto (WIP, sem data de conclusão) permanecem sempre visíveis. */
+const dateRange = { from: null, to: null }; // 'YYYY-MM-DD'
+
+function isoToday(){ return new Date().toISOString().slice(0,10); }
+function isoFirstDayMonthsAgo(n){
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth()-n, 1));
+  return d.toISOString().slice(0,10);
+}
+/* Default: últimos 6 meses (mês atual + 5 anteriores) */
+function setDefaultDateRange(){
+  dateRange.from = isoFirstDayMonthsAgo(5);
+  dateRange.to = isoToday();
+}
+
 function uniqueVals(key){
   const set = new Set();
   DATA.forEach(d=>{
@@ -676,6 +693,8 @@ function buildFilterBar(){
     });
   });
 
+  buildDateFilter(bar);
+
   const clearAll = document.createElement('button');
   clearAll.className = 'clear-btn';
   clearAll.textContent = 'Limpar todos os filtros';
@@ -686,12 +705,43 @@ function buildFilterBar(){
       wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
       updateFilterBtn(f.key, wrap.querySelector('.dd-btn'));
     });
+    // limpa também o intervalo de datas
+    dateRange.from = null; dateRange.to = null;
+    const df = document.getElementById('dateFrom'); const dt = document.getElementById('dateTo');
+    if(df) df.value=''; if(dt) dt.value='';
     renderAll();
   });
   bar.appendChild(clearAll);
 
   document.addEventListener('click', ()=>{
     document.querySelectorAll('.dd-panel.open').forEach(p=>p.classList.remove('open'));
+  });
+}
+
+/* Controle de intervalo de datas (item 6) */
+function buildDateFilter(bar){
+  const wrap = document.createElement('div');
+  wrap.className = 'date-filter';
+  wrap.style.cssText = 'display:flex;align-items:center;gap:6px;padding:0 8px;font-size:12px;color:#3D4C5B;';
+  wrap.innerHTML = `
+    <span style="font-weight:600;">Conclusão:</span>
+    <label style="display:flex;align-items:center;gap:3px;">de
+      <input type="date" id="dateFrom" style="border:1px solid #D9D7D0;border-radius:5px;padding:3px 5px;font-size:12px;">
+    </label>
+    <label style="display:flex;align-items:center;gap:3px;">até
+      <input type="date" id="dateTo" style="border:1px solid #D9D7D0;border-radius:5px;padding:3px 5px;font-size:12px;">
+    </label>
+    <button data-act="clear-date" title="Limpar período" style="border:none;background:#EFEEEA;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:12px;">×</button>`;
+  bar.appendChild(wrap);
+
+  const df = wrap.querySelector('#dateFrom');
+  const dt = wrap.querySelector('#dateTo');
+  df.value = dateRange.from || '';
+  dt.value = dateRange.to || '';
+  df.addEventListener('change', ()=>{ dateRange.from = df.value || null; renderAll(); });
+  dt.addEventListener('change', ()=>{ dateRange.to = dt.value || null; renderAll(); });
+  wrap.querySelector('[data-act="clear-date"]').addEventListener('click', ()=>{
+    dateRange.from = null; dateRange.to = null; df.value=''; dt.value=''; renderAll();
   });
 }
 function updateFilterBtn(key, btn){
@@ -709,6 +759,14 @@ function getFiltered(){
       let v = d[f.key];
       if(v===null||v===undefined||v==='') v='(Não informado)';
       if(!sel.has(String(v))) return false;
+    }
+    // Item 6 — intervalo por data de conclusão (Opção A: WIP sempre visível)
+    if(dateRange.from || dateRange.to){
+      const dc = d['Data Conclusao'];
+      if(dc){ // só filtra quem tem conclusão; em aberto passa sempre
+        if(dateRange.from && dc < dateRange.from) return false;
+        if(dateRange.to && dc > dateRange.to) return false;
+      }
     }
     return true;
   });
@@ -797,13 +855,18 @@ function renderAll(){
 function renderPeriodo(f){
   const el = document.getElementById('periodoDados');
   if(!el) return;
+  const fmt = iso => { const [a,m,dd]=iso.split('-'); return `${dd}/${m}/${a}`; };
+  let prefixo = '';
+  if(dateRange.from || dateRange.to){
+    const de = dateRange.from ? fmt(dateRange.from) : 'início';
+    const ate = dateRange.to ? fmt(dateRange.to) : 'hoje';
+    prefixo = `Filtro de conclusão: ${de} → ${ate} · `;
+  }
   const criadas = f.map(d=>d.Criado).filter(Boolean).sort();
   const concl = f.map(d=>d['Data Conclusao']).filter(Boolean).sort();
-  if(!criadas.length){ el.textContent = 'Período: sem dados no recorte atual'; return; }
-  const fmt = iso => { const [a,m,dd]=iso.split('-'); return `${dd}/${m}/${a}`; };
-  let txt = `Período dos dados · criação de ${fmt(criadas[0])} a ${fmt(criadas[criadas.length-1])}`;
+  if(!criadas.length){ el.textContent = prefixo + 'sem dados no recorte atual'; return; }
+  let txt = prefixo + `${f.length.toLocaleString('pt-BR')} itens no recorte`;
   if(concl.length) txt += ` · conclusões de ${fmt(concl[0])} a ${fmt(concl[concl.length-1])}`;
-  txt += ` · ${f.length.toLocaleString('pt-BR')} itens`;
   el.textContent = txt;
 }
 
@@ -1349,6 +1412,7 @@ async function bootstrap(forceRefresh){
     document.getElementById('exportDate').textContent = formatExportDate(payload.generatedAt);
 
     normalizeData();
+    setDefaultDateRange();
     buildFilterBar();
     renderAll();
     hideLoading();
