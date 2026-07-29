@@ -30,6 +30,9 @@ class JiraFieldMap {
     this.startDate = env.JIRA_FIELD_START_DATE || 'customfield_10015'; // "Start date"
     this.actualStart = env.JIRA_FIELD_ACTUAL_START || 'customfield_10257'; // "Data de início real"
     this.actualEnd = env.JIRA_FIELD_ACTUAL_END || 'customfield_10258'; // "Data de fim real"
+    this.sprint = env.JIRA_FIELD_SPRINT || 'customfield_10113'; // "Sprint" (array de objetos)
+    this.bcp = env.JIRA_FIELD_BCP || 'customfield_12377'; // "BCP" (numérico)
+    this.blockReason = env.JIRA_FIELD_BLOCK_REASON || 'customfield_11638'; // "Motivo de Bloqueio"
   }
 
   /** Lista de campos a solicitar na busca (reduz payload da API). */
@@ -38,6 +41,7 @@ class JiraFieldMap {
       this.summary, this.issuetype, this.project, this.status,
       this.created, this.resolutiondate, this.duedate, this.labels, this.parent,
       this.team, this.storyPoints, this.startDate, this.actualStart, this.actualEnd,
+      this.sprint, this.bcp, this.blockReason,
     ];
   }
 }

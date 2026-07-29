@@ -25,6 +25,9 @@ class Issue {
     actualEndDate,
     labels,
     parentKey,
+    sprint,
+    bcp,
+    blockReason,
   }) {
     this.key = key;
     this.summary = summary;
@@ -41,6 +44,9 @@ class Issue {
     this.actualEndDate = actualEndDate || null;
     this.labels = Array.isArray(labels) ? labels : [];
     this.parentKey = parentKey || null;
+    this.sprint = sprint || null; // nome da última sprint ativa
+    this.bcp = (bcp === 0 || bcp) ? Number(bcp) : null; // complexidade normalizada (numérico)
+    this.blockReason = blockReason || null; // motivo de bloqueio
   }
 }
 

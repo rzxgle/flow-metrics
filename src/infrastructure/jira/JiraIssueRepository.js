@@ -43,6 +43,9 @@ class JiraIssueRepository extends IssueRepository {
       actualEndDate: f[fm.actualEnd] || null,
       labels: f[fm.labels] || [],
       parentKey: f[fm.parent] ? f[fm.parent].key : null,
+      sprint: this._readSprint(f[fm.sprint]),
+      bcp: f[fm.bcp],
+      blockReason: this._readSelect(f[fm.blockReason]),
     });
   }
 
@@ -54,6 +57,31 @@ class JiraIssueRepository extends IssueRepository {
     if (!value) return null;
     if (typeof value === 'string') return value;
     return value.name || value.value || value.title || null;
+  }
+
+  /**
+   * O campo "Sprint" vem como array de objetos (uma issue pode ter passado por
+   * várias sprints). Regra de negócio: usar a ÚLTIMA sprint ATIVA; se não houver
+   * ativa, cai para a última do array. Retorna o `name`.
+   */
+  _readSprint(value) {
+    if (!value) return null;
+    const arr = Array.isArray(value) ? value : [value];
+    if (!arr.length) return null;
+    const actives = arr.filter((s) => s && String(s.state).toLowerCase() === 'active');
+    const chosen = actives.length ? actives[actives.length - 1] : arr[arr.length - 1];
+    if (!chosen) return null;
+    return typeof chosen === 'string' ? chosen : (chosen.name || null);
+  }
+
+  /**
+   * Campos de seleção única (ex.: "Motivo de Bloqueio") vêm como {value}/{name}.
+   * Também aceita string simples.
+   */
+  _readSelect(value) {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+    return value.value || value.name || null;
   }
 }
 
