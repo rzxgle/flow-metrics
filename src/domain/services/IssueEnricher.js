@@ -36,6 +36,7 @@ class IssueEnricher {
       Concluido: done,
       Cancelado: cancelled,
       WIP: this.classifier.isWip(issue.status),
+      FaseFluxo: this.classifier.phaseOf(issue.status),
       EntregueAmplo: this.classifier.isBroadlyDelivered(issue.status),
       // Incremental é resolvido depois (depende do tipo do épico/pai). Placeholder:
       Incremental: grupo === 'História' || grupo === 'Épico',

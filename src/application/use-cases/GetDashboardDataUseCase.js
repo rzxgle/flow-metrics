@@ -64,7 +64,17 @@ class GetDashboardDataUseCase {
     // 6. limpar campos internos antes de expor
     const cleanIssues = enriched.map((e) => this._stripInternal(e));
 
-    return { issues: cleanIssues, epics, generatedAt: new Date().toISOString() };
+    return {
+      issues: cleanIssues,
+      epics,
+      generatedAt: new Date().toISOString(),
+      meta: {
+        pendingStatuses: this.enricher.classifier.rules.pendingStatuses || [],
+        inProgressStatuses: this.enricher.classifier.rules.inProgressStatuses || [],
+        doneStatuses: this.enricher.classifier.rules.doneStatuses || [],
+        cancelledStatuses: this.enricher.classifier.rules.cancelledStatuses || [],
+      },
+    };
   }
 
   /** Sub-task herda "Incremental" do primeiro ancestral não sub-task. */

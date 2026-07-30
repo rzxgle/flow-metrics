@@ -52,6 +52,28 @@ class IssueClassifier {
   isBroadlyDelivered(status) {
     return this.rules.broadlyDeliveredStatuses.includes(status);
   }
+
+  isPending(status) {
+    return (this.rules.pendingStatuses || []).includes(status);
+  }
+
+  isInProgress(status) {
+    return (this.rules.inProgressStatuses || []).includes(status);
+  }
+
+  /**
+   * Fase do fluxo (mutuamente exclusiva): a ordem de precedência garante que
+   * cada item caia em exatamente um balde.
+   *   Cancelado > Concluído > Pendente > Em andamento (default).
+   * Um status "em aberto" que não esteja em nenhuma lista cai em "Em andamento",
+   * para nunca ficar de fora das contagens.
+   */
+  phaseOf(status) {
+    if (this.isCancelled(status)) return 'Cancelado';
+    if (this.isDone(status)) return 'Concluído';
+    if (this.isPending(status)) return 'Pendente';
+    return 'Em andamento';
+  }
 }
 
 module.exports = IssueClassifier;

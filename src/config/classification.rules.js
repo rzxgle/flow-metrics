@@ -59,6 +59,38 @@ const doneStatuses = [
 const cancelledStatuses = ['CANCELADO'];
 
 /**
+ * Status que representam item PENDENTE — trabalho que ainda NÃO começou
+ * (backlog, priorização, refinamento).
+ */
+const pendingStatuses = [
+  'Backlog',
+  'PRIORIZADO',
+  'PRIORIZADO PARA O PI',
+  'PRONTO PARA PI PLANNING',
+  'PRONTO PARA REF. NEGÓCIO',
+  'Refinamento de negócio',
+  'Pronto para revisão design',
+  'Revisão design',
+  'PRONTO PARA REFINAMENTO TÉCNICO',
+  'Refinamento técnico',
+  'PRONTO PARA DESENVOLVIMENTO',
+  'Tarefas pendentes',
+];
+
+/**
+ * Status que representam item EM ANDAMENTO — trabalho já iniciado, mas não
+ * concluído.
+ */
+const inProgressStatuses = [
+  'EM ANDAMENTO',
+  'Desenvolvimento',
+  'CODE REVIEW',
+  'PRONTO PARA CODE REVIEW',
+  'Em teste',
+  'PRONTO PARA TESTES',
+];
+
+/**
  * Status considerados "Entregue (amplo)" — entregue em produção ou em fase
  * final de entrega de valor.
  */
@@ -93,6 +125,8 @@ module.exports = {
   defaultGroup,
   doneStatuses,
   cancelledStatuses,
+  pendingStatuses,
+  inProgressStatuses,
   broadlyDeliveredStatuses,
   piRulesInPriorityOrder,
   defaultPi,

@@ -149,6 +149,7 @@
   }
   .kpi.amber{border-top-color:var(--amber);}
   .kpi.coral{border-top-color:var(--coral);}
+  .kpi.slate{border-top-color:var(--slate-soft);}
   .kpi .eyebrow{margin-bottom:6px;display:block;}
   .kpi .val{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--ink);}
   .kpi .val .unit{font-size:13px;font-weight:500;color:var(--slate-soft);margin-left:3px;}
@@ -755,15 +756,27 @@ function updateFilterBtn(key, btn){
   else { countEl.style.display='none'; }
 }
 
+/** Aplica apenas os filtros da barra (Programa, Squad, PI, etc.), sem data. */
+function matchesBarFilters(d){
+  for(const f of FILTER_DIMS){
+    const sel = selections[f.key];
+    if(sel.size===0) continue;
+    let v = d[f.key];
+    if(v===null||v===undefined||v==='') v='(Não informado)';
+    if(!sel.has(String(v))) return false;
+  }
+  return true;
+}
+
+/** Recorte SEM o filtro de data — usado nas caixinhas de estado atual (Pendente/Andamento). */
+function getFilteredNoDate(){
+  return DATA.filter(matchesBarFilters);
+}
+
+/** Recorte completo: filtros da barra + intervalo por data de conclusão. */
 function getFiltered(){
   return DATA.filter(d=>{
-    for(const f of FILTER_DIMS){
-      const sel = selections[f.key];
-      if(sel.size===0) continue;
-      let v = d[f.key];
-      if(v===null||v===undefined||v==='') v='(Não informado)';
-      if(!sel.has(String(v))) return false;
-    }
+    if(!matchesBarFilters(d)) return false;
     // Item 6 — intervalo por data de conclusão (Opção A: WIP sempre visível)
     if(dateRange.from || dateRange.to){
       const dc = d['Data Conclusao'];
@@ -875,8 +888,8 @@ function renderPeriodo(f){
 }
 
 /* ===================== KPI card helper ===================== */
-function kpiCard(eyebrow, value, unit, extraClass, delta){
-  return `<div class="kpi ${extraClass||''}">
+function kpiCard(eyebrow, value, unit, extraClass, delta, titleAttr){
+  return `<div class="kpi ${extraClass||''}"${titleAttr?` title="${titleAttr}"`:''}>
     <span class="eyebrow">${eyebrow}</span>
     <div class="val">${value}${unit?`<span class="unit">${unit}</span>`:''}</div>
     ${delta?`<div class="delta ${delta.cls}">${delta.text}</div>`:''}
@@ -894,16 +907,28 @@ function renderExec(f){
   const spConcl = sum(concl, d=>d['Story Points']);
   const leadVals = f.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
   const cycleVals = f.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
-  const wip = f.filter(d=>d.WIP).length;
+
+  // Pendentes e Em andamento refletem o ESTADO ATUAL (ignoram o filtro de data,
+  // respeitam os demais filtros). Concluídos respeita o período selecionado.
+  const atual = getFilteredNoDate();
+  const pendentes = atual.filter(d=>d.FaseFluxo==='Pendente').length;
+  const andamento = atual.filter(d=>d.FaseFluxo==='Em andamento').length;
+  const temPeriodo = !!(dateRange.from || dateRange.to);
+
+  const statusPend = (window.__RULES_PENDING||[]).join(', ');
+  const statusAnd  = (window.__RULES_INPROG||[]).join(', ');
 
   document.getElementById('exec-kpis').innerHTML = [
-    kpiCard('Itens no recorte', fmt0(total)),
-    kpiCard('Concluídos', fmt0(concl.length), null, '', {cls:'up', text:pct.toFixed(0)+'% dos itens ativos'}),
+    kpiCard('Pendentes', fmt0(pendentes), 'itens', 'slate',
+      {cls:'flat', text:'posição atual'}, 'Status considerados pendentes: '+statusPend),
+    kpiCard('Em andamento', fmt0(andamento), 'itens', 'coral',
+      {cls:'flat', text:'posição atual'}, 'Status em andamento: '+statusAnd),
+    kpiCard('Concluídos', fmt0(concl.length), 'itens', '',
+      {cls:'up', text: temPeriodo ? 'no período filtrado' : pct.toFixed(0)+'% dos itens ativos'}),
     kpiCard('Story Points concluídos', fmt0(spConcl), 'sp'),
     kpiCard('Story Points planejados', fmt0(spTotal), 'sp'),
     kpiCard('Lead Time (P85)', fmt1(percentile(leadVals, 85)), 'dias', 'amber'),
     kpiCard('Cycle Time (P85)', fmt1(percentile(cycleVals, 85)), 'dias', 'amber'),
-    kpiCard('WIP atual', fmt0(wip), 'itens', 'coral'),
   ].join('');
 
   // Throughput mensal
@@ -1413,6 +1438,9 @@ async function bootstrap(forceRefresh){
     const payload = await res.json();
     DATA = payload.issues || [];
     EPICS = payload.epics || [];
+    const meta = payload.meta || {};
+    window.__RULES_PENDING = meta.pendingStatuses || [];
+    window.__RULES_INPROG = meta.inProgressStatuses || [];
     document.getElementById('exportDate').textContent = formatExportDate(payload.generatedAt);
 
     normalizeData();
