@@ -41,6 +41,7 @@ class IssueEnricher {
       // Incremental é resolvido depois (depende do tipo do épico/pai). Placeholder:
       Incremental: grupo === 'História' || grupo === 'Épico',
       'Story Points': issue.storyPoints,
+      EhStandard: this.classifier.isStandard(issue.issueType),
       BCP: issue.bcp,
       Sprint: issue.sprint,
       MotivoBloqueio: issue.blockReason,

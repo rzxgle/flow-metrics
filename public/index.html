@@ -562,7 +562,7 @@ let EPICS = [];
 
 const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const COLORS = ['#1B8F86','#D98E3B','#3D4C5B','#C1543A','#6FA8A2','#E9C88B','#8AA0B0','#7C4E3A','#9BC4BE','#B8863F'];
-const TIPO_COLOR = {'Épico':'#0F2438','História':'#1B8F86','Sub-task':'#8AA0B0','Bug':'#C1543A','Débito Técnico':'#D98E3B'};
+const TIPO_COLOR = {'Épico':'#0F2438','História':'#1B8F86','Sub-task':'#8AA0B0','Bug':'#C1543A','Débito Técnico':'#D98E3B','Enabler':'#6FA8A2'};
 
 function normalizeData(){
   DATA.forEach(d=>{
@@ -791,6 +791,9 @@ function getFiltered(){
 
 /* ===================== Utility stats ===================== */
 function sum(arr, fn){ return arr.reduce((a,d)=>a+(fn(d)||0),0); }
+/* Story Points contam APENAS para itens standard (Story/Bug/Enabler/Technical Debt/Melhoria).
+   Épicos e sub-itens somam 0. Fonte da regra: EhStandard (backend). */
+function spOf(d){ return d.EhStandard ? (d['Story Points']||0) : 0; }
 function median(arr){
   if(!arr.length) return null;
   const s = [...arr].sort((a,b)=>a-b);
@@ -903,8 +906,8 @@ function renderExec(f){
   const cancel = f.filter(d=>d.Cancelado).length;
   const ativos = total - cancel;
   const pct = ativos? (concl.length/ativos*100) : 0;
-  const spTotal = sum(f.filter(d=>!d.Cancelado), d=>d['Story Points']);
-  const spConcl = sum(concl, d=>d['Story Points']);
+  const spTotal = sum(f.filter(d=>!d.Cancelado), spOf);
+  const spConcl = sum(concl, spOf);
   const leadVals = f.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
   const cycleVals = f.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
 
@@ -918,6 +921,7 @@ function renderExec(f){
   const statusPend = (window.__RULES_PENDING||[]).join(', ');
   const statusAnd  = (window.__RULES_INPROG||[]).join(', ');
 
+  const temStandard = f.some(d=>d.EhStandard);
   document.getElementById('exec-kpis').innerHTML = [
     kpiCard('Pendentes', fmt0(pendentes), 'itens', 'slate',
       {cls:'flat', text:'posição atual'}, 'Status considerados pendentes: '+statusPend),
@@ -925,8 +929,9 @@ function renderExec(f){
       {cls:'flat', text:'posição atual'}, 'Status em andamento: '+statusAnd),
     kpiCard('Concluídos', fmt0(concl.length), 'itens', '',
       {cls:'up', text: temPeriodo ? 'no período filtrado' : pct.toFixed(0)+'% dos itens ativos'}),
-    kpiCard('Story Points concluídos', fmt0(spConcl), 'sp'),
-    kpiCard('Story Points planejados', fmt0(spTotal), 'sp'),
+    // SP só aparecem quando há itens standard no recorte
+    temStandard ? kpiCard('Story Points concluídos', fmt0(spConcl), 'sp') : '',
+    temStandard ? kpiCard('Story Points planejados', fmt0(spTotal), 'sp') : '',
     kpiCard('Lead Time (P85)', fmt1(percentile(leadVals, 85)), 'dias', 'amber'),
     kpiCard('Cycle Time (P85)', fmt1(percentile(cycleVals, 85)), 'dias', 'amber'),
   ].join('');
@@ -945,8 +950,8 @@ function renderExec(f){
 
   // SP por PI planejado x concluído
   const pis = Array.from(new Set(f.map(d=>d.PI))).sort();
-  const spPlanByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && !d.Cancelado), d=>d['Story Points']));
-  const spConclByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && d.Concluido), d=>d['Story Points']));
+  const spPlanByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && !d.Cancelado), spOf));
+  const spConclByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && d.Concluido), spOf));
   upsertChart('chart-exec-sp-pi', {
     type:'bar',
     data:{labels:pis, datasets:[
@@ -1085,21 +1090,22 @@ function renderThroughput(f){
 function renderSP(f){
   const concl = f.filter(d=>d.Concluido);
   const naoCancel = f.filter(d=>!d.Cancelado);
-  const spTotal = sum(naoCancel, d=>d['Story Points']);
-  const spConcl = sum(concl, d=>d['Story Points']);
+  const spTotal = sum(naoCancel, spOf);
+  const spConcl = sum(concl, spOf);
   const pct = spTotal? (spConcl/spTotal*100):0;
 
-  document.getElementById('sp-kpis').innerHTML = [
+  const temStandard = f.some(d=>d.EhStandard);
+  document.getElementById('sp-kpis').innerHTML = temStandard ? [
     kpiCard('SP planejado', fmt0(spTotal), 'sp'),
     kpiCard('SP concluído', fmt0(spConcl), 'sp'),
     kpiCard('% entregue', pct.toFixed(0), '%', pct>=70?'':'amber'),
-    kpiCard('Itens sem SP', fmt0(f.filter(d=>!d['Story Points']).length), 'itens', 'coral'),
-  ].join('');
+    kpiCard('Itens sem SP', fmt0(f.filter(d=>d.EhStandard && !d['Story Points']).length), 'itens', 'coral'),
+  ].join('') : '<div style="padding:16px;color:var(--slate-soft);font-size:13px;">Sem itens standard no recorte atual — Story Points não se aplicam a sub-itens ou épicos.</div>';
 
   function plannedVsCompleted(key){
     const keys = Array.from(new Set(naoCancel.map(d=>d[key]))).sort();
-    const planned = keys.map(k=> sum(naoCancel.filter(d=>d[key]===k), d=>d['Story Points']));
-    const completed = keys.map(k=> sum(concl.filter(d=>d[key]===k), d=>d['Story Points']));
+    const planned = keys.map(k=> sum(naoCancel.filter(d=>d[key]===k), spOf));
+    const completed = keys.map(k=> sum(concl.filter(d=>d[key]===k), spOf));
     return {keys, planned, completed};
   }
 
@@ -1138,7 +1144,7 @@ function renderSP(f){
   });
 
   const months = sortedMonthKeys(concl,'AnoMesConclusao');
-  const monthSP = months.map(m=> sum(concl.filter(d=>d.AnoMesConclusao===m), d=>d['Story Points']));
+  const monthSP = months.map(m=> sum(concl.filter(d=>d.AnoMesConclusao===m), spOf));
   const movAvg = monthSP.map((_,i)=>{
     const win = monthSP.slice(Math.max(0,i-2), i+1);
     return mean(win);
@@ -1306,8 +1312,8 @@ function renderWip(f){
     const conclN = items.filter(d=>d.Concluido).length;
     const ativosN = total-canc;
     const pct = ativosN? (conclN/ativosN*100):0;
-    const spT = sum(items, d=>d['Story Points']);
-    const spC = sum(items.filter(d=>d.Concluido), d=>d['Story Points']);
+    const spT = sum(items, spOf);
+    const spC = sum(items.filter(d=>d.Concluido), spOf);
     const squad = items[0].Squad;
     return {key, resumo:epicMap.get(key)||key, squad, total, conclN, pct, spT, spC};
   }).filter(r=>r.total>=3).sort((a,b)=>b.total-a.total).slice(0,25);
@@ -1367,7 +1373,7 @@ function renderRank(f){
     const items = f.filter(d=>d.Squad===sq);
     const conclItems = items.filter(d=>d.Concluido);
     const vs = items[0] ? items[0].VS : '';
-    const spConcl = sum(conclItems, d=>d['Story Points']);
+    const spConcl = sum(conclItems, spOf);
     const wipN = items.filter(d=>d.WIP).length;
     const leadArr = conclItems.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
     const ativosN = items.filter(d=>!d.Cancelado).length;
