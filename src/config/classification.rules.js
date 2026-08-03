@@ -38,21 +38,6 @@ const issueTypeToGroup = {
 /** Grupo usado quando o tipo de item não está mapeado acima. */
 const defaultGroup = 'Sub-task';
 
-/**
- * Tipos "standard" (nível entre épico e sub-item). São os ÚNICOS que contam
- * Story Points nas somatórias. Épicos e sub-itens ficam de fora.
- * Baseado no TIPO DE ITEM CRU do Jira.
- */
-const standardTypes = [
-  'Bug',
-  'Bug hotfix',
-  'História',
-  'Story',
-  'Melhoria',
-  'Technical Debt',
-  'Enabler',
-];
-
 /** Status que representam item CONCLUÍDO. */
 const doneStatuses = [
     "Pronto para Prod",
@@ -139,7 +124,6 @@ const bridgeValueStreamName = 'Value Streams Afya Bridge';
 module.exports = {
   issueTypeToGroup,
   defaultGroup,
-  standardTypes,
   doneStatuses,
   cancelledStatuses,
   pendingStatuses,

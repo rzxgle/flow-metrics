@@ -20,11 +20,6 @@ class IssueClassifier {
     return this.rules.issueTypeToGroup[issueType] || this.rules.defaultGroup;
   }
 
-  /** Item standard (conta Story Points): baseado no tipo cru do Jira. */
-  isStandard(issueType) {
-    return (this.rules.standardTypes || []).includes(issueType);
-  }
-
   /** Nome do projeto -> Programa (Afya Bridge | Afya One). */
   programOf(projectName) {
     return projectName === this.rules.bridgeValueStreamName
