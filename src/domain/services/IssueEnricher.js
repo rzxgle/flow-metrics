@@ -46,6 +46,8 @@ class IssueEnricher {
       MotivoBloqueio: issue.blockReason,
       Criado: toIsoDate(issue.createdAt),
       'Data Conclusao': toIsoDate(conclusao),
+      'Data Inicio Real': toIsoDate(issue.actualStartDate),
+      'Data Fim Real': toIsoDate(issue.actualEndDate),
       AnoMesCriacao: toYearMonth(issue.createdAt),
       AnoCriacao: toYear(issue.createdAt),
       AnoMesConclusao: toYearMonth(conclusao),

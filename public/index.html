@@ -858,12 +858,14 @@ const DRAWER_COLS = [
   {k:'Resumo', label:'Resumo'},
   {k:'Tipo de item', label:'Tipo'},
   {k:'Status', label:'Status'},
-  {k:'Squad', label:'Squad'},
+  {k:'Squad', label:'Team'},
   {k:'PI', label:'PI'},
   {k:'Story Points', label:'SP'},
   {k:'LeadTimeDias', label:'Lead (d)'},
   {k:'CycleTimeDias', label:'Cycle (d)'},
   {k:'AgingDias', label:'Aging (d)'},
+  {k:'Data Inicio Real', label:'Início real'},
+  {k:'Data Fim Real', label:'Fim real'},
   {k:'Data Conclusao', label:'Conclusão'},
 ];
 
@@ -893,9 +895,12 @@ function ensureDrawer(){
     #__drawer td.resumo{max-width:340px;}
     #__drawer a.jira{color:#1B8F86;font-weight:600;text-decoration:none;white-space:nowrap;}
     #__drawer a.jira:hover{text-decoration:underline;}
-    .drill-btn{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#EAF1F5;border-radius:8px;
-      padding:8px 14px;cursor:pointer;font-size:13px;font-family:'Inter',sans-serif;}
-    .drill-btn:hover{background:rgba(255,255,255,.16);}
+    .drill-btn{border:1px solid #1B8F86;background:#fff;color:#136B64;border-radius:8px;
+      padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;
+      transition:background .15s,color .15s,box-shadow .15s;}
+    .drill-btn:hover{background:#1B8F86;color:#fff;}
+    .drill-btn:focus,.drill-btn:focus-visible,.drill-btn:active{outline:none;background:#1B8F86;color:#fff;
+      box-shadow:0 0 0 3px rgba(27,143,134,.25);}
     #__drawer .empty{padding:40px;text-align:center;color:#6B7A88;font-size:13px;}`;
   document.head.appendChild(style);
 
