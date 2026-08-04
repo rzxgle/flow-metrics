@@ -301,8 +301,9 @@
 
 <!-- ===================== TAB: THROUGHPUT ===================== -->
 <section class="tabpanel" id="panel-throughput">
-  <div class="section-head">
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Throughput</h2>
+    <button class="drill-btn" onclick="openDrawer('Concluídos do recorte atual', getFiltered().filter(d=>d.Concluido))">📋 Ver issues concluídas</button>
   </div>
 
   <div class="grid grid-2">
@@ -1211,35 +1212,40 @@ function renderThroughput(f){
   upsertChart('chart-tp-squad', {
     type:'bar',
     data:{labels:bySquad.map(x=>x[0]), datasets:[{data:bySquad.map(x=>x[1]), backgroundColor:'#1B8F86', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+      onClick: drillClick((idx)=>{ const v=bySquad[idx][0]; return {title:`Concluídos · Squad: ${v}`, issues: concl.filter(d=>d.Squad===v)}; })}
   });
 
   const byVS = topNGroup(concl,'VS',null).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-tp-vs', {
     type:'bar',
     data:{labels:byVS.map(x=>x[0]), datasets:[{data:byVS.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}},
+      onClick: drillClick((idx)=>{ const v=byVS[idx][0]; return {title:`Concluídos · Value Stream: ${v}`, issues: concl.filter(d=>d.VS===v)}; })}
   });
 
   const byProg = topNGroup(concl,'Programa',null);
   upsertChart('chart-tp-programa', {
     type:'doughnut',
     data:{labels:byProg.map(x=>x[0]), datasets:[{data:byProg.map(x=>x[1]), backgroundColor:['#1B8F86','#0F2438','#D98E3B'], borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%'}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%',
+      onClick: drillClick((idx)=>{ const v=byProg[idx][0]; return {title:`Concluídos · Programa: ${v}`, issues: concl.filter(d=>d.Programa===v)}; })}
   });
 
   const byPi = topNGroup(concl,'PI',null).sort((a,b)=>a[0].localeCompare(b[0]));
   upsertChart('chart-tp-pi', {
     type:'bar',
     data:{labels:byPi.map(x=>x[0]), datasets:[{data:byPi.map(x=>x[1]), backgroundColor:'#3D4C5B', borderRadius:4}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}},
+      onClick: drillClick((idx)=>{ const v=byPi[idx][0]; return {title:`Concluídos · PI: ${v}`, issues: concl.filter(d=>d.PI===v)}; })}
   });
 
   const byTipo = topNGroup(concl,'Tipo Agrupado',null);
   upsertChart('chart-tp-tipo', {
     type:'doughnut',
     data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map(x=>TIPO_COLOR[x[0]]||'#999'), borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9.5}}}}, cutout:'55%'}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9.5}}}}, cutout:'55%',
+      onClick: drillClick((idx)=>{ const v=byTipo[idx][0]; return {title:`Concluídos · Tipo: ${v}`, issues: concl.filter(d=>d['Tipo Agrupado']===v)}; })}
   });
 
   // Monthly stacked by tipo
@@ -1252,7 +1258,9 @@ function renderThroughput(f){
   upsertChart('chart-tp-month-stacked', {
     type:'bar',
     data:{labels:months.map(monthLabel), datasets},
-    options:{responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, grid:{color:'#EFEEEA'}}}}
+    options:{responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, grid:{color:'#EFEEEA'}}},
+      onClick: drillClick((idx, ds)=>{ const m=months[idx], t=tipos[ds];
+        return {title:`Concluídos · ${monthLabel(m)} · ${t}`, issues: concl.filter(d=>d.AnoMesConclusao===m && d['Tipo Agrupado']===t)}; })}
   });
 
   // Compare table by squad: current vs previous month
