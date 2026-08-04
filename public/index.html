@@ -350,8 +350,9 @@
 
 <!-- ===================== TAB: STORY POINTS ===================== -->
 <section class="tabpanel" id="panel-sp">
-  <div class="section-head">
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Story Points</h2>
+    <button class="drill-btn" onclick="openDrawer('Itens do recorte (com SP)', getFiltered().filter(d=>(d['Story Points']||0)>0))">📋 Ver issues com SP</button>
   </div>
 
   <div class="kpi-row" id="sp-kpis"></div>
@@ -999,11 +1000,11 @@ function drillClick(resolver){
 }
 
 /* KPIs clicáveis: registro preenchido pelo renderExec + listener delegado (uma vez) */
-let __execCardDrills = {};
+let __cardDrills = {};
 document.addEventListener('click', (e)=>{
   const card = e.target.closest('.kpi-clickable[data-drill]');
   if(!card) return;
-  const d = __execCardDrills[card.getAttribute('data-drill')];
+  const d = __cardDrills[card.getAttribute('data-drill')];
   if(d) openDrawer(d.title, d.issues);
 });
 
@@ -1083,7 +1084,7 @@ function renderExec(f){
   // Registro dos drills de cada KPI (issues por trás de cada número)
   const spConclItems = concl.filter(d=>(d['Story Points']||0)>0);
   const spPlanItems  = f.filter(d=>!d.Cancelado && (d['Story Points']||0)>0);
-  __execCardDrills = {
+  Object.assign(__cardDrills, {
     pendentes: {title:'Pendentes (posição atual)', issues: atual.filter(d=>d.FaseFluxo==='Pendente')},
     andamento: {title:'Em andamento (posição atual)', issues: atual.filter(d=>d.FaseFluxo==='Em andamento')},
     concluidos: {title: temPeriodo?'Concluídos no período':'Concluídos', issues: concl},
@@ -1091,7 +1092,7 @@ function renderExec(f){
     sp_plan: {title:'Itens com SP planejados (não cancelados)', issues: spPlanItems},
     lead: {title:'Itens com Lead Time (concluídos)', issues: f.filter(d=>d.LeadTimeDias!=null)},
     cycle: {title:'Itens com Cycle Time', issues: f.filter(d=>d.CycleTimeDias!=null)},
-  };
+  });
 
   document.getElementById('exec-kpis').innerHTML = [
     kpiCard('Pendentes', fmt0(pendentes), 'itens', 'slate',
@@ -1288,11 +1289,17 @@ function renderSP(f){
   const spConcl = sum(concl, d=>d['Story Points']);
   const pct = spTotal? (spConcl/spTotal*100):0;
 
+  Object.assign(__cardDrills, {
+    sptab_plan: {title:'Itens com SP planejado (não cancelados)', issues: naoCancel.filter(d=>(d['Story Points']||0)>0)},
+    sptab_concl: {title:'Itens com SP concluído', issues: concl.filter(d=>(d['Story Points']||0)>0)},
+    sptab_pct: {title:'Base do % entregue (planejados com SP)', issues: naoCancel.filter(d=>(d['Story Points']||0)>0)},
+    sptab_nosp: {title:'Itens sem Story Points', issues: f.filter(d=>!d['Story Points'])},
+  });
   document.getElementById('sp-kpis').innerHTML = [
-    kpiCard('SP planejado', fmt0(spTotal), 'sp'),
-    kpiCard('SP concluído', fmt0(spConcl), 'sp'),
-    kpiCard('% entregue', pct.toFixed(0), '%', pct>=70?'':'amber'),
-    kpiCard('Itens sem SP', fmt0(f.filter(d=>!d['Story Points']).length), 'itens', 'coral'),
+    kpiCard('SP planejado', fmt0(spTotal), 'sp', '', null, null, 'sptab_plan'),
+    kpiCard('SP concluído', fmt0(spConcl), 'sp', '', null, null, 'sptab_concl'),
+    kpiCard('% entregue', pct.toFixed(0), '%', pct>=70?'':'amber', null, null, 'sptab_pct'),
+    kpiCard('Itens sem SP', fmt0(f.filter(d=>!d['Story Points']).length), 'itens', 'coral', null, null, 'sptab_nosp'),
   ].join('');
 
   function plannedVsCompleted(key){
@@ -1311,7 +1318,10 @@ function renderSP(f){
       {label:'Planejado', data:orderSq.map(x=>x[1]), backgroundColor:'#E4D7BE', borderRadius:4},
       {label:'Concluído', data:orderSq.map(x=>x[2]), backgroundColor:'#D98E3B', borderRadius:4}
     ]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+      onClick: drillClick((idx, ds)=>{ const k=orderSq[idx][0];
+        return ds===1 ? {title:`SP concluído · Squad: ${k}`, issues: concl.filter(d=>d.Squad===k)}
+                      : {title:`SP planejado · Squad: ${k}`, issues: naoCancel.filter(d=>d.Squad===k)}; })}
   });
 
   const byVS = plannedVsCompleted('VS');
@@ -1322,7 +1332,10 @@ function renderSP(f){
       {label:'Planejado', data:orderVs.map(x=>x[1]), backgroundColor:'#C9E4E0', borderRadius:4},
       {label:'Concluído', data:orderVs.map(x=>x[2]), backgroundColor:'#1B8F86', borderRadius:4}
     ]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}},
+      onClick: drillClick((idx, ds)=>{ const k=orderVs[idx][0];
+        return ds===1 ? {title:`SP concluído · VS: ${k}`, issues: concl.filter(d=>d.VS===k)}
+                      : {title:`SP planejado · VS: ${k}`, issues: naoCancel.filter(d=>d.VS===k)}; })}
   });
 
   const byPi = plannedVsCompleted('PI');
@@ -1333,7 +1346,10 @@ function renderSP(f){
       {label:'Planejado', data:orderPi.map(x=>x[1]), backgroundColor:'#DCE3E8', borderRadius:4},
       {label:'Concluído', data:orderPi.map(x=>x[2]), backgroundColor:'#3D4C5B', borderRadius:4}
     ]},
-    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}},
+      onClick: drillClick((idx, ds)=>{ const k=orderPi[idx][0];
+        return ds===1 ? {title:`SP concluído · PI: ${k}`, issues: concl.filter(d=>d.PI===k)}
+                      : {title:`SP planejado · PI: ${k}`, issues: naoCancel.filter(d=>d.PI===k)}; })}
   });
 
   const months = sortedMonthKeys(concl,'AnoMesConclusao');
@@ -1348,7 +1364,9 @@ function renderSP(f){
       {type:'bar', label:'SP concluído', data:monthSP, backgroundColor:'#9BC4BE', borderRadius:4, order:2},
       {type:'line', label:'Tendência (méd. móvel 3m)', data:movAvg, borderColor:'#C1543A', backgroundColor:'#C1543A', tension:.3, pointRadius:2, order:1}
     ]},
-    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}},
+      onClick: drillClick((idx)=>{ const m=months[idx];
+        return {title:`SP concluído · ${monthLabel(m)}`, issues: concl.filter(d=>d.AnoMesConclusao===m)}; })}
   });
 }
 
