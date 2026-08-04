@@ -256,8 +256,9 @@
 <main id="mainContent">
 <!-- ===================== TAB: VISÃO EXECUTIVA ===================== -->
 <section class="tabpanel active" id="panel-exec">
-  <div class="section-head">
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Visão Executiva</h2>
+    <button id="btn-ver-issues-exec" class="drill-btn" onclick="openDrawer('Issues do recorte atual', getFiltered())">📋 Ver issues do recorte</button>
   </div>
 
   <div class="kpi-row" id="exec-kpis"></div>
@@ -846,6 +847,147 @@ Chart.defaults.color = '#6B7A88';
 Chart.defaults.plugins.legend.labels.usePointStyle = true;
 Chart.defaults.plugins.legend.labels.boxWidth = 8;
 
+/* ===================== Rastreabilidade: drawer de issues (Entrega 4) ===================== */
+const JIRA_BROWSE = 'https://medcel.atlassian.net/browse/';
+let __drawerIssues = [];   // issues atualmente exibidas (para o CSV)
+let __drawerTitle = '';
+
+/* Colunas da tabela do drawer */
+const DRAWER_COLS = [
+  {k:'Chave', label:'Chave', link:true},
+  {k:'Resumo', label:'Resumo'},
+  {k:'Tipo de item', label:'Tipo'},
+  {k:'Status', label:'Status'},
+  {k:'Squad', label:'Squad'},
+  {k:'PI', label:'PI'},
+  {k:'Story Points', label:'SP'},
+  {k:'LeadTimeDias', label:'Lead (d)'},
+  {k:'CycleTimeDias', label:'Cycle (d)'},
+  {k:'AgingDias', label:'Aging (d)'},
+  {k:'Data Conclusao', label:'Conclusão'},
+];
+
+function ensureDrawer(){
+  if(document.getElementById('__drawer')) return;
+  const style = document.createElement('style');
+  style.textContent = `
+    #__drawer-overlay{position:fixed;inset:0;background:rgba(15,36,56,.35);z-index:9998;opacity:0;pointer-events:none;transition:opacity .2s;}
+    #__drawer-overlay.open{opacity:1;pointer-events:auto;}
+    #__drawer{position:fixed;top:0;right:0;height:100vh;width:min(920px,94vw);background:#FAF9F6;z-index:9999;
+      box-shadow:-8px 0 30px rgba(15,36,56,.18);transform:translateX(100%);transition:transform .24s ease;
+      display:flex;flex-direction:column;font-family:'Inter',sans-serif;}
+    #__drawer.open{transform:translateX(0);}
+    #__drawer .dh{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #E4E2DC;}
+    #__drawer .dh h3{margin:0;font-size:15px;color:#0F2438;font-weight:700;}
+    #__drawer .dh .cnt{font-size:12px;color:#6B7A88;font-weight:500;margin-left:8px;}
+    #__drawer .dh-actions{display:flex;gap:8px;align-items:center;}
+    #__drawer .dbtn{border:1px solid #D9D7D0;background:#fff;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:12.5px;color:#3D4C5B;}
+    #__drawer .dbtn:hover{border-color:#1B8F86;}
+    #__drawer .dbtn.close{border:none;background:transparent;font-size:20px;line-height:1;color:#6B7A88;padding:2px 8px;}
+    #__drawer .dbody{overflow:auto;flex:1;padding:0;}
+    #__drawer table{border-collapse:collapse;width:100%;font-size:12.5px;}
+    #__drawer thead th{position:sticky;top:0;background:#F0EEE9;color:#3D4C5B;text-align:left;padding:9px 12px;font-weight:600;
+      border-bottom:1px solid #E4E2DC;white-space:nowrap;}
+    #__drawer tbody td{padding:8px 12px;border-bottom:1px solid #EFEEEA;color:#3D4C5B;vertical-align:top;}
+    #__drawer tbody tr:hover{background:#F3F6F5;}
+    #__drawer td.resumo{max-width:340px;}
+    #__drawer a.jira{color:#1B8F86;font-weight:600;text-decoration:none;white-space:nowrap;}
+    #__drawer a.jira:hover{text-decoration:underline;}
+    .drill-btn{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.08);color:#EAF1F5;border-radius:8px;
+      padding:8px 14px;cursor:pointer;font-size:13px;font-family:'Inter',sans-serif;}
+    .drill-btn:hover{background:rgba(255,255,255,.16);}
+    #__drawer .empty{padding:40px;text-align:center;color:#6B7A88;font-size:13px;}`;
+  document.head.appendChild(style);
+
+  const overlay = document.createElement('div');
+  overlay.id = '__drawer-overlay';
+  overlay.addEventListener('click', closeDrawer);
+  const drawer = document.createElement('div');
+  drawer.id = '__drawer';
+  drawer.innerHTML = `
+    <div class="dh">
+      <div><h3 id="__drawer-title"></h3><span class="cnt" id="__drawer-count"></span></div>
+      <div class="dh-actions">
+        <button class="dbtn" id="__drawer-csv">⬇ Exportar CSV</button>
+        <button class="dbtn close" id="__drawer-close" title="Fechar">×</button>
+      </div>
+    </div>
+    <div class="dbody" id="__drawer-body"></div>`;
+  document.body.appendChild(overlay);
+  document.body.appendChild(drawer);
+  document.getElementById('__drawer-close').addEventListener('click', closeDrawer);
+  document.getElementById('__drawer-csv').addEventListener('click', exportDrawerCsv);
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+}
+
+function openDrawer(title, issues){
+  ensureDrawer();
+  __drawerIssues = issues || [];
+  __drawerTitle = title || 'Issues';
+  document.getElementById('__drawer-title').textContent = __drawerTitle;
+  document.getElementById('__drawer-count').textContent = __drawerIssues.length.toLocaleString('pt-BR')+' issues';
+  const body = document.getElementById('__drawer-body');
+
+  if(!__drawerIssues.length){
+    body.innerHTML = '<div class="empty">Nenhuma issue neste recorte.</div>';
+  } else {
+    const head = DRAWER_COLS.map(c=>`<th>${c.label}</th>`).join('');
+    const rows = __drawerIssues.map(d=>{
+      const tds = DRAWER_COLS.map(c=>{
+        let v = d[c.k];
+        if(v===null||v===undefined) v='';
+        if(c.link){
+          return `<td><a class="jira" href="${JIRA_BROWSE}${v}" target="_blank" rel="noopener">${v}</a></td>`;
+        }
+        if(c.k==='Resumo') return `<td class="resumo">${escapeHtml(String(v))}</td>`;
+        if(typeof v==='number') v = (Math.round(v*100)/100).toLocaleString('pt-BR');
+        return `<td>${escapeHtml(String(v))}</td>`;
+      }).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+    body.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  document.getElementById('__drawer-overlay').classList.add('open');
+  document.getElementById('__drawer').classList.add('open');
+}
+
+function closeDrawer(){
+  const o=document.getElementById('__drawer-overlay'), d=document.getElementById('__drawer');
+  if(o) o.classList.remove('open');
+  if(d) d.classList.remove('open');
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function exportDrawerCsv(){
+  if(!__drawerIssues.length) return;
+  const sep=';';
+  const header = DRAWER_COLS.map(c=>c.label).join(sep);
+  const lines = __drawerIssues.map(d=> DRAWER_COLS.map(c=>{
+    let v = d[c.k]; if(v===null||v===undefined) v='';
+    v = String(v).replace(/"/g,'""');
+    return /[";\n]/.test(v) ? `"${v}"` : v;
+  }).join(sep));
+  const csv = '\uFEFF'+header+'\n'+lines.join('\n'); // BOM p/ acentos no Excel
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safe = __drawerTitle.replace(/[^\w\u00C0-\u017F]+/g,'_').slice(0,60);
+  a.href=url; a.download=`issues_${safe}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* Helper: gera um onClick de gráfico que abre o drawer com o subconjunto certo.
+   resolver(index, datasetIndex, chart) deve retornar {title, issues}. */
+function drillClick(resolver){
+  return (evt, elements, chart)=>{
+    if(!elements || !elements.length) return;
+    const el = elements[0];
+    const r = resolver(el.index, el.datasetIndex, chart);
+    if(r && r.issues) openDrawer(r.title, r.issues);
+  };
+}
+
 /* ===================== Tabs ===================== */
 document.getElementById('tabNav').addEventListener('click', (e)=>{
   const btn = e.target.closest('.tab-btn');
@@ -940,10 +1082,12 @@ function renderExec(f){
       label:'Itens concluídos', data:monthCounts, borderColor:'#1B8F86', backgroundColor:'rgba(27,143,134,.12)',
       fill:true, tension:.35, pointRadius:3, pointBackgroundColor:'#1B8F86'
     }]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}},
+      onClick: drillClick((idx)=>{
+        const m = months[idx];
+        return {title:`Concluídos em ${monthLabel(m)}`, issues: concl.filter(d=>d.AnoMesConclusao===m)};
+      })}
   });
-
-  // SP por PI planejado x concluído
   const pis = Array.from(new Set(f.map(d=>d.PI))).sort();
   const spPlanByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && !d.Cancelado), d=>d['Story Points']));
   const spConclByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && d.Concluido), d=>d['Story Points']));
@@ -953,19 +1097,26 @@ function renderExec(f){
       {label:'Planejado', data:spPlanByPi, backgroundColor:'#C9E4E0', borderRadius:4},
       {label:'Concluído', data:spConclByPi, backgroundColor:'#1B8F86', borderRadius:4}
     ]},
-    options:{responsive:true,maintainAspectRatio:false, scales:{y:{beginAtZero:true, grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}}}
+    options:{responsive:true,maintainAspectRatio:false, scales:{y:{beginAtZero:true, grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}},
+      onClick: drillClick((idx, ds)=>{
+        const pi = pis[idx];
+        if(ds===1){ // Concluído
+          return {title:`SP concluído · ${pi}`, issues: f.filter(d=>d.PI===pi && d.Concluido)};
+        }
+        return {title:`SP planejado · ${pi}`, issues: f.filter(d=>d.PI===pi && !d.Cancelado)};
+      })}
   });
-
-  // Tipo donut
   const tipos = Array.from(new Set(f.map(d=>d['Tipo Agrupado'])));
   const tipoCounts = tipos.map(t=> f.filter(d=>d['Tipo Agrupado']===t).length);
   upsertChart('chart-exec-tipo-donut', {
     type:'doughnut',
     data:{labels:tipos, datasets:[{data:tipoCounts, backgroundColor:tipos.map(t=>TIPO_COLOR[t]||'#999'), borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'62%'}
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'62%',
+      onClick: drillClick((idx)=>{
+        const t = tipos[idx];
+        return {title:`Tipo: ${t}`, issues: f.filter(d=>d['Tipo Agrupado']===t)};
+      })}
   });
-
-  // Status donut top 8
   const statusCounts = Array.from(groupBy(f, d=>d.Status), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
   const top8 = statusCounts.slice(0,8);
   const outros = statusCounts.slice(8).reduce((a,c)=>a+c[1],0);
@@ -974,7 +1125,15 @@ function renderExec(f){
   upsertChart('chart-exec-status-donut', {
     type:'doughnut',
     data:{labels, datasets:[{data:vals, backgroundColor:COLORS, borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9.5}}}}, cutout:'55%'}
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9.5}}}}, cutout:'55%',
+      onClick: drillClick((idx)=>{
+        const lbl = labels[idx];
+        if(lbl==='Outros'){
+          const top8Set = new Set(top8.map(x=>x[0]));
+          return {title:'Status: Outros (fora do top 8)', issues: f.filter(d=>!top8Set.has(d.Status))};
+        }
+        return {title:`Status: ${lbl}`, issues: f.filter(d=>d.Status===lbl)};
+      })}
   });
 
   // Comparativos
