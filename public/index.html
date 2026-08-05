@@ -392,8 +392,9 @@
 
 <!-- ===================== TAB: LEAD & CYCLE TIME ===================== -->
 <section class="tabpanel" id="panel-flow">
-  <div class="section-head">
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Lead Time &amp; Cycle Time</h2>
+    <button class="drill-btn" onclick="openDrawer('Concluídos com Lead Time', getFiltered().filter(d=>d.Concluido && d.LeadTimeDias!=null))">📋 Ver issues com Lead Time</button>
   </div>
 
   <div class="callout info" id="flow-coverage-callout"><span class="icon">ℹ️</span><div></div></div>
@@ -1387,15 +1388,17 @@ function histogramBins(arr, nbins){
   const bins = new Array(Math.ceil((max+1)/binSize)).fill(0);
   arr.forEach(v=>{ const idx = Math.min(bins.length-1, Math.floor(v/binSize)); bins[idx]++; });
   const labels = bins.map((_,i)=> `${i*binSize}-${(i+1)*binSize-1}d`);
-  return {labels, counts:bins};
+  return {labels, counts:bins, binSize};
 }
 function statBlock(vals){
   return { n:vals.length, mean:mean(vals), median:median(vals), p85:percentile(vals,85), min:vals.length?Math.min(...vals):null, max:vals.length?Math.max(...vals):null };
 }
 function renderFlow(f){
   const concl = f.filter(d=>d.Concluido);
-  const leadVals = concl.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
-  const cycleVals = concl.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
+  const leadItems = concl.filter(d=>d.LeadTimeDias!=null);
+  const cycleItems = concl.filter(d=>d.CycleTimeDias!=null);
+  const leadVals = leadItems.map(d=>d.LeadTimeDias);
+  const cycleVals = cycleItems.map(d=>d.CycleTimeDias);
   const lead = statBlock(leadVals), cycle = statBlock(cycleVals);
 
   document.getElementById('flow-coverage-callout').querySelector('div').innerHTML =
@@ -1403,26 +1406,34 @@ function renderFlow(f){
     (${concl.length? (lead.n/concl.length*100).toFixed(0):0}%). Cycle Time calculável para ${cycle.n} de ${concl.length}
     (${concl.length? (cycle.n/concl.length*100).toFixed(0):0}%) — cobertura menor pois depende de "Data de início real" e "Data de fim real" preenchidas.`;
 
+  Object.assign(__cardDrills, {
+    flow_lead: {title:'Itens com Lead Time (concluídos)', issues: leadItems},
+    flow_cycle: {title:'Itens com Cycle Time', issues: cycleItems},
+  });
   document.getElementById('lead-kpis').innerHTML = [
-    kpiCard('Lead Time (P85)', fmt1(lead.p85), 'dias', 'amber'),
-    kpiCard('Itens considerados', fmt0(lead.n), ''),
+    kpiCard('Lead Time (P85)', fmt1(lead.p85), 'dias', 'amber', null, null, 'flow_lead'),
+    kpiCard('Itens considerados', fmt0(lead.n), '', '', null, null, 'flow_lead'),
   ].join('');
   document.getElementById('cycle-kpis').innerHTML = [
-    kpiCard('Cycle Time (P85)', fmt1(cycle.p85), 'dias', 'amber'),
-    kpiCard('Itens considerados', fmt0(cycle.n), ''),
+    kpiCard('Cycle Time (P85)', fmt1(cycle.p85), 'dias', 'amber', null, null, 'flow_cycle'),
+    kpiCard('Itens considerados', fmt0(cycle.n), '', '', null, null, 'flow_cycle'),
   ].join('');
 
   const leadHist = histogramBins(leadVals, 12);
   upsertChart('chart-flow-lead-hist', {
     type:'bar',
     data:{labels:leadHist.labels, datasets:[{data:leadHist.counts, backgroundColor:'#CE0058', borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}},
+      onClick: drillClick((idx)=>{ const bs=leadHist.binSize, lo=idx*bs, hi=(idx+1)*bs, last=idx===leadHist.counts.length-1;
+        return {title:`Lead Time ${leadHist.labels[idx]}`, issues: leadItems.filter(d=> d.LeadTimeDias>=lo && (last || d.LeadTimeDias<hi))}; })}
   });
   const cycleHist = histogramBins(cycleVals, 12);
   upsertChart('chart-flow-cycle-hist', {
     type:'bar',
     data:{labels:cycleHist.labels, datasets:[{data:cycleHist.counts, backgroundColor:'#D98E3B', borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}},
+      onClick: drillClick((idx)=>{ const bs=cycleHist.binSize, lo=idx*bs, hi=(idx+1)*bs, last=idx===cycleHist.counts.length-1;
+        return {title:`Cycle Time ${cycleHist.labels[idx]}`, issues: cycleItems.filter(d=> d.CycleTimeDias>=lo && (last || d.CycleTimeDias<hi))}; })}
   });
 
   const months = sortedMonthKeys(concl.filter(d=>d.LeadTimeDias!=null), 'AnoMesConclusao');
@@ -1430,7 +1441,9 @@ function renderFlow(f){
   upsertChart('chart-flow-lead-trend', {
     type:'line',
     data:{labels:months.map(monthLabel), datasets:[{label:'Lead Time P85 (dias)', data:leadTrend, borderColor:'#333333', backgroundColor:'rgba(61,76,91,.1)', fill:true, tension:.35, pointRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}},
+      onClick: drillClick((idx)=>{ const m=months[idx];
+        return {title:`Lead Time · concluídos em ${monthLabel(m)}`, issues: leadItems.filter(d=>d.AnoMesConclusao===m)}; })}
   });
 
   const squadLead = Array.from(groupBy(concl.filter(d=>d.LeadTimeDias!=null), d=>d.Squad), ([k,v])=>[k, percentile(v.map(d=>d.LeadTimeDias),85), v.length])
@@ -1438,7 +1451,9 @@ function renderFlow(f){
   upsertChart('chart-flow-lead-squad', {
     type:'bar',
     data:{labels:squadLead.map(x=>x[0]), datasets:[{label:'Lead Time P85 (dias)', data:squadLead.map(x=>x[1].toFixed(1)), backgroundColor:'#CE0058', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+      onClick: drillClick((idx)=>{ const k=squadLead[idx][0];
+        return {title:`Lead Time · Squad: ${k}`, issues: leadItems.filter(d=>d.Squad===k)}; })}
   });
 
   const vsCycle = Array.from(groupBy(concl.filter(d=>d.CycleTimeDias!=null), d=>d.VS), ([k,v])=>[k, percentile(v.map(d=>d.CycleTimeDias),85), v.length])
@@ -1446,7 +1461,9 @@ function renderFlow(f){
   upsertChart('chart-flow-cycle-vs', {
     type:'bar',
     data:{labels:vsCycle.map(x=>x[0]), datasets:[{label:'Cycle Time P85 (dias)', data:vsCycle.map(x=>x[1].toFixed(1)), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}},
+      onClick: drillClick((idx)=>{ const k=vsCycle[idx][0];
+        return {title:`Cycle Time · VS: ${k}`, issues: cycleItems.filter(d=>d.VS===k)}; })}
   });
 }
 
