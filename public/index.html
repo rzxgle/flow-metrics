@@ -10,24 +10,33 @@
 
 <style>
   :root{
-    --ink:#0F2438;
-    --ink-2:#16324A;
-    --ink-3:#1E425F;
-    --paper:#F6F5F1;
+    /* ===== Identidade Afya ===== */
+    --primary:#CE0058;      /* rosa Afya (primária) */
+    --primary-d:#A30046;    /* rosa escuro */
+    --primary-light:#FBE0EC;/* rosa claro */
+    --support:#0057B8;      /* azul Afya (apoio) */
+    --support-d:#003D82;
+    --support-light:#DCE9F7;
+    /* Neutros Afya (#EEEEEE claro, #333333 escuro) */
+    --ink:#333333;          /* topo/cabeçalhos (neutro escuro) */
+    --ink-2:#3D3D3D;
+    --ink-3:#4A4A4A;
+    --paper:#F2F2F2;
     --card:#FFFFFF;
-    --teal:#1B8F86;
-    --teal-d:#136B64;
-    --teal-light:#DCEFEA;
-    --amber:#D98E3B;
+    /* Aliases mantidos para compatibilidade: o "accent" agora é o rosa Afya */
+    --teal:#CE0058;
+    --teal-d:#A30046;
+    --teal-light:#FBE0EC;
+    --amber:#D98E3B;        /* mantido p/ estados de atenção */
     --amber-light:#F8E9D4;
-    --coral:#C1543A;
-    --coral-light:#F5DAD3;
-    --slate:#3D4C5B;
-    --slate-soft:#6B7A88;
-    --line:#E1DFD8;
-    --line-dark:#2A4A66;
+    --coral:#D64545;        /* mantido p/ negativo/perigo */
+    --coral-light:#F7D9D6;
+    --slate:#333333;        /* texto escuro */
+    --slate-soft:#6B7280;   /* texto suave */
+    --line:#E2E2E2;
+    --line-dark:#4A4A4A;
     --radius:10px;
-    --shadow: 0 1px 2px rgba(15,36,56,.06), 0 4px 16px rgba(15,36,56,.06);
+    --shadow: 0 1px 2px rgba(51,51,51,.06), 0 4px 16px rgba(51,51,51,.08);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -200,7 +209,7 @@
     padding:12px 14px;font-size:12.5px;color:#6B4E1E;margin-bottom:14px;
     display:flex;gap:10px;align-items:flex-start;
   }
-  .callout.info{background:var(--teal-light);border-color:#B9DED8;color:#124C46;}
+  .callout.info{background:var(--teal-light);border-color:#B9DED8;color:#A30046;}
   .callout .icon{font-size:15px;line-height:1;}
   .callout b{font-weight:700;}
 
@@ -223,7 +232,7 @@
   footer li{margin-bottom:5px;}
 
   ::-webkit-scrollbar{width:8px;height:8px;}
-  ::-webkit-scrollbar-thumb{background:#C9C6BC;border-radius:4px;}
+  ::-webkit-scrollbar-thumb{background:#C4C4C4;border-radius:4px;}
 </style>
 </head>
 <body>
@@ -236,7 +245,7 @@
         <div>
           <h1>Afya Metrics — Afya Bridge &amp; Afya One</h1>
           <div class="sub">Dashboard ágil · Afya Metrics · dados extraídos do Jira</div>
-          <div class="sub" id="periodoDados" style="margin-top:4px;font-weight:600;color:#1B8F86;"></div>
+          <div class="sub" id="periodoDados" style="margin-top:4px;font-weight:600;color:#CE0058;"></div>
         </div>
       </div>
       <div class="updated">ATUALIZADO EM<br><span id="exportDate" class="mono"></span></div>
@@ -568,8 +577,8 @@ let DATA = [];
 let EPICS = [];
 
 const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const COLORS = ['#1B8F86','#D98E3B','#3D4C5B','#C1543A','#6FA8A2','#E9C88B','#8AA0B0','#7C4E3A','#9BC4BE','#B8863F'];
-const TIPO_COLOR = {'Épico':'#0F2438','História':'#1B8F86','Sub-task':'#8AA0B0','Bug':'#C1543A','Débito Técnico':'#D98E3B','Enabler':'#6FA8A2'};
+const COLORS = ['#CE0058','#0057B8','#333333','#E6398A','#3B82D6','#9AA0A6','#8A0A3C','#00376F','#F27DB0','#7FB0E8'];
+const TIPO_COLOR = {'Épico':'#333333','História':'#CE0058','Sub-task':'#9AA0A6','Bug':'#D64545','Débito Técnico':'#D98E3B','Enabler':'#0057B8'};
 
 function normalizeData(){
   DATA.forEach(d=>{
@@ -849,7 +858,7 @@ function upsertChart(id, config){
 }
 const baseFont = {family:"'Inter',sans-serif", size:11};
 Chart.defaults.font = baseFont;
-Chart.defaults.color = '#6B7A88';
+Chart.defaults.color = '#6B7280';
 Chart.defaults.plugins.legend.labels.usePointStyle = true;
 Chart.defaults.plugins.legend.labels.boxWidth = 8;
 
@@ -881,33 +890,33 @@ function ensureDrawer(){
   style.textContent = `
     #__drawer-overlay{position:fixed;inset:0;background:rgba(15,36,56,.35);z-index:9998;opacity:0;pointer-events:none;transition:opacity .2s;}
     #__drawer-overlay.open{opacity:1;pointer-events:auto;}
-    #__drawer{position:fixed;top:0;right:0;height:100vh;width:min(920px,94vw);background:#FAF9F6;z-index:9999;
+    #__drawer{position:fixed;top:0;right:0;height:100vh;width:min(920px,94vw);background:#F7F7F7;z-index:9999;
       box-shadow:-8px 0 30px rgba(15,36,56,.18);transform:translateX(100%);transition:transform .24s ease;
       display:flex;flex-direction:column;font-family:'Inter',sans-serif;}
     #__drawer.open{transform:translateX(0);}
-    #__drawer .dh{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #E4E2DC;}
-    #__drawer .dh h3{margin:0;font-size:15px;color:#0F2438;font-weight:700;}
-    #__drawer .dh .cnt{font-size:12px;color:#6B7A88;font-weight:500;margin-left:8px;}
+    #__drawer .dh{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #E2E2E2;}
+    #__drawer .dh h3{margin:0;font-size:15px;color:#333333;font-weight:700;}
+    #__drawer .dh .cnt{font-size:12px;color:#6B7280;font-weight:500;margin-left:8px;}
     #__drawer .dh-actions{display:flex;gap:8px;align-items:center;}
-    #__drawer .dbtn{border:1px solid #D9D7D0;background:#fff;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:12.5px;color:#3D4C5B;}
-    #__drawer .dbtn:hover{border-color:#1B8F86;}
-    #__drawer .dbtn.close{border:none;background:transparent;font-size:20px;line-height:1;color:#6B7A88;padding:2px 8px;}
+    #__drawer .dbtn{border:1px solid #D6D6D6;background:#fff;border-radius:7px;padding:7px 12px;cursor:pointer;font-size:12.5px;color:#333333;}
+    #__drawer .dbtn:hover{border-color:#CE0058;}
+    #__drawer .dbtn.close{border:none;background:transparent;font-size:20px;line-height:1;color:#6B7280;padding:2px 8px;}
     #__drawer .dbody{overflow:auto;flex:1;padding:0;}
     #__drawer table{border-collapse:collapse;width:100%;font-size:12.5px;}
-    #__drawer thead th{position:sticky;top:0;background:#F0EEE9;color:#3D4C5B;text-align:left;padding:9px 12px;font-weight:600;
-      border-bottom:1px solid #E4E2DC;white-space:nowrap;}
-    #__drawer tbody td{padding:8px 12px;border-bottom:1px solid #EFEEEA;color:#3D4C5B;vertical-align:top;}
-    #__drawer tbody tr:hover{background:#F3F6F5;}
+    #__drawer thead th{position:sticky;top:0;background:#EEEEEE;color:#333333;text-align:left;padding:9px 12px;font-weight:600;
+      border-bottom:1px solid #E2E2E2;white-space:nowrap;}
+    #__drawer tbody td{padding:8px 12px;border-bottom:1px solid #ECECEC;color:#333333;vertical-align:top;}
+    #__drawer tbody tr:hover{background:#F5F5F5;}
     #__drawer td.resumo{max-width:340px;}
-    #__drawer a.jira{color:#1B8F86;font-weight:600;text-decoration:none;white-space:nowrap;}
+    #__drawer a.jira{color:#CE0058;font-weight:600;text-decoration:none;white-space:nowrap;}
     #__drawer a.jira:hover{text-decoration:underline;}
-    .drill-btn{border:1px solid #1B8F86;background:#fff;color:#136B64;border-radius:8px;
+    .drill-btn{border:1px solid #CE0058;background:#fff;color:#A30046;border-radius:8px;
       padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;
       transition:background .15s,color .15s,box-shadow .15s;}
-    .drill-btn:hover{background:#1B8F86;color:#fff;}
-    .drill-btn:focus,.drill-btn:focus-visible,.drill-btn:active{outline:none;background:#1B8F86;color:#fff;
+    .drill-btn:hover{background:#CE0058;color:#fff;}
+    .drill-btn:focus,.drill-btn:focus-visible,.drill-btn:active{outline:none;background:#CE0058;color:#fff;
       box-shadow:0 0 0 3px rgba(27,143,134,.25);}
-    #__drawer .empty{padding:40px;text-align:center;color:#6B7A88;font-size:13px;}`;
+    #__drawer .empty{padding:40px;text-align:center;color:#6B7280;font-size:13px;}`;
   document.head.appendChild(style);
 
   const overlay = document.createElement('div');
@@ -1113,10 +1122,10 @@ function renderExec(f){
   upsertChart('chart-exec-throughput-month', {
     type:'line',
     data:{ labels:months.map(monthLabel), datasets:[{
-      label:'Itens concluídos', data:monthCounts, borderColor:'#1B8F86', backgroundColor:'rgba(27,143,134,.12)',
-      fill:true, tension:.35, pointRadius:3, pointBackgroundColor:'#1B8F86'
+      label:'Itens concluídos', data:monthCounts, borderColor:'#CE0058', backgroundColor:'rgba(27,143,134,.12)',
+      fill:true, tension:.35, pointRadius:3, pointBackgroundColor:'#CE0058'
     }]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}},
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#ECECEC'}}, x:{grid:{display:false}}},
       onClick: drillClick((idx)=>{
         const m = months[idx];
         return {title:`Concluídos em ${monthLabel(m)}`, issues: concl.filter(d=>d.AnoMesConclusao===m)};
@@ -1129,9 +1138,9 @@ function renderExec(f){
     type:'bar',
     data:{labels:pis, datasets:[
       {label:'Planejado', data:spPlanByPi, backgroundColor:'#C9E4E0', borderRadius:4},
-      {label:'Concluído', data:spConclByPi, backgroundColor:'#1B8F86', borderRadius:4}
+      {label:'Concluído', data:spConclByPi, backgroundColor:'#CE0058', borderRadius:4}
     ]},
-    options:{responsive:true,maintainAspectRatio:false, scales:{y:{beginAtZero:true, grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}},
+    options:{responsive:true,maintainAspectRatio:false, scales:{y:{beginAtZero:true, grid:{color:'#ECECEC'}}, x:{grid:{display:false}}},
       onClick: drillClick((idx, ds)=>{
         const pi = pis[idx];
         if(ds===1){ // Concluído
@@ -1180,7 +1189,7 @@ function renderExec(f){
     const pctDiff = prevN? (diff/prevN*100):0;
     html += `<div style="margin-bottom:12px;"><div class="eyebrow">Mês ${monthLabel(prev)} → ${monthLabel(cur)}</div>
       <div style="display:flex;align-items:baseline;gap:8px;"><span class="mono" style="font-size:20px;font-weight:700;color:var(--ink);">${curN}</span>
-      <span style="color:${diff>=0?'#136B64':'#C1543A'};font-weight:600;">${diff>=0?'▲':'▼'} ${Math.abs(diff)} (${pctDiff.toFixed(0)}%)</span></div>
+      <span style="color:${diff>=0?'#A30046':'#D64545'};font-weight:600;">${diff>=0?'▲':'▼'} ${Math.abs(diff)} (${pctDiff.toFixed(0)}%)</span></div>
       <div style="color:var(--slate-soft);">itens concluídos vs. mês anterior (${prevN})</div></div>`;
   } else {
     html += `<div class="cap">Dados insuficientes para comparar meses (mín. 2 meses com conclusões no recorte).</div>`;
@@ -1194,7 +1203,7 @@ function renderExec(f){
     const pctDiff = prevN? (diff/prevN*100):0;
     html += `<div><div class="eyebrow">${prevPi} → ${curPi}</div>
       <div style="display:flex;align-items:baseline;gap:8px;"><span class="mono" style="font-size:20px;font-weight:700;color:var(--ink);">${curN}</span>
-      <span style="color:${diff>=0?'#136B64':'#C1543A'};font-weight:600;">${diff>=0?'▲':'▼'} ${Math.abs(diff)} (${pctDiff.toFixed(0)}%)</span></div>
+      <span style="color:${diff>=0?'#A30046':'#D64545'};font-weight:600;">${diff>=0?'▲':'▼'} ${Math.abs(diff)} (${pctDiff.toFixed(0)}%)</span></div>
       <div style="color:var(--slate-soft);">itens concluídos vs. PI anterior (${prevN})</div></div>`;
   }
   document.getElementById('exec-compare-box').innerHTML = html;
@@ -1212,23 +1221,23 @@ function renderThroughput(f){
   const bySquad = topNGroup(concl,'Squad',null).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-tp-squad', {
     type:'bar',
-    data:{labels:bySquad.map(x=>x[0]), datasets:[{data:bySquad.map(x=>x[1]), backgroundColor:'#1B8F86', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+    data:{labels:bySquad.map(x=>x[0]), datasets:[{data:bySquad.map(x=>x[1]), backgroundColor:'#CE0058', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
       onClick: drillClick((idx)=>{ const v=bySquad[idx][0]; return {title:`Concluídos · Squad: ${v}`, issues: concl.filter(d=>d.Squad===v)}; })}
   });
 
   const byVS = topNGroup(concl,'VS',null).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-tp-vs', {
     type:'bar',
-    data:{labels:byVS.map(x=>x[0]), datasets:[{data:byVS.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}},
+    data:{labels:byVS.map(x=>x[0]), datasets:[{data:byVS.map(x=>x[1]), backgroundColor:'#0057B8', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}}},
       onClick: drillClick((idx)=>{ const v=byVS[idx][0]; return {title:`Concluídos · Value Stream: ${v}`, issues: concl.filter(d=>d.VS===v)}; })}
   });
 
   const byProg = topNGroup(concl,'Programa',null);
   upsertChart('chart-tp-programa', {
     type:'doughnut',
-    data:{labels:byProg.map(x=>x[0]), datasets:[{data:byProg.map(x=>x[1]), backgroundColor:['#1B8F86','#0F2438','#D98E3B'], borderWidth:2, borderColor:'#fff'}]},
+    data:{labels:byProg.map(x=>x[0]), datasets:[{data:byProg.map(x=>x[1]), backgroundColor:['#CE0058','#0057B8','#333333'], borderWidth:2, borderColor:'#fff'}]},
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%',
       onClick: drillClick((idx)=>{ const v=byProg[idx][0]; return {title:`Concluídos · Programa: ${v}`, issues: concl.filter(d=>d.Programa===v)}; })}
   });
@@ -1236,8 +1245,8 @@ function renderThroughput(f){
   const byPi = topNGroup(concl,'PI',null).sort((a,b)=>a[0].localeCompare(b[0]));
   upsertChart('chart-tp-pi', {
     type:'bar',
-    data:{labels:byPi.map(x=>x[0]), datasets:[{data:byPi.map(x=>x[1]), backgroundColor:'#3D4C5B', borderRadius:4}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}},
+    data:{labels:byPi.map(x=>x[0]), datasets:[{data:byPi.map(x=>x[1]), backgroundColor:'#0057B8', borderRadius:4}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}},
       onClick: drillClick((idx)=>{ const v=byPi[idx][0]; return {title:`Concluídos · PI: ${v}`, issues: concl.filter(d=>d.PI===v)}; })}
   });
 
@@ -1259,7 +1268,7 @@ function renderThroughput(f){
   upsertChart('chart-tp-month-stacked', {
     type:'bar',
     data:{labels:months.map(monthLabel), datasets},
-    options:{responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, grid:{color:'#EFEEEA'}}},
+    options:{responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, grid:{color:'#ECECEC'}}},
       onClick: drillClick((idx, ds)=>{ const m=months[idx], t=tipos[ds];
         return {title:`Concluídos · ${monthLabel(m)} · ${t}`, issues: concl.filter(d=>d.AnoMesConclusao===m && d['Tipo Agrupado']===t)}; })}
   });
@@ -1275,7 +1284,7 @@ function renderThroughput(f){
       return {sq, curN, prevN, diff:curN-prevN};
     }).filter(r=>r.curN>0||r.prevN>0).sort((a,b)=>b.curN-a.curN);
     tbody.innerHTML = rows.map(r=>`<tr><td>${r.sq}</td><td>${r.prevN}</td><td><b>${r.curN}</b></td>
-      <td style="color:${r.diff>=0?'#136B64':'#C1543A'};font-weight:600;">${r.diff>=0?'▲':'▼'} ${Math.abs(r.diff)}</td></tr>`).join('');
+      <td style="color:${r.diff>=0?'#A30046':'#D64545'};font-weight:600;">${r.diff>=0?'▲':'▼'} ${Math.abs(r.diff)}</td></tr>`).join('');
   } else {
     tbody.innerHTML = '<tr><td colspan="4" style="color:var(--slate-soft);">Dados insuficientes (é necessário ao menos 2 meses com conclusões no recorte atual).</td></tr>';
   }
@@ -1315,10 +1324,10 @@ function renderSP(f){
   upsertChart('chart-sp-squad', {
     type:'bar',
     data:{labels:orderSq.map(x=>x[0]), datasets:[
-      {label:'Planejado', data:orderSq.map(x=>x[1]), backgroundColor:'#E4D7BE', borderRadius:4},
-      {label:'Concluído', data:orderSq.map(x=>x[2]), backgroundColor:'#D98E3B', borderRadius:4}
+      {label:'Planejado', data:orderSq.map(x=>x[1]), backgroundColor:'#F7C9DD', borderRadius:4},
+      {label:'Concluído', data:orderSq.map(x=>x[2]), backgroundColor:'#CE0058', borderRadius:4}
     ]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
       onClick: drillClick((idx, ds)=>{ const k=orderSq[idx][0];
         return ds===1 ? {title:`SP concluído · Squad: ${k}`, issues: concl.filter(d=>d.Squad===k)}
                       : {title:`SP planejado · Squad: ${k}`, issues: naoCancel.filter(d=>d.Squad===k)}; })}
@@ -1329,10 +1338,10 @@ function renderSP(f){
   upsertChart('chart-sp-vs', {
     type:'bar',
     data:{labels:orderVs.map(x=>x[0]), datasets:[
-      {label:'Planejado', data:orderVs.map(x=>x[1]), backgroundColor:'#C9E4E0', borderRadius:4},
-      {label:'Concluído', data:orderVs.map(x=>x[2]), backgroundColor:'#1B8F86', borderRadius:4}
+      {label:'Planejado', data:orderVs.map(x=>x[1]), backgroundColor:'#CBD9F0', borderRadius:4},
+      {label:'Concluído', data:orderVs.map(x=>x[2]), backgroundColor:'#0057B8', borderRadius:4}
     ]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}}},
       onClick: drillClick((idx, ds)=>{ const k=orderVs[idx][0];
         return ds===1 ? {title:`SP concluído · VS: ${k}`, issues: concl.filter(d=>d.VS===k)}
                       : {title:`SP planejado · VS: ${k}`, issues: naoCancel.filter(d=>d.VS===k)}; })}
@@ -1343,10 +1352,10 @@ function renderSP(f){
   upsertChart('chart-sp-pi', {
     type:'bar',
     data:{labels:orderPi.map(x=>x[0]), datasets:[
-      {label:'Planejado', data:orderPi.map(x=>x[1]), backgroundColor:'#DCE3E8', borderRadius:4},
-      {label:'Concluído', data:orderPi.map(x=>x[2]), backgroundColor:'#3D4C5B', borderRadius:4}
+      {label:'Planejado', data:orderPi.map(x=>x[1]), backgroundColor:'#E2E2E2', borderRadius:4},
+      {label:'Concluído', data:orderPi.map(x=>x[2]), backgroundColor:'#CE0058', borderRadius:4}
     ]},
-    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}},
+    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}}, x:{grid:{display:false}}},
       onClick: drillClick((idx, ds)=>{ const k=orderPi[idx][0];
         return ds===1 ? {title:`SP concluído · PI: ${k}`, issues: concl.filter(d=>d.PI===k)}
                       : {title:`SP planejado · PI: ${k}`, issues: naoCancel.filter(d=>d.PI===k)}; })}
@@ -1361,10 +1370,10 @@ function renderSP(f){
   upsertChart('chart-sp-month', {
     type:'bar',
     data:{labels:months.map(monthLabel), datasets:[
-      {type:'bar', label:'SP concluído', data:monthSP, backgroundColor:'#9BC4BE', borderRadius:4, order:2},
-      {type:'line', label:'Tendência (méd. móvel 3m)', data:movAvg, borderColor:'#C1543A', backgroundColor:'#C1543A', tension:.3, pointRadius:2, order:1}
+      {type:'bar', label:'SP concluído', data:monthSP, backgroundColor:'#0057B8', borderRadius:4, order:2},
+      {type:'line', label:'Tendência (méd. móvel 3m)', data:movAvg, borderColor:'#D64545', backgroundColor:'#D64545', tension:.3, pointRadius:2, order:1}
     ]},
-    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}}},
+    options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}}, x:{grid:{display:false}}},
       onClick: drillClick((idx)=>{ const m=months[idx];
         return {title:`SP concluído · ${monthLabel(m)}`, issues: concl.filter(d=>d.AnoMesConclusao===m)}; })}
   });
@@ -1406,30 +1415,30 @@ function renderFlow(f){
   const leadHist = histogramBins(leadVals, 12);
   upsertChart('chart-flow-lead-hist', {
     type:'bar',
-    data:{labels:leadHist.labels, datasets:[{data:leadHist.counts, backgroundColor:'#1B8F86', borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}}}
+    data:{labels:leadHist.labels, datasets:[{data:leadHist.counts, backgroundColor:'#CE0058', borderRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}}}
   });
   const cycleHist = histogramBins(cycleVals, 12);
   upsertChart('chart-flow-cycle-hist', {
     type:'bar',
     data:{labels:cycleHist.labels, datasets:[{data:cycleHist.counts, backgroundColor:'#D98E3B', borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}, ticks:{font:{size:9}}, title:{display:true, text:'Faixas de dias'}}}}
   });
 
   const months = sortedMonthKeys(concl.filter(d=>d.LeadTimeDias!=null), 'AnoMesConclusao');
   const leadTrend = months.map(m=> percentile(concl.filter(d=>d.AnoMesConclusao===m && d.LeadTimeDias!=null).map(d=>d.LeadTimeDias), 85));
   upsertChart('chart-flow-lead-trend', {
     type:'line',
-    data:{labels:months.map(monthLabel), datasets:[{label:'Lead Time P85 (dias)', data:leadTrend, borderColor:'#3D4C5B', backgroundColor:'rgba(61,76,91,.1)', fill:true, tension:.35, pointRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}}}
+    data:{labels:months.map(monthLabel), datasets:[{label:'Lead Time P85 (dias)', data:leadTrend, borderColor:'#333333', backgroundColor:'rgba(61,76,91,.1)', fill:true, tension:.35, pointRadius:3}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}}}
   });
 
   const squadLead = Array.from(groupBy(concl.filter(d=>d.LeadTimeDias!=null), d=>d.Squad), ([k,v])=>[k, percentile(v.map(d=>d.LeadTimeDias),85), v.length])
     .sort((a,b)=>b[2]-a[2]).slice(0,12).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-flow-lead-squad', {
     type:'bar',
-    data:{labels:squadLead.map(x=>x[0]), datasets:[{label:'Lead Time P85 (dias)', data:squadLead.map(x=>x[1].toFixed(1)), backgroundColor:'#1B8F86', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+    data:{labels:squadLead.map(x=>x[0]), datasets:[{label:'Lead Time P85 (dias)', data:squadLead.map(x=>x[1].toFixed(1)), backgroundColor:'#CE0058', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
   });
 
   const vsCycle = Array.from(groupBy(concl.filter(d=>d.CycleTimeDias!=null), d=>d.VS), ([k,v])=>[k, percentile(v.map(d=>d.CycleTimeDias),85), v.length])
@@ -1437,7 +1446,7 @@ function renderFlow(f){
   upsertChart('chart-flow-cycle-vs', {
     type:'bar',
     data:{labels:vsCycle.map(x=>x[0]), datasets:[{label:'Cycle Time P85 (dias)', data:vsCycle.map(x=>x[1].toFixed(1)), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}}}
   });
 }
 
@@ -1468,19 +1477,19 @@ function renderWip(f){
   const eqSquad = entregasPor('Squad').slice(0,14).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-wip-entregas-squad', {
     type:'bar',
-    data:{labels:eqSquad.map(x=>x[0]), datasets:[{data:eqSquad.map(x=>x[1]), backgroundColor:'#1B8F86', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+    data:{labels:eqSquad.map(x=>x[0]), datasets:[{data:eqSquad.map(x=>x[1]), backgroundColor:'#CE0058', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
   });
   const eqVs = entregasPor('VS').sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-wip-entregas-vs', {
     type:'bar',
     data:{labels:eqVs.map(x=>x[0]), datasets:[{data:eqVs.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}}}}
   });
   const eqProg = entregasPor('Programa');
   upsertChart('chart-wip-entregas-programa', {
     type:'doughnut',
-    data:{labels:eqProg.map(x=>x[0]), datasets:[{data:eqProg.map(x=>x[1]), backgroundColor:['#1B8F86','#0F2438'], borderWidth:2, borderColor:'#fff'}]},
+    data:{labels:eqProg.map(x=>x[0]), datasets:[{data:eqProg.map(x=>x[1]), backgroundColor:['#CE0058','#333333'], borderWidth:2, borderColor:'#fff'}]},
     options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%'}
   });
 
@@ -1488,13 +1497,13 @@ function renderWip(f){
   upsertChart('chart-wip-status', {
     type:'bar',
     data:{labels:wipStatus.map(x=>x[0]), datasets:[{data:wipStatus.map(x=>x[1]), backgroundColor:'#8AA0B0', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
   });
   const wipSquad = Array.from(groupBy(wipItems, d=>d.Squad), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]).slice(-15);
   upsertChart('chart-wip-squad', {
     type:'bar',
-    data:{labels:wipSquad.map(x=>x[0]), datasets:[{data:wipSquad.map(x=>x[1]), backgroundColor:'#C1543A', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+    data:{labels:wipSquad.map(x=>x[0]), datasets:[{data:wipSquad.map(x=>x[1]), backgroundColor:'#D64545', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
   });
 
   const agingVals = wipItems.map(d=>d.AgingDias).filter(v=>v!=null && v>=0);
@@ -1502,15 +1511,15 @@ function renderWip(f){
   upsertChart('chart-wip-aging-hist', {
     type:'bar',
     data:{labels:agingHist.labels, datasets:[{data:agingHist.counts, backgroundColor:'#D98E3B', borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#EFEEEA'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
   });
 
   const agingSquad = Array.from(groupBy(wipItems.filter(d=>d.AgingDias!=null && d.AgingDias>=0), d=>d.Squad), ([k,v])=>[k, mean(v.map(d=>d.AgingDias)), v.length])
     .filter(x=>x[2]>=2).sort((a,b)=>b[1]-a[1]).slice(0,10).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-wip-aging-squad', {
     type:'bar',
-    data:{labels:agingSquad.map(x=>x[0]), datasets:[{data:agingSquad.map(x=>x[1].toFixed(1)), backgroundColor:'#C1543A', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+    data:{labels:agingSquad.map(x=>x[0]), datasets:[{data:agingSquad.map(x=>x[1].toFixed(1)), backgroundColor:'#D64545', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
   });
 
   // Epic table — recompute rollup from filtered set using EpicoChave
@@ -1542,7 +1551,7 @@ function renderWip(f){
 
 /* ===================== TAB: RANKINGS & HEATMAP ===================== */
 function heatColor(v, max){
-  if(max<=0 || v<=0) return '#F1F0EC';
+  if(max<=0 || v<=0) return '#F0F0F0';
   const t = Math.min(1, v/max);
   // interpolate between light teal and dark teal
   const r1=220,g1=239,b1=234, r2=19,g2=107,b2=100;
@@ -1555,14 +1564,14 @@ function renderRank(f){
   const squadRank = Array.from(groupBy(concl, d=>d.Squad), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-rank-squad', {
     type:'bar',
-    data:{labels:squadRank.map(x=>x[0]), datasets:[{data:squadRank.map(x=>x[1]), backgroundColor:'#1B8F86', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+    data:{labels:squadRank.map(x=>x[0]), datasets:[{data:squadRank.map(x=>x[1]), backgroundColor:'#CE0058', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
   });
   const vsRank = Array.from(groupBy(concl, d=>d.VS), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-rank-vs', {
     type:'bar',
     data:{labels:vsRank.map(x=>x[0]), datasets:[{data:vsRank.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#EFEEEA'}}, y:{grid:{display:false}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}}}}
   });
 
   // Heatmap Squad x Month
@@ -1573,7 +1582,7 @@ function renderRank(f){
 
   let html = '<table class="heat-table"><thead><tr><th>Squad</th>' + months.map(m=>`<th>${monthLabel(m)}</th>`).join('') + '</tr></thead><tbody>';
   squads.forEach((sq,i)=>{
-    html += `<tr><td>${sq}</td>` + matrix[i].map(v=>`<td><div class="heat-cell" style="background:${heatColor(v,maxVal)};color:${v/maxVal>0.55?'#fff':'#3D4C5B'};">${v||''}</div></td>`).join('') + '</tr>';
+    html += `<tr><td>${sq}</td>` + matrix[i].map(v=>`<td><div class="heat-cell" style="background:${heatColor(v,maxVal)};color:${v/maxVal>0.55?'#fff':'#333333'};">${v||''}</div></td>`).join('') + '</tr>';
   });
   html += '</tbody></table>';
   document.getElementById('heatmap-container').innerHTML = months.length && squads.length ? html : '<div class="cap">Sem dados suficientes para montar o heatmap no recorte atual.</div>';
@@ -1607,10 +1616,10 @@ function showLoading(msg){
     el.id = '__loading';
     el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;'
       + 'background:rgba(250,249,246,.92);z-index:9999;font-family:Inter,system-ui,sans-serif;'
-      + 'color:#3D4C5B;font-size:15px;flex-direction:column;gap:14px;text-align:center;padding:24px;';
+      + 'color:#333333;font-size:15px;flex-direction:column;gap:14px;text-align:center;padding:24px;';
     document.body.appendChild(el);
   }
-  el.innerHTML = '<div style="width:34px;height:34px;border:3px solid #E4E2DC;border-top-color:#1B8F86;'
+  el.innerHTML = '<div style="width:34px;height:34px;border:3px solid #E2E2E2;border-top-color:#CE0058;'
     + 'border-radius:50%;animation:__spin .8s linear infinite;"></div>'
     + '<div>' + msg + '</div>'
     + '<style>@keyframes __spin{to{transform:rotate(360deg)}}</style>';
@@ -1625,11 +1634,11 @@ function showError(detail){
   el.id = '__loading';
   el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;'
     + 'background:rgba(250,249,246,.96);z-index:9999;font-family:Inter,system-ui,sans-serif;'
-    + 'color:#C1543A;flex-direction:column;gap:12px;text-align:center;padding:32px;';
+    + 'color:#D64545;flex-direction:column;gap:12px;text-align:center;padding:32px;';
   el.innerHTML = '<div style="font-size:17px;font-weight:600;">Não foi possível carregar os dados do Jira</div>'
-    + '<div style="color:#3D4C5B;font-size:13.5px;max-width:520px;">' + detail + '</div>'
+    + '<div style="color:#333333;font-size:13.5px;max-width:520px;">' + detail + '</div>'
     + '<button onclick="bootstrap(true)" style="margin-top:6px;padding:9px 18px;border:none;border-radius:6px;'
-    + 'background:#1B8F86;color:#fff;font-size:13.5px;cursor:pointer;">Tentar novamente</button>';
+    + 'background:#CE0058;color:#fff;font-size:13.5px;cursor:pointer;">Tentar novamente</button>';
   el.style.display = 'flex';
 }
 
