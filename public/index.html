@@ -197,12 +197,16 @@
   .barcell{background:var(--teal-light);border-radius:3px;height:8px;position:relative;overflow:hidden;}
   .barcell i{position:absolute;left:0;top:0;bottom:0;background:var(--teal);border-radius:3px;}
 
-  .heat-table{border-collapse:collapse;font-size:11px;width:100%;}
-  .heat-table th{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--slate-soft);padding:4px 6px;text-align:center;}
-  .heat-table th:first-child{text-align:left;}
-  .heat-table td{padding:0;text-align:center;}
-  .heat-table td:first-child{text-align:left;padding:4px 8px;font-size:11.5px;color:var(--slate);white-space:nowrap;}
-  .heat-cell{width:100%;height:28px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;border-radius:3px;margin:1px;}
+  .heat-table{border-collapse:separate;border-spacing:0;font-size:11px;width:100%;}
+  .heat-table th{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--slate-soft);padding:4px 6px;text-align:center;
+    position:sticky;top:0;background:var(--card);z-index:2;border-bottom:1px solid var(--line);}
+  .heat-table th:first-child{text-align:left;left:0;z-index:3;}
+  .heat-table td{padding:0;text-align:center;border-right:1px solid #EDEDED;border-bottom:1px solid #EDEDED;}
+  .heat-table td:first-child{text-align:left;padding:4px 10px;font-size:11.5px;color:var(--slate);white-space:nowrap;
+    position:sticky;left:0;background:var(--card);z-index:1;font-weight:600;border-right:1px solid var(--line);}
+  #heatmap-container{max-height:70vh;overflow:auto;}
+  .heat-cell{width:100%;height:28px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:600;cursor:pointer;transition:outline .1s;}
+  .heat-cell:hover{outline:2px solid var(--primary);outline-offset:-2px;}
 
   .callout{
     background:var(--amber-light);border:1px solid #EAD2A8;border-radius:8px;
@@ -491,8 +495,9 @@
 
 <!-- ===================== TAB: RANKINGS & HEATMAP ===================== -->
 <section class="tabpanel" id="panel-rank">
-  <div class="section-head">
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Rankings &amp; Heatmap</h2>
+    <button class="drill-btn" onclick="openDrawer('Concluídos do recorte atual', getFiltered().filter(d=>d.Concluido))">📋 Ver issues concluídas</button>
   </div>
 
   <div class="grid grid-2">
@@ -1586,10 +1591,10 @@ function renderWip(f){
 
 /* ===================== TAB: RANKINGS & HEATMAP ===================== */
 function heatColor(v, max){
-  if(max<=0 || v<=0) return '#F0F0F0';
+  if(max<=0 || v<=0) return '#F5F5F5';
   const t = Math.min(1, v/max);
-  // interpolate between light teal and dark teal
-  const r1=220,g1=239,b1=234, r2=19,g2=107,b2=100;
+  // interpola do rosa claro (#FBE0EC) ao rosa Afya (#CE0058)
+  const r1=251,g1=224,b1=236, r2=206,g2=0,b2=88;
   const r = Math.round(r1+(r2-r1)*t), g = Math.round(g1+(g2-g1)*t), b = Math.round(b1+(b2-b1)*t);
   return `rgb(${r},${g},${b})`;
 }
@@ -1600,29 +1605,37 @@ function renderRank(f){
   upsertChart('chart-rank-squad', {
     type:'bar',
     data:{labels:squadRank.map(x=>x[0]), datasets:[{data:squadRank.map(x=>x[1]), backgroundColor:'#CE0058', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=>{ const k=squadRank[idx][0]; return {title:`Concluídos · Squad: ${k}`, issues: concl.filter(d=>d.Squad===k)}; })}
   });
   const vsRank = Array.from(groupBy(concl, d=>d.VS), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-rank-vs', {
     type:'bar',
     data:{labels:vsRank.map(x=>x[0]), datasets:[{data:vsRank.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}}},
+      onClick: drillClick((idx)=>{ const k=vsRank[idx][0]; return {title:`Concluídos · VS: ${k}`, issues: concl.filter(d=>d.VS===k)}; })}
   });
 
-  // Heatmap Squad x Month
+  // Heatmap Squad x Mês — ordenado por quem entrega MAIS (item 14)
   const months = sortedMonthKeys(concl, 'AnoMesConclusao');
-  const squads = Array.from(new Set(concl.map(d=>d.Squad))).sort();
+  const totalBySquad = Array.from(groupBy(concl, d=>d.Squad), ([k,v])=>[k,v.length]);
+  const squads = totalBySquad.sort((a,b)=>b[1]-a[1]).map(x=>x[0]); // desc: mais entregas no topo
   const matrix = squads.map(sq=> months.map(m=> concl.filter(d=>d.Squad===sq && d.AnoMesConclusao===m).length));
   const maxVal = Math.max(1, ...matrix.flat());
 
+  // registra cada célula (squad+mês) como drill
+  squads.forEach((sq,i)=> months.forEach((m,j)=>{
+    __cardDrills[`heat_${i}_${j}`] = {title:`Concluídos · ${sq} · ${monthLabel(m)}`, issues: concl.filter(d=>d.Squad===sq && d.AnoMesConclusao===m)};
+  }));
+
   let html = '<table class="heat-table"><thead><tr><th>Squad</th>' + months.map(m=>`<th>${monthLabel(m)}</th>`).join('') + '</tr></thead><tbody>';
   squads.forEach((sq,i)=>{
-    html += `<tr><td>${sq}</td>` + matrix[i].map(v=>`<td><div class="heat-cell" style="background:${heatColor(v,maxVal)};color:${v/maxVal>0.55?'#fff':'#333333'};">${v||''}</div></td>`).join('') + '</tr>';
+    html += `<tr><td title="${sq}">${sq}</td>` + matrix[i].map((v,j)=>`<td><div class="heat-cell" ${v?`data-drill="heat_${i}_${j}"`:''} style="background:${heatColor(v,maxVal)};color:${v/maxVal>0.55?'#fff':'#333333'};">${v||''}</div></td>`).join('') + '</tr>';
   });
   html += '</tbody></table>';
   document.getElementById('heatmap-container').innerHTML = months.length && squads.length ? html : '<div class="cap">Sem dados suficientes para montar o heatmap no recorte atual.</div>';
 
-  // Consolidated table
+  // Tabela consolidada (ordenada por throughput desc) — linhas clicáveis
   const allSquads = Array.from(new Set(f.map(d=>d.Squad))).sort();
   const rows = allSquads.map(sq=>{
     const items = f.filter(d=>d.Squad===sq);
@@ -1636,8 +1649,9 @@ function renderRank(f){
     return {sq, vs, throughput:conclItems.length, spConcl, wipN, leadMean:mean(leadArr), pct};
   }).sort((a,b)=>b.throughput-a.throughput);
 
+  rows.forEach(r=>{ __cardDrills['ranksq_'+r.sq] = {title:`Squad: ${r.sq} — todos os itens`, issues: f.filter(d=>d.Squad===r.sq)}; });
   document.querySelector('#rank-table tbody').innerHTML = rows.map(r=>`
-    <tr><td>${r.sq}</td><td style="font-size:11.5px;color:var(--slate-soft);">${r.vs}</td>
+    <tr data-drill="ranksq_${r.sq}" style="cursor:pointer;" title="Ver issues desta squad"><td>${r.sq}</td><td style="font-size:11.5px;color:var(--slate-soft);">${r.vs}</td>
     <td><b>${r.throughput}</b></td><td>${fmt0(r.spConcl)}</td><td>${r.wipN}</td>
     <td>${fmt1(r.leadMean)}</td>
     <td><span class="badge ${r.pct>=70?'ok':r.pct>=40?'warn':'risk'}">${r.pct.toFixed(0)}%</span></td></tr>`).join('');
