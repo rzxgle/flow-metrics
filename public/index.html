@@ -431,8 +431,9 @@
 
 <!-- ===================== TAB: ENTREGAS / WIP / AGING ===================== -->
 <section class="tabpanel" id="panel-wip">
-  <div class="section-head">
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Entregas, WIP &amp; Aging</h2>
+    <button class="drill-btn" onclick="openDrawer('WIP em aberto (posição atual)', getFilteredNoDate().filter(d=>d.WIP))">📋 Ver WIP em aberto</button>
   </div>
 
   <div class="kpi-row" id="wip-kpis"></div>
@@ -1012,7 +1013,7 @@ function drillClick(resolver){
 /* KPIs clicáveis: registro preenchido pelo renderExec + listener delegado (uma vez) */
 let __cardDrills = {};
 document.addEventListener('click', (e)=>{
-  const card = e.target.closest('.kpi-clickable[data-drill]');
+  const card = e.target.closest('[data-drill]');
   if(!card) return;
   const d = __cardDrills[card.getAttribute('data-drill')];
   if(d) openDrawer(d.title, d.issues);
@@ -1479,12 +1480,19 @@ function renderWip(f){
   const ativos = f.filter(d=>!d.Cancelado).length;
   const pctGeral = ativos? (concl.length/ativos*100):0;
 
+  Object.assign(__cardDrills, {
+    wip_epicos: {title:'Épicos entregues (EntregueAmplo)', issues: f.filter(d=>d['Tipo Agrupado']==='Épico' && d.EntregueAmplo)},
+    wip_historias: {title:'Histórias entregues (EntregueAmplo)', issues: f.filter(d=>d['Tipo Agrupado']==='História' && d.EntregueAmplo)},
+    wip_subtasks: {title:'Sub-tasks concluídas', issues: concl.filter(d=>d['Tipo Agrupado']==='Sub-task')},
+    wip_concl: {title:'Concluídos (base do % geral)', issues: concl},
+    wip_total: {title:'WIP total (em aberto)', issues: wipItems},
+  });
   document.getElementById('wip-kpis').innerHTML = [
-    kpiCard('Épicos entregues', fmt0(epicosEntreg), null, '', {cls:'flat', text:`${fmt0(epicosConcl)} c/ status "Concluído"`}),
-    kpiCard('Histórias entregues', fmt0(historiasEntreg), null, '', {cls:'flat', text:`${fmt0(historiasConcl)} c/ status "Concluído"`}),
-    kpiCard('Sub-tasks concluídas', fmt0(subtasksConcl)),
-    kpiCard('% conclusão geral', pctGeral.toFixed(0), '%'),
-    kpiCard('WIP total', fmt0(wipItems.length), 'itens', 'coral'),
+    kpiCard('Épicos entregues', fmt0(epicosEntreg), null, '', {cls:'flat', text:`${fmt0(epicosConcl)} c/ status "Concluído"`}, null, 'wip_epicos'),
+    kpiCard('Histórias entregues', fmt0(historiasEntreg), null, '', {cls:'flat', text:`${fmt0(historiasConcl)} c/ status "Concluído"`}, null, 'wip_historias'),
+    kpiCard('Sub-tasks concluídas', fmt0(subtasksConcl), '', '', null, null, 'wip_subtasks'),
+    kpiCard('% conclusão geral', pctGeral.toFixed(0), '%', '', null, null, 'wip_concl'),
+    kpiCard('WIP total', fmt0(wipItems.length), 'itens', 'coral', null, null, 'wip_total'),
   ].join('');
 
   function entregasPor(key){
@@ -1495,40 +1503,48 @@ function renderWip(f){
   upsertChart('chart-wip-entregas-squad', {
     type:'bar',
     data:{labels:eqSquad.map(x=>x[0]), datasets:[{data:eqSquad.map(x=>x[1]), backgroundColor:'#CE0058', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=>{ const k=eqSquad[idx][0]; return {title:`Concluídos · Squad: ${k}`, issues: concl.filter(d=>d.Squad===k)}; })}
   });
   const eqVs = entregasPor('VS').sort((a,b)=>a[1]-b[1]);
   upsertChart('chart-wip-entregas-vs', {
     type:'bar',
     data:{labels:eqVs.map(x=>x[0]), datasets:[{data:eqVs.map(x=>x[1]), backgroundColor:'#D98E3B', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}}},
+      onClick: drillClick((idx)=>{ const k=eqVs[idx][0]; return {title:`Concluídos · VS: ${k}`, issues: concl.filter(d=>d.VS===k)}; })}
   });
   const eqProg = entregasPor('Programa');
   upsertChart('chart-wip-entregas-programa', {
     type:'doughnut',
     data:{labels:eqProg.map(x=>x[0]), datasets:[{data:eqProg.map(x=>x[1]), backgroundColor:['#CE0058','#333333'], borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%'}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%',
+      onClick: drillClick((idx)=>{ const k=eqProg[idx][0]; return {title:`Concluídos · Programa: ${k}`, issues: concl.filter(d=>d.Programa===k)}; })}
   });
 
   const wipStatus = Array.from(groupBy(wipItems, d=>d.Status), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]).slice(-15);
   upsertChart('chart-wip-status', {
     type:'bar',
     data:{labels:wipStatus.map(x=>x[0]), datasets:[{data:wipStatus.map(x=>x[1]), backgroundColor:'#8AA0B0', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=>{ const k=wipStatus[idx][0]; return {title:`WIP · Status: ${k}`, issues: wipItems.filter(d=>d.Status===k)}; })}
   });
   const wipSquad = Array.from(groupBy(wipItems, d=>d.Squad), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]).slice(-15);
   upsertChart('chart-wip-squad', {
     type:'bar',
     data:{labels:wipSquad.map(x=>x[0]), datasets:[{data:wipSquad.map(x=>x[1]), backgroundColor:'#D64545', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=>{ const k=wipSquad[idx][0]; return {title:`WIP · Squad: ${k}`, issues: wipItems.filter(d=>d.Squad===k)}; })}
   });
 
-  const agingVals = wipItems.map(d=>d.AgingDias).filter(v=>v!=null && v>=0);
+  const agingWip = wipItems.filter(d=>d.AgingDias!=null && d.AgingDias>=0);
+  const agingVals = agingWip.map(d=>d.AgingDias);
   const agingHist = histogramBins(agingVals, 12);
   upsertChart('chart-wip-aging-hist', {
     type:'bar',
     data:{labels:agingHist.labels, datasets:[{data:agingHist.counts, backgroundColor:'#D98E3B', borderRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}}, x:{grid:{display:false}, ticks:{font:{size:9}}}},
+      onClick: drillClick((idx)=>{ const bs=agingHist.binSize, lo=idx*bs, hi=(idx+1)*bs, last=idx===agingHist.counts.length-1;
+        return {title:`WIP · Aging ${agingHist.labels[idx]}`, issues: agingWip.filter(d=> d.AgingDias>=lo && (last || d.AgingDias<hi))}; })}
   });
 
   const agingSquad = Array.from(groupBy(wipItems.filter(d=>d.AgingDias!=null && d.AgingDias>=0), d=>d.Squad), ([k,v])=>[k, mean(v.map(d=>d.AgingDias)), v.length])
@@ -1536,7 +1552,8 @@ function renderWip(f){
   upsertChart('chart-wip-aging-squad', {
     type:'bar',
     data:{labels:agingSquad.map(x=>x[0]), datasets:[{data:agingSquad.map(x=>x[1].toFixed(1)), backgroundColor:'#D64545', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}}}
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+      onClick: drillClick((idx)=>{ const k=agingSquad[idx][0]; return {title:`WIP em aberto · Squad: ${k}`, issues: agingWip.filter(d=>d.Squad===k)}; })}
   });
 
   // Epic table — recompute rollup from filtered set using EpicoChave
@@ -1555,8 +1572,9 @@ function renderWip(f){
     return {key, resumo:epicMap.get(key)||key, squad, total, conclN, pct, spT, spC};
   }).filter(r=>r.total>=3).sort((a,b)=>b.total-a.total).slice(0,25);
 
+  epicRows.forEach(r=>{ __cardDrills['wipepic_'+r.key] = {title:`Épico ${r.key} — itens`, issues: byEpic.get(r.key)}; });
   document.querySelector('#epic-table tbody').innerHTML = epicRows.map(r=>`
-    <tr>
+    <tr data-drill="wipepic_${r.key}" style="cursor:pointer;" title="Ver issues deste épico">
       <td><span class="mono" style="font-size:11px;color:var(--slate-soft);">${r.key}</span><br>${r.resumo}</td>
       <td style="font-size:11.5px;">${r.squad}</td>
       <td>${r.total}</td>
