@@ -600,6 +600,7 @@ const FILTER_DIMS = [
   {key:'VS', label:'Value Stream'},
   {key:'Squad', label:'Squad'},
   {key:'PI', label:'PI'},
+  {key:'Sprint', label:'Sprint'},
   {key:'AnoCriacao', label:'Ano'},
   {key:'Mes', label:'Mês (criação)'},
   {key:'Tipo Agrupado', label:'Tipo (agrupado)'},
@@ -640,6 +641,12 @@ function uniqueVals(key){
     arr = arr.sort((a,b)=>a-b);
   } else if(key==='PI'){
     arr = arr.sort();
+  } else if(key==='Sprint'){
+    arr = arr.sort((a,b)=>{
+      if(a==='(Não informado)') return 1;
+      if(b==='(Não informado)') return -1;
+      return String(a).localeCompare(String(b),'pt',{numeric:true});
+    });
   } else {
     arr = arr.sort((a,b)=>String(a).localeCompare(String(b),'pt'));
   }
