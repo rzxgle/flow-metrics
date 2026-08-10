@@ -40,7 +40,7 @@ const defaultGroup = 'Sub-task';
 
 /** Status que representam item CONCLUÍDO. */
 const doneStatuses = [
-    "Pronto para Prod",
+    "PRONTO PARA PROD",
     "PROD",
     "Done",
     "Deploy em PROD",
