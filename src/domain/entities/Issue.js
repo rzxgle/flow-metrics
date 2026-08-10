@@ -26,6 +26,7 @@ class Issue {
     labels,
     parentKey,
     sprint,
+    sprints,
     bcp,
     blockReason,
   }) {
@@ -45,6 +46,7 @@ class Issue {
     this.labels = Array.isArray(labels) ? labels : [];
     this.parentKey = parentKey || null;
     this.sprint = sprint || null; // nome da última sprint ativa
+    this.sprints = Array.isArray(sprints) ? sprints : []; // histórico de sprints
     this.bcp = (bcp === 0 || bcp) ? Number(bcp) : null; // complexidade normalizada (numérico)
     this.blockReason = blockReason || null; // motivo de bloqueio
   }

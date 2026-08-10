@@ -44,9 +44,24 @@ class JiraIssueRepository extends IssueRepository {
       labels: f[fm.labels] || [],
       parentKey: f[fm.parent] ? f[fm.parent].key : null,
       sprint: this._readSprint(f[fm.sprint]),
+      sprints: this._readSprintList(f[fm.sprint]),
       bcp: f[fm.bcp],
       blockReason: this._readSelect(f[fm.blockReason]),
     });
+  }
+
+  /**
+   * Lista com TODOS os nomes de sprint pelas quais a issue passou (histórico
+   * simples do array do Jira). Usada para "comprometido/planejado na sprint X"
+   * (Nível A: item cujo array de sprints contém X).
+   */
+  _readSprintList(value) {
+    if (!value) return [];
+    const arr = Array.isArray(value) ? value : [value];
+    const names = arr
+      .map((s) => (typeof s === 'string' ? s : s && s.name))
+      .filter(Boolean);
+    return Array.from(new Set(names)); // remove duplicatas preservando ordem
   }
 
   /**

@@ -43,6 +43,7 @@ class IssueEnricher {
       'Story Points': issue.storyPoints,
       BCP: issue.bcp,
       Sprint: issue.sprint,
+      Sprints: issue.sprints,
       MotivoBloqueio: issue.blockReason,
       Criado: toIsoDate(issue.createdAt),
       'Data Conclusao': toIsoDate(conclusao),

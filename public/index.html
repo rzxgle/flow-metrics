@@ -629,11 +629,20 @@ function setDefaultDateRange(){
 
 function uniqueVals(key){
   const set = new Set();
-  DATA.forEach(d=>{
-    let v = d[key];
-    if(v===null || v===undefined || v==='') v='(Não informado)';
-    set.add(v);
-  });
+  if(key==='Sprint'){
+    // lista TODAS as sprints do histórico (array Sprints), não só a última ativa
+    DATA.forEach(d=>{
+      const arr = (d.Sprints && d.Sprints.length) ? d.Sprints : [];
+      if(!arr.length) set.add('(Não informado)');
+      else arr.forEach(s=> set.add(s));
+    });
+  } else {
+    DATA.forEach(d=>{
+      let v = d[key];
+      if(v===null || v===undefined || v==='') v='(Não informado)';
+      set.add(v);
+    });
+  }
   let arr = Array.from(set);
   if(key==='Mes' || key==='MesConclusao'){
     arr = arr.filter(x=>x!=='(Não informado)').sort();
@@ -791,6 +800,12 @@ function matchesBarFilters(d){
   for(const f of FILTER_DIMS){
     const sel = selections[f.key];
     if(sel.size===0) continue;
+    if(f.key==='Sprint'){
+      // Nível A: item pertence à sprint se seu histórico (Sprints) CONTÉM a sprint
+      const arr = (d.Sprints && d.Sprints.length) ? d.Sprints : ['(Não informado)'];
+      if(!arr.some(s=>sel.has(String(s)))) return false;
+      continue;
+    }
     let v = d[f.key];
     if(v===null||v===undefined||v==='') v='(Não informado)';
     if(!sel.has(String(v))) return false;
