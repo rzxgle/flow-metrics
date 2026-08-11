@@ -307,7 +307,7 @@
     <div class="card">
       <h3>Distribuição por status (top 8)</h3>
       <div class="cap">Concentração do fluxo de trabalho por etapa atual.</div>
-      <div class="chartwrap"><canvas id="chart-exec-status-donut"></canvas></div>
+      <div class="chartwrap tall"><canvas id="chart-exec-status-donut"></canvas></div>
     </div>
     <div class="card">
       <h3>Comparativos período a período</h3>
@@ -895,6 +895,62 @@ Chart.defaults.color = '#6B7280';
 Chart.defaults.plugins.legend.labels.usePointStyle = true;
 Chart.defaults.plugins.legend.labels.boxWidth = 8;
 
+/* ===== Item 12: rótulos valor + % ===== */
+function donutLegendPct(chart){
+  const ds = chart.data.datasets[0];
+  const total = ds.data.reduce((a,b)=>a+(+b||0),0) || 1;
+  return chart.data.labels.map((lab,i)=>{
+    const v = +ds.data[i]||0;
+    const pct = (v/total*100).toFixed(0);
+    return { text:`${lab} — ${fmt0(v)} (${pct}%)`, fillStyle:ds.backgroundColor[i], strokeStyle:ds.backgroundColor[i], lineWidth:0, hidden:false, index:i };
+  });
+}
+const tooltipPct = {
+  callbacks:{
+    label(ctx){
+      const arr = ctx.dataset.data;
+      const total = arr.reduce((a,b)=>a+(+b||0),0) || 1;
+      let v = ctx.parsed;
+      if(v && typeof v==='object') v = (v.x!=null? v.x : v.y);
+      v = +v||0;
+      const pct = (v/total*100).toFixed(0);
+      return ` ${fmt0(v)} (${pct}%)`;
+    }
+  }
+};
+function donutPctOptions(extra){
+  return Object.assign({
+    responsive:true, maintainAspectRatio:false, cutout:'55%',
+    plugins:{
+      legend:{position:'bottom', labels:{font:{size:10}, usePointStyle:true, boxWidth:8, generateLabels:donutLegendPct}},
+      tooltip:tooltipPct
+    }
+  }, extra||{});
+}
+// Plugin inline: escreve "valor (pct%)" na ponta de barras horizontais (barPct:true).
+const barPctPlugin = {
+  id:'barPct',
+  afterDatasetsDraw(chart){
+    if(!chart.options.barPct) return;
+    const ctx = chart.ctx;
+    const meta = chart.getDatasetMeta(0);
+    const data = chart.data.datasets[0].data;
+    const total = data.reduce((a,b)=>a+(+b||0),0) || 1;
+    ctx.save();
+    ctx.font = "600 11px 'Inter',sans-serif";
+    ctx.fillStyle = '#3D4C5B';
+    ctx.textBaseline = 'middle';
+    meta.data.forEach((bar,i)=>{
+      const v = +data[i]||0;
+      if(!v) return;
+      const pct = (v/total*100).toFixed(0);
+      ctx.fillText(`${fmt0(v)} (${pct}%)`, bar.x + 6, bar.y);
+    });
+    ctx.restore();
+  }
+};
+Chart.register(barPctPlugin);
+
 /* ===================== Rastreabilidade: drawer de issues (Entrega 4) ===================== */
 const JIRA_BROWSE = 'https://medcel.atlassian.net/browse/';
 let __drawerIssues = [];   // issues atualmente exibidas (para o CSV)
@@ -1188,7 +1244,7 @@ function renderExec(f){
   upsertChart('chart-exec-tipo-donut', {
     type:'doughnut',
     data:{labels:tipos, datasets:[{data:tipoCounts, backgroundColor:tipos.map(t=>TIPO_COLOR[t]||'#999'), borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'62%',
+    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:10}, usePointStyle:true, boxWidth:8, generateLabels:donutLegendPct}}, tooltip:tooltipPct}, cutout:'62%',
       onClick: drillClick((idx)=>{
         const t = tipos[idx];
         return {title:`Tipo: ${t}`, issues: f.filter(d=>d['Tipo Agrupado']===t)};
@@ -1200,9 +1256,12 @@ function renderExec(f){
   const labels = top8.map(x=>x[0]).concat(outros>0?['Outros']:[]);
   const vals = top8.map(x=>x[1]).concat(outros>0?[outros]:[]);
   upsertChart('chart-exec-status-donut', {
-    type:'doughnut',
-    data:{labels, datasets:[{data:vals, backgroundColor:COLORS, borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9.5}}}}, cutout:'55%',
+    type:'bar',
+    data:{labels, datasets:[{data:vals, backgroundColor:COLORS, borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barPct:true,
+      layout:{padding:{right:56}},
+      plugins:{legend:{display:false}, tooltip:tooltipPct},
+      scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
       onClick: drillClick((idx)=>{
         const lbl = labels[idx];
         if(lbl==='Outros'){
@@ -1272,7 +1331,7 @@ function renderThroughput(f){
   upsertChart('chart-tp-programa', {
     type:'doughnut',
     data:{labels:byProg.map(x=>x[0]), datasets:[{data:byProg.map(x=>x[1]), backgroundColor:['#CE0058','#0057B8','#333333'], borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%',
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:10}, usePointStyle:true, boxWidth:8, generateLabels:donutLegendPct}}, tooltip:tooltipPct}, cutout:'55%',
       onClick: drillClick((idx)=>{ const v=byProg[idx][0]; return {title:`Concluídos · Programa: ${v}`, issues: concl.filter(d=>d.Programa===v)}; })}
   });
 
@@ -1288,7 +1347,7 @@ function renderThroughput(f){
   upsertChart('chart-tp-tipo', {
     type:'doughnut',
     data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map(x=>TIPO_COLOR[x[0]]||'#999'), borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9.5}}}}, cutout:'55%',
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:10}, usePointStyle:true, boxWidth:8, generateLabels:donutLegendPct}}, tooltip:tooltipPct}, cutout:'55%',
       onClick: drillClick((idx)=>{ const v=byTipo[idx][0]; return {title:`Concluídos · Tipo: ${v}`, issues: concl.filter(d=>d['Tipo Agrupado']===v)}; })}
   });
 
@@ -1549,7 +1608,7 @@ function renderWip(f){
   upsertChart('chart-wip-entregas-programa', {
     type:'doughnut',
     data:{labels:eqProg.map(x=>x[0]), datasets:[{data:eqProg.map(x=>x[1]), backgroundColor:['#CE0058','#333333'], borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, cutout:'55%',
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:10}, usePointStyle:true, boxWidth:8, generateLabels:donutLegendPct}}, tooltip:tooltipPct}, cutout:'55%',
       onClick: drillClick((idx)=>{ const k=eqProg[idx][0]; return {title:`Concluídos · Programa: ${k}`, issues: concl.filter(d=>d.Programa===k)}; })}
   });
 
