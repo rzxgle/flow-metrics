@@ -496,6 +496,27 @@
       <tbody></tbody>
     </table>
   </div>
+
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px;">
+    <h2 style="font-size:16px;">Itens cancelados</h2>
+    <button class="drill-btn" onclick="openDrawer('Itens cancelados do recorte', getFiltered().filter(d=>d.Cancelado))">📋 Ver cancelados</button>
+  </div>
+  <div class="cap" style="margin:-6px 0 10px;">Cancelamentos independem do filtro de período (itens cancelados não têm data de conclusão). Agrupamento mensal por data de criação.</div>
+  <div class="kpi-row" id="cancel-kpis"></div>
+  <div class="grid grid-3" style="margin-top:14px;">
+    <div class="card">
+      <h3>Cancelados por mês (criação)</h3>
+      <div class="chartwrap"><canvas id="chart-cancel-month"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Cancelados por Squad</h3>
+      <div class="chartwrap tall"><canvas id="chart-cancel-squad"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Cancelados por Tipo</h3>
+      <div class="chartwrap"><canvas id="chart-cancel-tipo"></canvas></div>
+    </div>
+  </div>
 </section>
 
 <!-- ===================== TAB: RANKINGS & HEATMAP ===================== -->
@@ -1185,7 +1206,7 @@ function renderExec(f){
   const hojeFmt = (()=>{ const [a,m,d]=isoToday().split('-'); return `${d}/${m}/${a}`; })();
   Object.assign(__cardDrills, {
     pendentes: {title:`Backlog atual · posição em ${hojeFmt}`, issues: atual.filter(d=>d.FaseFluxo==='Pendente')},
-    andamento: {title:`Sendo executados hoje · posição em ${hojeFmt}`, issues: atual.filter(d=>d.FaseFluxo==='Em andamento')},
+    andamento: {title:`Itens em andamento · posição em ${hojeFmt}`, issues: atual.filter(d=>d.FaseFluxo==='Em andamento')},
     concluidos: {title: temPeriodo?'Concluídos no período':'Concluídos', issues: concl},
     sp_concl: {title:'Itens com SP concluídos', issues: spConclItems},
     sp_plan: {title:'Itens com SP planejados (não cancelados)', issues: spPlanItems},
@@ -1194,9 +1215,9 @@ function renderExec(f){
   });
 
   document.getElementById('exec-kpis').innerHTML = [
-    kpiCard('Backlog atual <span class="today-pill">HOJE</span>', fmt0(pendentes), 'itens', 'snapshot slate',
+    kpiCard('Backlog atual', fmt0(pendentes), 'itens', 'snapshot slate',
       {cls:'flat', text:`posição em ${hojeFmt}`}, 'Status considerados pendentes: '+statusPend, 'pendentes'),
-    kpiCard('Sendo executados hoje <span class="today-pill">HOJE</span>', fmt0(andamento), 'itens', 'snapshot coral',
+    kpiCard('Itens em andamento', fmt0(andamento), 'itens', 'snapshot coral',
       {cls:'flat', text:`posição em ${hojeFmt}`}, 'Status em andamento: '+statusAnd, 'andamento'),
     kpiCard('Concluídos', fmt0(concl.length), 'itens', '',
       {cls:'up', text: temPeriodo ? 'no período filtrado' : pct.toFixed(0)+'% dos itens ativos'}, null, 'concluidos'),
@@ -1673,9 +1694,63 @@ function renderWip(f){
       <td class="mono" style="font-size:11.5px;">${fmt0(r.spC)}/${fmt0(r.spT)}</td>
       <td><div class="progressbar"><i style="width:${r.pct}%;"></i><span>${r.pct.toFixed(0)}%</span></div></td>
     </tr>`).join('') || '<tr><td colspan="6" style="color:var(--slate-soft);">Nenhum épico com itens vinculados suficientes no recorte atual.</td></tr>';
+
+  renderCancelados(f);
 }
 
-/* ===================== TAB: RANKINGS & HEATMAP ===================== */
+/* ===================== Bloco: Itens cancelados ===================== */
+function renderCancelados(f){
+  const canc = f.filter(d=>d.Cancelado);
+  const totalItens = f.length || 1;
+  const pct = (canc.length/totalItens*100);
+
+  Object.assign(__cardDrills, {
+    cancel_total: {title:'Itens cancelados do recorte', issues: canc},
+  });
+  document.getElementById('cancel-kpis').innerHTML = [
+    kpiCard('Cancelados', fmt0(canc.length), 'itens', 'coral',
+      {cls:'flat', text:`${pct.toFixed(1)}% do recorte`}, null, 'cancel_total'),
+  ].join('');
+
+  // Por mês (data de criação)
+  const months = sortedMonthKeys(canc, 'AnoMesCriacao');
+  const monthCounts = months.map(m=> canc.filter(d=>d.AnoMesCriacao===m).length);
+  months.forEach((m,i)=>{ __cardDrills['cancel_m_'+i] = {title:`Cancelados criados em ${monthLabel(m)}`, issues: canc.filter(d=>d.AnoMesCriacao===m)}; });
+  upsertChart('chart-cancel-month', {
+    type:'bar',
+    data:{labels:months.map(monthLabel), datasets:[{data:monthCounts, backgroundColor:'#D64545', borderRadius:4}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, grid:{color:'#ECECEC'}, title:{display:true, text:'Nº de itens'}}, x:{grid:{display:false}}},
+      onClick: drillClick((idx)=> __cardDrills['cancel_m_'+idx])}
+  });
+
+  // Por squad
+  const bySquad = Array.from(groupBy(canc, d=>d.Squad), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-cancel-squad', {
+    type:'bar',
+    data:{labels:bySquad.map(x=>x[0]), datasets:[{data:bySquad.map(x=>x[1]), backgroundColor:'#D64545', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=>{ const k=bySquad[idx][0]; return {title:`Cancelados · Squad: ${k}`, issues: canc.filter(d=>d.Squad===k)}; })}
+  });
+
+  // Por tipo (regra dos 5: donut se <=5, senão barra)
+  const byTipo = Array.from(groupBy(canc, d=>d['Tipo Agrupado']), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
+  if(byTipo.length<=5){
+    upsertChart('chart-cancel-tipo', {
+      type:'doughnut',
+      data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map(x=>TIPO_COLOR[x[0]]||'#999'), borderWidth:2, borderColor:'#fff'}]},
+      options:Object.assign(donutPctOptions({cutout:'55%'}), {
+        onClick: drillClick((idx)=>{ const k=byTipo[idx][0]; return {title:`Cancelados · Tipo: ${k}`, issues: canc.filter(d=>d['Tipo Agrupado']===k)}; })
+      })
+    });
+  } else {
+    upsertChart('chart-cancel-tipo', {
+      type:'bar',
+      data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map(x=>TIPO_COLOR[x[0]]||'#999'), borderRadius:4}]},
+      options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barPct:true, layout:{padding:{right:56}}, plugins:{legend:{display:false}, tooltip:tooltipPct}, scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+        onClick: drillClick((idx)=>{ const k=byTipo[idx][0]; return {title:`Cancelados · Tipo: ${k}`, issues: canc.filter(d=>d['Tipo Agrupado']===k)}; })}
+    });
+  }
+}
 function heatColor(v, max){
   if(max<=0 || v<=0) return '#F5F5F5';
   const t = Math.min(1, v/max);
