@@ -159,6 +159,9 @@
   .kpi.amber{border-top-color:var(--amber);}
   .kpi.coral{border-top-color:var(--coral);}
   .kpi.slate{border-top-color:var(--slate-soft);}
+  .kpi.snapshot{border-top-width:3px;border-top-style:dashed;background:linear-gradient(180deg,#FFF 0%, #FBF4F8 100%);}
+  .today-pill{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:20px;background:var(--primary);color:#fff;
+    font-size:9px;font-weight:800;letter-spacing:.06em;vertical-align:middle;}
   .kpi-clickable{cursor:pointer;transition:box-shadow .15s,transform .1s;position:relative;}
   .kpi-clickable:hover{box-shadow:0 4px 14px rgba(15,36,56,.12);transform:translateY(-1px);}
   .kpi-clickable::after{content:'⤢';position:absolute;top:8px;right:10px;font-size:11px;color:var(--slate-soft);opacity:0;transition:opacity .15s;}
@@ -600,7 +603,6 @@ const FILTER_DIMS = [
   {key:'VS', label:'Value Stream'},
   {key:'Squad', label:'Squad'},
   {key:'PI', label:'PI'},
-  {key:'Sprint', label:'Sprint'},
   {key:'AnoCriacao', label:'Ano'},
   {key:'Mes', label:'Mês (criação)'},
   {key:'Tipo Agrupado', label:'Tipo (agrupado)'},
@@ -1122,9 +1124,10 @@ function renderExec(f){
   // Registro dos drills de cada KPI (issues por trás de cada número)
   const spConclItems = concl.filter(d=>(d['Story Points']||0)>0);
   const spPlanItems  = f.filter(d=>!d.Cancelado && (d['Story Points']||0)>0);
+  const hojeFmt = (()=>{ const [a,m,d]=isoToday().split('-'); return `${d}/${m}/${a}`; })();
   Object.assign(__cardDrills, {
-    pendentes: {title:'Pendentes (posição atual)', issues: atual.filter(d=>d.FaseFluxo==='Pendente')},
-    andamento: {title:'Em andamento (posição atual)', issues: atual.filter(d=>d.FaseFluxo==='Em andamento')},
+    pendentes: {title:`Backlog atual · posição em ${hojeFmt}`, issues: atual.filter(d=>d.FaseFluxo==='Pendente')},
+    andamento: {title:`Sendo executados hoje · posição em ${hojeFmt}`, issues: atual.filter(d=>d.FaseFluxo==='Em andamento')},
     concluidos: {title: temPeriodo?'Concluídos no período':'Concluídos', issues: concl},
     sp_concl: {title:'Itens com SP concluídos', issues: spConclItems},
     sp_plan: {title:'Itens com SP planejados (não cancelados)', issues: spPlanItems},
@@ -1133,10 +1136,10 @@ function renderExec(f){
   });
 
   document.getElementById('exec-kpis').innerHTML = [
-    kpiCard('Pendentes', fmt0(pendentes), 'itens', 'slate',
-      {cls:'flat', text:'posição atual'}, 'Status considerados pendentes: '+statusPend, 'pendentes'),
-    kpiCard('Em andamento', fmt0(andamento), 'itens', 'coral',
-      {cls:'flat', text:'posição atual'}, 'Status em andamento: '+statusAnd, 'andamento'),
+    kpiCard('Backlog atual <span class="today-pill">HOJE</span>', fmt0(pendentes), 'itens', 'snapshot slate',
+      {cls:'flat', text:`posição em ${hojeFmt}`}, 'Status considerados pendentes: '+statusPend, 'pendentes'),
+    kpiCard('Sendo executados hoje <span class="today-pill">HOJE</span>', fmt0(andamento), 'itens', 'snapshot coral',
+      {cls:'flat', text:`posição em ${hojeFmt}`}, 'Status em andamento: '+statusAnd, 'andamento'),
     kpiCard('Concluídos', fmt0(concl.length), 'itens', '',
       {cls:'up', text: temPeriodo ? 'no período filtrado' : pct.toFixed(0)+'% dos itens ativos'}, null, 'concluidos'),
     kpiCard('Story Points concluídos', fmt0(spConcl), 'sp', '', null, null, 'sp_concl'),
