@@ -19,6 +19,11 @@ class FlowMetricsCalculator {
     this.now = startOfDayUtc(referenceDate);
   }
 
+  /** Atualiza o "dia de referência" (usado pelo refresh periódico). */
+  setReferenceDate(referenceDate) {
+    this.now = startOfDayUtc(referenceDate);
+  }
+
   leadTimeDays(issue, isDone) {
     if (!isDone) return null;
     const end = issue.actualEndDate || issue.resolvedAt;

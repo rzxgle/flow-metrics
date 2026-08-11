@@ -27,6 +27,11 @@ class EpicHealthEvaluator {
     this.now = toDate(referenceDate) || new Date();
   }
 
+  /** Atualiza o "hoje" de referência (usado pelo refresh periódico). */
+  setReferenceDate(referenceDate) {
+    this.now = toDate(referenceDate) || new Date();
+  }
+
   evaluate(epicIssue) {
     const status = epicIssue.status;
     if (this.classifier.isCancelled(status)) return 'Cancelado';

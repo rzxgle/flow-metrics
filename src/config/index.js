@@ -25,6 +25,8 @@ function loadConfig(env = process.env) {
       jql,
     },
     cacheTtlMs: Number(env.CACHE_TTL_MS) || 5 * 60 * 1000,
+    cacheFilePath: env.CACHE_FILE_PATH || require('path').join(process.cwd(), 'cache', 'dataset.json'),
+    refreshIntervalMs: Number(env.REFRESH_INTERVAL_MS) || 60 * 60 * 1000, // 1 hora
     env, // repassado ao JiraFieldMap para ler os IDs de custom fields
   };
 }
