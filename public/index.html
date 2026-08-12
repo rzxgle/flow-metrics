@@ -102,7 +102,6 @@
     border-top:1px solid rgba(255,255,255,.08);
     padding:12px 28px;
     display:flex; gap:10px; flex-wrap:wrap; align-items:center;
-    position:sticky; top:96px; z-index:49;
   }
   .filterbar .flabel{
     font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#8FA6B7;
@@ -265,16 +264,16 @@
       <button class="tab-btn" data-tab="sp">Story Points</button>
       <button class="tab-btn" data-tab="flow">Lead &amp; Cycle Time</button>
       <button class="tab-btn" data-tab="wip">Entregas, WIP &amp; Aging</button>
-      <button class="tab-btn" data-tab="rank">Rankings &amp; Heatmap</button>
       <button class="tab-btn" data-tab="block">Bloqueios</button>
       <button class="tab-btn" data-tab="notas">Notas sobre os Dados</button>
     </nav>
   </div>
-  <div class="filterbar" id="filterBar">
-    <span class="flabel">Filtros</span>
-    <!-- dropdowns injected by JS -->
-  </div>
 </header>
+
+<div class="filterbar" id="filterBar">
+  <span class="flabel">Filtros</span>
+  <!-- dropdowns injected by JS -->
+</div>
 
 <main id="mainContent">
 <!-- ===================== TAB: VISÃO EXECUTIVA ===================== -->
@@ -488,16 +487,6 @@
     </div>
   </div>
 
-  <div class="section-head"><h2 style="font-size:15.5px;">Progresso de Épicos</h2>
-    <div class="note">% de itens concluídos entre todos os descendentes vinculados (Histórias e Sub-tasks) de cada Épico.</div>
-  </div>
-  <div class="card">
-    <table class="datatable" id="epic-table">
-      <thead><tr><th>Épico</th><th>Squad</th><th>Itens</th><th>Concluídos</th><th>SP concl./total</th><th style="width:180px;">Progresso</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
   <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px;">
     <h2 style="font-size:16px;">Itens cancelados</h2>
     <button class="drill-btn" onclick="openDrawer('Itens cancelados do recorte', getFiltered().filter(d=>d.Cancelado))">📋 Ver cancelados</button>
@@ -520,38 +509,6 @@
   </div>
 </section>
 
-<!-- ===================== TAB: RANKINGS & HEATMAP ===================== -->
-<section class="tabpanel" id="panel-rank">
-  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-    <h2>Rankings &amp; Heatmap</h2>
-    <button class="drill-btn" onclick="openDrawer('Concluídos do recorte atual', getFiltered().filter(d=>d.Concluido))">📋 Ver issues concluídas</button>
-  </div>
-
-  <div class="grid grid-2">
-    <div class="card">
-      <h3>Ranking de Squads por Throughput</h3>
-      <div class="chartwrap tall"><canvas id="chart-rank-squad"></canvas></div>
-    </div>
-    <div class="card">
-      <h3>Ranking de Value Streams por Throughput</h3>
-      <div class="chartwrap tall"><canvas id="chart-rank-vs"></canvas></div>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:14px;">
-    <h3>Heatmap — Entregas por Squad x Mês</h3>
-    <div class="cap">Intensidade da cor reflete o volume de itens concluídos no mês (dentro do recorte filtrado).</div>
-    <div style="overflow-x:auto;" id="heatmap-container"></div>
-  </div>
-
-  <div class="card" style="margin-top:14px;">
-    <h3>Tabela consolidada por Squad</h3>
-    <table class="datatable" id="rank-table">
-      <thead><tr><th>Squad</th><th>VS</th><th>Throughput</th><th>SP concluído</th><th>WIP</th><th>Lead Time médio (d)</th><th>% conclusão</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</section>
 
 <!-- ===================== TAB: BLOQUEIOS ===================== -->
 <section class="tabpanel" id="panel-block">
@@ -1190,7 +1147,6 @@ function renderAll(){
   renderSP(f);
   renderFlow(f);
   renderWip(f);
-  renderRank(f);
   renderBlock(f);
 }
 
@@ -1712,33 +1668,6 @@ function renderWip(f){
     options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
       onClick: drillClick((idx)=>{ const k=agingSquad[idx][0]; return {title:`WIP em aberto · Squad: ${k}`, issues: agingWip.filter(d=>d.Squad===k)}; })}
   });
-
-  // Epic table — recompute rollup from filtered set using EpicoChave
-  const epicMap = new Map();
-  EPICS.forEach(e=> epicMap.set(e.Chave, e.Resumo));
-  const byEpic = groupBy(f.filter(d=>d.EpicoChave), d=>d.EpicoChave);
-  const epicRows = Array.from(byEpic, ([key,items])=>{
-    const total = items.length;
-    const canc = items.filter(d=>d.Cancelado).length;
-    const conclN = items.filter(d=>d.Concluido).length;
-    const ativosN = total-canc;
-    const pct = ativosN? (conclN/ativosN*100):0;
-    const spT = sum(items, d=>d['Story Points']);
-    const spC = sum(items.filter(d=>d.Concluido), d=>d['Story Points']);
-    const squad = items[0].Squad;
-    return {key, resumo:epicMap.get(key)||key, squad, total, conclN, pct, spT, spC};
-  }).filter(r=>r.total>=3).sort((a,b)=>b.total-a.total).slice(0,25);
-
-  epicRows.forEach(r=>{ __cardDrills['wipepic_'+r.key] = {title:`Épico ${r.key} — itens`, issues: byEpic.get(r.key)}; });
-  document.querySelector('#epic-table tbody').innerHTML = epicRows.map(r=>`
-    <tr data-drill="wipepic_${r.key}" style="cursor:pointer;" title="Ver issues deste épico">
-      <td><span class="mono" style="font-size:11px;color:var(--slate-soft);">${r.key}</span><br>${r.resumo}</td>
-      <td style="font-size:11.5px;">${r.squad}</td>
-      <td>${r.total}</td>
-      <td>${r.conclN}</td>
-      <td class="mono" style="font-size:11.5px;">${fmt0(r.spC)}/${fmt0(r.spT)}</td>
-      <td><div class="progressbar"><i style="width:${r.pct}%;"></i><span>${r.pct.toFixed(0)}%</span></div></td>
-    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--slate-soft);">Nenhum épico com itens vinculados suficientes no recorte atual.</td></tr>';
 
   renderCancelados(f);
 }
