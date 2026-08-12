@@ -1417,13 +1417,13 @@ function renderSP(f){
     sptab_plan: {title:'Itens com SP planejado (não cancelados)', issues: naoCancel.filter(d=>(d['Story Points']||0)>0)},
     sptab_concl: {title:'Itens com SP concluído', issues: concl.filter(d=>(d['Story Points']||0)>0)},
     sptab_pct: {title:'Base do % entregue (planejados com SP)', issues: naoCancel.filter(d=>(d['Story Points']||0)>0)},
-    sptab_nosp: {title:'Itens sem Story Points', issues: f.filter(d=>!d['Story Points'])},
+    sptab_nosp: {title:'Itens sem Story Points (exceto cancelados)', issues: f.filter(d=>!d.Cancelado && !d['Story Points'])},
   });
   document.getElementById('sp-kpis').innerHTML = [
     kpiCard('SP planejado', fmt0(spTotal), 'sp', '', null, null, 'sptab_plan'),
     kpiCard('SP concluído', fmt0(spConcl), 'sp', '', null, null, 'sptab_concl'),
     kpiCard('% entregue', pct.toFixed(0), '%', pct>=70?'':'amber', null, null, 'sptab_pct'),
-    kpiCard('Itens sem SP', fmt0(f.filter(d=>!d['Story Points']).length), 'itens', 'coral', null, null, 'sptab_nosp'),
+    kpiCard('Itens sem SP', fmt0(f.filter(d=>!d.Cancelado && !d['Story Points']).length), 'itens', 'coral', null, null, 'sptab_nosp'),
   ].join('');
 
   function plannedVsCompleted(key){
