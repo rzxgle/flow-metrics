@@ -985,6 +985,7 @@ const DRAWER_COLS = [
   {k:'Tipo de item', label:'Tipo'},
   {k:'Status', label:'Status'},
   {k:'Squad', label:'Team'},
+  {k:'Sprints', label:'Sprints'},
   {k:'PI', label:'PI'},
   {k:'Story Points', label:'SP'},
   {k:'LeadTimeDias', label:'Lead (d)'},
@@ -1067,6 +1068,7 @@ function openDrawer(title, issues){
       const tds = DRAWER_COLS.map(c=>{
         let v = d[c.k];
         if(v===null||v===undefined) v='';
+        if(Array.isArray(v)) v = v.join(', ');
         if(c.link){
           return `<td><a class="jira" href="${JIRA_BROWSE}${v}" target="_blank" rel="noopener">${v}</a></td>`;
         }
@@ -1096,6 +1098,7 @@ function exportDrawerCsv(){
   const header = DRAWER_COLS.map(c=>c.label).join(sep);
   const lines = __drawerIssues.map(d=> DRAWER_COLS.map(c=>{
     let v = d[c.k]; if(v===null||v===undefined) v='';
+    if(Array.isArray(v)) v = v.join(', ');
     v = String(v).replace(/"/g,'""');
     return /[";\n]/.test(v) ? `"${v}"` : v;
   }).join(sep));
@@ -1816,7 +1819,7 @@ function renderBlock(f){
 
   // Tempo total bloqueado por Squad (resolvidos) — soma de dias; contagem no tooltip
   const bySquadMap = groupBy(resolvidos, d=>d.Squad);
-  const bySquad = Array.from(bySquadMap, ([k,v])=>[k, v.reduce((a,d)=>a+dur(d),0), v.length]).filter(x=>x[1]>0).sort((a,b)=>a[1]-b[1]);
+  const bySquad = Array.from(bySquadMap, ([k,v])=>[k, v.reduce((a,d)=>a+dur(d),0), v.length]).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);
   upsertChart('chart-block-squad', {
     type:'bar',
     data:{labels:bySquad.map(x=>x[0]), datasets:[{data:bySquad.map(x=>+x[1].toFixed(1)), _counts:bySquad.map(x=>x[2]), backgroundColor:'#CE0058', borderRadius:4}]},
@@ -1829,7 +1832,7 @@ function renderBlock(f){
   // Por Motivo de Bloqueio (resolvidos + abertos, todos os que têm motivo)
   const comMotivo = blocks.filter(d=>d.MotivoBloqueio);
   const byMotivoMap = groupBy(comMotivo, d=>d.MotivoBloqueio);
-  const byMotivo = Array.from(byMotivoMap, ([k,v])=>[k, v.reduce((a,d)=>a+dur(d),0), v.length]).sort((a,b)=>a[1]-b[1]);
+  const byMotivo = Array.from(byMotivoMap, ([k,v])=>[k, v.reduce((a,d)=>a+dur(d),0), v.length]).sort((a,b)=>b[1]-a[1]);
   if(byMotivo.length){
     upsertChart('chart-block-motivo', {
       type:'bar',
