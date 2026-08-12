@@ -45,6 +45,7 @@ class JiraIssueRepository extends IssueRepository {
       parentKey: f[fm.parent] ? f[fm.parent].key : null,
       sprint: this._readSprint(f[fm.sprint]),
       sprints: this._readSprintList(f[fm.sprint]),
+      sprintMeta: this._readSprintMeta(f[fm.sprint]),
       bcp: f[fm.bcp],
       blockReason: this._readSelect(f[fm.blockReason]),
     });
@@ -62,6 +63,18 @@ class JiraIssueRepository extends IssueRepository {
       .map((s) => (typeof s === 'string' ? s : s && s.name))
       .filter(Boolean);
     return Array.from(new Set(names)); // remove duplicatas preservando ordem
+  }
+
+  /**
+   * Metadados das sprints (nome + datas de início/fim), para o burndown.
+   * O objeto Sprint do Jira traz startDate/endDate; strings puras não têm datas.
+   */
+  _readSprintMeta(value) {
+    if (!value) return [];
+    const arr = Array.isArray(value) ? value : [value];
+    return arr
+      .filter((s) => s && typeof s === 'object' && s.name)
+      .map((s) => ({ name: s.name, startDate: s.startDate || null, endDate: s.endDate || null }));
   }
 
   /**

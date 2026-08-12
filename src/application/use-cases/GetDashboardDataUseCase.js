@@ -64,6 +64,19 @@ class GetDashboardDataUseCase {
     // 6. limpar campos internos antes de expor
     const cleanIssues = enriched.map((e) => this._stripInternal(e));
 
+    // Catálogo de sprints (nome -> datas), para o burndown. Dedup por nome;
+    // mantém as datas mais completas encontradas.
+    const sprintCatalog = new Map();
+    for (const i of issues) {
+      for (const sm of (i.sprintMeta || [])) {
+        if (!sm || !sm.name) continue;
+        const prev = sprintCatalog.get(sm.name) || { name: sm.name, startDate: null, endDate: null };
+        if (!prev.startDate && sm.startDate) prev.startDate = sm.startDate;
+        if (!prev.endDate && sm.endDate) prev.endDate = sm.endDate;
+        sprintCatalog.set(sm.name, prev);
+      }
+    }
+
     return {
       issues: cleanIssues,
       epics,
@@ -73,6 +86,7 @@ class GetDashboardDataUseCase {
         inProgressStatuses: this.enricher.classifier.rules.inProgressStatuses || [],
         doneStatuses: this.enricher.classifier.rules.doneStatuses || [],
         cancelledStatuses: this.enricher.classifier.rules.cancelledStatuses || [],
+        sprints: Array.from(sprintCatalog.values()),
       },
     };
   }
@@ -95,7 +109,7 @@ class GetDashboardDataUseCase {
   }
 
   _stripInternal(e) {
-    const { parentKey, grupo, chave, ...clean } = e;
+    const { grupo, ...clean } = e;
     return clean;
   }
 }

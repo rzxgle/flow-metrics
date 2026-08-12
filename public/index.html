@@ -265,6 +265,7 @@
       <button class="tab-btn" data-tab="flow">Lead &amp; Cycle Time</button>
       <button class="tab-btn" data-tab="wip">Entregas, WIP &amp; Aging</button>
       <button class="tab-btn" data-tab="block">Bloqueios</button>
+      <button class="tab-btn" data-tab="sprint">Sprint</button>
       <button class="tab-btn" data-tab="notas">Notas sobre os Dados</button>
     </nav>
   </div>
@@ -550,6 +551,41 @@
         <tbody></tbody>
       </table></div>
     </div>
+  </div>
+</section>
+
+<!-- ===================== TAB: SPRINT ===================== -->
+<section class="tabpanel" id="panel-sprint">
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <h2>Progresso por Sprint</h2>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <label for="sprintSelect" style="font-size:12.5px;color:var(--slate-soft);">Sprint:</label>
+      <select id="sprintSelect" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;min-width:280px;"></select>
+    </div>
+  </div>
+  <div class="cap" style="margin:-6px 0 10px;">Um item "pertence" à sprint se seu histórico de sprints a contém (Nível A). Completude = subitens concluídos ÷ total de subitens do item (todos os Sub-*, independente da sprint deles). Depende do preenchimento de sprint no Jira.</div>
+
+  <div class="kpi-row" id="sprint-kpis"></div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>Burndown de subitens</h3>
+      <div class="cap">Restante = subitens ainda não concluídos por dia (por data de conclusão). Linha tracejada = ideal.</div>
+      <div class="chartwrap tall"><canvas id="chart-sprint-burndown"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Completude por item standard</h3>
+      <div class="cap">% de subitens concluídos por item (clique para ver os subitens).</div>
+      <div class="chartwrap tall"><canvas id="chart-sprint-completude"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3>Itens standard na sprint</h3>
+    <div style="overflow-x:auto;"><table class="datatable" id="sprint-table">
+      <thead><tr><th>Item</th><th>Squad</th><th>Subitens</th><th style="width:200px;">Completude</th><th>Status</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
   </div>
 </section>
 
@@ -1151,6 +1187,7 @@ function renderAll(){
   renderFlow(f);
   renderWip(f);
   renderBlock(f);
+  renderSprint();
 }
 
 /* Item 2 — mostra o intervalo de datas presente no recorte filtrado */
@@ -1876,6 +1913,130 @@ function renderBlock(f){
     </tr>`).join('') : '<tr><td colspan="4" style="color:var(--slate-soft);">Nenhum bloqueio no recorte atual.</td></tr>';
 }
 
+/* ===================== TAB: SPRINT (itens 10/11) ===================== */
+function sprintNamesFromData(){
+  const set = new Set();
+  DATA.forEach(d=> (d.Sprints||[]).forEach(s=> set.add(s)));
+  return Array.from(set).sort((a,b)=> String(b).localeCompare(String(a),'pt',{numeric:true})); // mais recente primeiro
+}
+function sprintDates(name){
+  const c = (window.__SPRINTS||[]).find(s=>s.name===name);
+  return c ? {start: c.startDate? new Date(c.startDate): null, end: c.endDate? new Date(c.endDate): null} : {start:null, end:null};
+}
+function initSprintSelector(){
+  const sel = document.getElementById('sprintSelect');
+  if(!sel) return;
+  const names = sprintNamesFromData();
+  sel.innerHTML = names.length
+    ? names.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')
+    : '<option value="">(nenhuma sprint encontrada nos dados)</option>';
+  sel.onchange = ()=> renderSprint();
+}
+const isStandard = d => d['Tipo Agrupado'] && d['Tipo Agrupado']!=='Épico' && d['Tipo Agrupado']!=='Sub-task';
+const isSubitem  = d => d['Tipo Agrupado']==='Sub-task';
+
+function renderSprint(){
+  const sel = document.getElementById('sprintSelect');
+  if(!sel) return;
+  const sprint = sel.value;
+  // base: respeita filtros da barra, ignora o filtro de data (para não truncar a sprint)
+  const base = getFilteredNoDate();
+  const subsByParent = groupBy(base.filter(isSubitem), d=>d.parentKey);
+  const subsOf = p => subsByParent.get(p.Chave) || [];
+
+  // itens standard que pertencem à sprint (array Sprints contém)
+  const standardNaSprint = base.filter(d=> isStandard(d) && (d.Sprints||[]).includes(sprint));
+
+  // por item: X de Y subitens; se Y=0 usa o próprio status
+  const rows = standardNaSprint.map(p=>{
+    const subs = subsOf(p);
+    const Y = subs.length;
+    const X = subs.filter(s=>s.Concluido).length;
+    const pct = Y>0 ? (X/Y*100) : (p.Concluido?100:0);
+    return {p, subs, X, Y, pct, concluido: Y>0 ? (X===Y) : p.Concluido};
+  }).sort((a,b)=> b.pct - a.pct);
+
+  // KPIs
+  const totalStd = rows.length;
+  const stdConcl = rows.filter(r=>r.concluido).length;
+  const totSub = rows.reduce((a,r)=>a+r.Y,0);
+  const subConcl = rows.reduce((a,r)=>a+r.X,0);
+  const compMedia = rows.length ? rows.reduce((a,r)=>a+r.pct,0)/rows.length : 0;
+  const allSubs = rows.flatMap(r=>r.subs);
+
+  Object.assign(__cardDrills, {
+    sprint_std: {title:`Itens standard · ${sprint}`, issues: standardNaSprint},
+    sprint_sub: {title:`Subitens dos standard · ${sprint}`, issues: allSubs},
+    sprint_subconcl: {title:`Subitens concluídos · ${sprint}`, issues: allSubs.filter(s=>s.Concluido)},
+  });
+  document.getElementById('sprint-kpis').innerHTML = [
+    kpiCard('Itens standard', fmt0(totalStd), 'itens', '', null, null, 'sprint_std'),
+    kpiCard('Completude média', compMedia.toFixed(0), '%', compMedia>=70?'':'amber'),
+    kpiCard('Subitens concluídos', `${fmt0(subConcl)}/${fmt0(totSub)}`, '', '', null, null, 'sprint_sub'),
+    kpiCard('Standard concluídos', `${fmt0(stdConcl)}/${fmt0(totalStd)}`, '', ''),
+  ].join('');
+
+  // registro de drill por item (completude chart + tabela)
+  rows.forEach((r,i)=>{ __cardDrills['sprintitem_'+i] = {title:`Subitens de ${r.p.Chave}`, issues: r.subs.length?r.subs:[r.p]}; });
+
+  // Gráfico de completude por item (barra horizontal, maior no topo)
+  const topRows = rows.slice(0, 20);
+  upsertChart('chart-sprint-completude', {
+    type:'bar',
+    data:{labels:topRows.map(r=>r.p.Chave), datasets:[{data:topRows.map(r=>+r.pct.toFixed(0)), backgroundColor:'#CE0058', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:(ctx)=>` ${topRows[ctx.dataIndex].X}/${topRows[ctx.dataIndex].Y} subitens (${ctx.parsed.x}%)`}}},
+      scales:{x:{beginAtZero:true, max:100, grid:{color:'#ECECEC'}, title:{display:true, text:'% concluído'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=> __cardDrills['sprintitem_'+idx])}
+  });
+
+  // Tabela hierárquica
+  document.querySelector('#sprint-table tbody').innerHTML = rows.length ? rows.map((r,i)=>`
+    <tr data-drill="sprintitem_${i}" style="cursor:pointer;" title="Ver subitens deste item">
+      <td><a class="jira" href="${JIRA_BROWSE}${r.p.Chave}" target="_blank" rel="noopener">${r.p.Chave}</a>
+          <span style="color:var(--slate-soft);font-size:11px;"> ${escapeHtml((r.p.Resumo||'').slice(0,60))}</span></td>
+      <td style="font-size:11.5px;">${r.p.Squad||'—'}</td>
+      <td>${r.Y>0 ? `${r.X}/${r.Y}` : '<span style="color:var(--slate-soft);">sem subitens</span>'}</td>
+      <td><div class="progressbar"><i style="width:${r.pct}%;"></i><span>${r.pct.toFixed(0)}%</span></div></td>
+      <td style="font-size:11.5px;">${r.p.Status||'—'}</td>
+    </tr>`).join('') : '<tr><td colspan="5" style="color:var(--slate-soft);">Nenhum item standard nesta sprint (ou sprint não preenchida no Jira).</td></tr>';
+
+  // Burndown de subitens
+  renderBurndown(sprint, allSubs);
+}
+
+function renderBurndown(sprint, subs){
+  const {start, end} = sprintDates(sprint);
+  const total = subs.length;
+  if(!start || !end || end < start){
+    upsertChart('chart-sprint-burndown', {type:'line', data:{labels:['sem datas da sprint'], datasets:[{data:[total], borderColor:'#C4C4C4'}]},
+      options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{enabled:false}}, scales:{y:{display:false}, x:{grid:{display:false}}}}});
+    return;
+  }
+  // dias da sprint (inclusive)
+  const days=[]; const d0=new Date(start); d0.setHours(0,0,0,0);
+  const dEnd=new Date(end); dEnd.setHours(0,0,0,0);
+  for(let d=new Date(d0); d<=dEnd; d.setDate(d.getDate()+1)) days.push(new Date(d));
+  const iso = dt => dt.toISOString().slice(0,10);
+  // restante por dia = total - subitens concluídos (por Data Conclusao) até aquele dia
+  const remaining = days.map(day=>{
+    const done = subs.filter(s=> s.Concluido && s['Data Conclusao'] && s['Data Conclusao'] <= iso(day)).length;
+    return total - done;
+  });
+  // ideal: linear de total a 0
+  const ideal = days.map((_,i)=> +(total * (1 - i/(days.length-1||1))).toFixed(1));
+  const fmtDay = dt => `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
+  upsertChart('chart-sprint-burndown', {
+    type:'line',
+    data:{labels:days.map(fmtDay), datasets:[
+      {label:'Restante (real)', data:remaining, borderColor:'#CE0058', backgroundColor:'rgba(206,0,88,.10)', fill:true, tension:.2, pointRadius:2},
+      {label:'Ideal', data:ideal, borderColor:'#8AA0B0', borderDash:[6,4], pointRadius:0, tension:0}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}},
+      scales:{y:{beginAtZero:true, grid:{color:'#ECECEC'}, title:{display:true, text:'Subitens restantes'}}, x:{grid:{display:false}}}}
+  });
+}
+
 /* ===================== Init / Bootstrap ===================== */
 function showLoading(msg){
   let el = document.getElementById('__loading');
@@ -1936,11 +2097,13 @@ async function bootstrap(forceRefresh){
     const meta = payload.meta || {};
     window.__RULES_PENDING = meta.pendingStatuses || [];
     window.__RULES_INPROG = meta.inProgressStatuses || [];
+    window.__SPRINTS = meta.sprints || [];
     document.getElementById('exportDate').textContent = formatExportDate(payload.coletadoEm || payload.generatedAt);
 
     normalizeData();
     setDefaultDateRange();
     buildFilterBar();
+    initSprintSelector();
     renderAll();
     hideLoading();
   }catch(err){
