@@ -266,6 +266,7 @@
       <button class="tab-btn" data-tab="flow">Lead &amp; Cycle Time</button>
       <button class="tab-btn" data-tab="wip">Entregas, WIP &amp; Aging</button>
       <button class="tab-btn" data-tab="rank">Rankings &amp; Heatmap</button>
+      <button class="tab-btn" data-tab="block">Bloqueios</button>
       <button class="tab-btn" data-tab="notas">Notas sobre os Dados</button>
     </nav>
   </div>
@@ -549,6 +550,49 @@
       <thead><tr><th>Squad</th><th>VS</th><th>Throughput</th><th>SP concluído</th><th>WIP</th><th>Lead Time médio (d)</th><th>% conclusão</th></tr></thead>
       <tbody></tbody>
     </table>
+  </div>
+</section>
+
+<!-- ===================== TAB: BLOQUEIOS ===================== -->
+<section class="tabpanel" id="panel-block">
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+    <h2>Bloqueios</h2>
+    <button class="drill-btn" onclick="openDrawer('Bloqueios (sub-blocks) do recorte', getFiltered().filter(d=>d['Tipo de item']==='Sub-block'))">📋 Ver bloqueios</button>
+  </div>
+  <div class="cap" style="margin:-6px 0 10px;">Cada <b>Sub-block</b> é um episódio de bloqueio. A <b>duração</b> = Cycle Time (início real → fim real) e é <b>atribuída ao item pai</b>. Bloqueios abertos usam o aging (dias em aberto). Depende do preenchimento de datas reais e do "Motivo de Bloqueio" no Jira.</div>
+
+  <div class="kpi-row" id="block-kpis"></div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>Tempo total bloqueado por Squad (resolvidos)</h3>
+      <div class="cap">Soma dos dias bloqueados; contagem de bloqueios no tooltip.</div>
+      <div class="chartwrap tall"><canvas id="chart-block-squad"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Bloqueios por Motivo</h3>
+      <div class="cap">Tempo total bloqueado por motivo (contagem no tooltip).</div>
+      <div class="chartwrap tall"><canvas id="chart-block-motivo"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:14px;">
+    <div class="card">
+      <h3>Bloqueios em aberto — mais antigos primeiro</h3>
+      <div class="cap">Sub-blocks ainda não resolvidos, por tempo em aberto (aging).</div>
+      <div style="overflow-x:auto;"><table class="datatable" id="block-open-table">
+        <thead><tr><th>Item pai</th><th>Squad</th><th>Motivo</th><th>Aberto há (dias)</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <h3>Itens mais bloqueados</h3>
+      <div class="cap">Itens-pai por tempo total bloqueado (clique para ver os bloqueios).</div>
+      <div style="overflow-x:auto;"><table class="datatable" id="block-parent-table">
+        <thead><tr><th>Item pai</th><th>Squad</th><th>Nº bloqueios</th><th>Tempo total (dias)</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
   </div>
 </section>
 
@@ -1147,6 +1191,7 @@ function renderAll(){
   renderFlow(f);
   renderWip(f);
   renderRank(f);
+  renderBlock(f);
 }
 
 /* Item 2 — mostra o intervalo de datas presente no recorte filtrado */
@@ -1816,6 +1861,87 @@ function renderRank(f){
     <td><b>${r.throughput}</b></td><td>${fmt0(r.spConcl)}</td><td>${r.wipN}</td>
     <td>${fmt1(r.leadMean)}</td>
     <td><span class="badge ${r.pct>=70?'ok':r.pct>=40?'warn':'risk'}">${r.pct.toFixed(0)}%</span></td></tr>`).join('');
+}
+
+/* ===================== TAB: BLOQUEIOS ===================== */
+function renderBlock(f){
+  const blocks = f.filter(d=>d['Tipo de item']==='Sub-block');
+  const abertos = blocks.filter(d=>!d.Concluido && !d.Cancelado);
+  const resolvidos = blocks.filter(d=>d.Concluido);
+  // duração do bloqueio = Cycle Time (dias); só conta quando calculável
+  const dur = d => (d.CycleTimeDias!=null ? d.CycleTimeDias : 0);
+  const tempoMedio = (()=>{ const v=resolvidos.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; })();
+  const paisImpactados = new Set(blocks.map(d=>d.parentKey).filter(Boolean)).size;
+
+  Object.assign(__cardDrills, {
+    block_abertos: {title:'Bloqueios em aberto', issues: abertos},
+    block_resolvidos: {title:'Bloqueios resolvidos', issues: resolvidos},
+    block_todos: {title:'Todos os bloqueios (sub-blocks)', issues: blocks},
+  });
+  document.getElementById('block-kpis').innerHTML = [
+    kpiCard('Bloqueios abertos', fmt0(abertos.length), 'itens', 'coral', {cls:'flat', text:'posição atual'}, null, 'block_abertos'),
+    kpiCard('Bloqueios resolvidos', fmt0(resolvidos.length), 'itens', '', null, null, 'block_resolvidos'),
+    kpiCard('Tempo médio bloqueado', tempoMedio==null?'—':fmt1(tempoMedio), 'dias', 'amber', {cls:'flat', text:'dos resolvidos'}),
+    kpiCard('Itens impactados', fmt0(paisImpactados), 'itens', '', {cls:'flat', text:'com ≥1 bloqueio'}, null, 'block_todos'),
+  ].join('');
+
+  // Tempo total bloqueado por Squad (resolvidos) — soma de dias; contagem no tooltip
+  const bySquadMap = groupBy(resolvidos, d=>d.Squad);
+  const bySquad = Array.from(bySquadMap, ([k,v])=>[k, v.reduce((a,d)=>a+dur(d),0), v.length]).filter(x=>x[1]>0).sort((a,b)=>a[1]-b[1]);
+  upsertChart('chart-block-squad', {
+    type:'bar',
+    data:{labels:bySquad.map(x=>x[0]), datasets:[{data:bySquad.map(x=>+x[1].toFixed(1)), _counts:bySquad.map(x=>x[2]), backgroundColor:'#CE0058', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:(ctx)=>` ${fmt1(ctx.parsed.x)} dias · ${ctx.dataset._counts[ctx.dataIndex]} bloqueio(s)`}}},
+      scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=>{ const k=bySquad[idx][0]; return {title:`Bloqueios resolvidos · Squad: ${k}`, issues: resolvidos.filter(d=>d.Squad===k)}; })}
+  });
+
+  // Por Motivo de Bloqueio (resolvidos + abertos, todos os que têm motivo)
+  const comMotivo = blocks.filter(d=>d.MotivoBloqueio);
+  const byMotivoMap = groupBy(comMotivo, d=>d.MotivoBloqueio);
+  const byMotivo = Array.from(byMotivoMap, ([k,v])=>[k, v.reduce((a,d)=>a+dur(d),0), v.length]).sort((a,b)=>a[1]-b[1]);
+  if(byMotivo.length){
+    upsertChart('chart-block-motivo', {
+      type:'bar',
+      data:{labels:byMotivo.map(x=>x[0]), datasets:[{data:byMotivo.map(x=>+x[1].toFixed(1)), _counts:byMotivo.map(x=>x[2]), backgroundColor:'#0057B8', borderRadius:4}]},
+      options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:(ctx)=>` ${fmt1(ctx.parsed.x)} dias · ${ctx.dataset._counts[ctx.dataIndex]} bloqueio(s)`}}},
+        scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+        onClick: drillClick((idx)=>{ const k=byMotivo[idx][0]; return {title:`Bloqueios · Motivo: ${k}`, issues: comMotivo.filter(d=>d.MotivoBloqueio===k)}; })}
+    });
+  } else {
+    upsertChart('chart-block-motivo', {type:'bar', data:{labels:['(sem motivo preenchido)'], datasets:[{data:[0], backgroundColor:'#C4C4C4'}]},
+      options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false}, y:{grid:{display:false}}}}});
+  }
+
+  // Tabela: bloqueios em aberto (aging desc)
+  const abertosOrd = abertos.slice().sort((a,b)=>(b.AgingDias||0)-(a.AgingDias||0));
+  document.querySelector('#block-open-table tbody').innerHTML = abertosOrd.length ? abertosOrd.map(d=>`
+    <tr>
+      <td><a class="jira" href="${JIRA_BROWSE}${d.parentKey||d.chave}" target="_blank" rel="noopener">${d.parentKey||'—'}</a>
+          <span style="color:var(--slate-soft);font-size:11px;"> (${d.chave})</span></td>
+      <td style="font-size:11.5px;">${d.Squad||'—'}</td>
+      <td style="font-size:11.5px;">${d.MotivoBloqueio||'—'}</td>
+      <td><b>${d.AgingDias!=null?fmt1(d.AgingDias):'—'}</b></td>
+    </tr>`).join('') : '<tr><td colspan="4" style="color:var(--slate-soft);">Nenhum bloqueio em aberto no recorte atual.</td></tr>';
+
+  // Tabela: itens-pai mais bloqueados (soma de tempo), clicável
+  const porPai = new Map();
+  blocks.forEach(d=>{
+    const key = d.parentKey || d.chave;
+    if(!porPai.has(key)) porPai.set(key, {key, squad:d.Squad, total:0, n:0});
+    const o = porPai.get(key); o.total += dur(d); o.n += 1;
+  });
+  const paisArr = Array.from(porPai.values()).sort((a,b)=>b.total-a.total).slice(0,20);
+  paisArr.forEach(p=>{ __cardDrills['blockpai_'+p.key] = {title:`Bloqueios do item ${p.key}`, issues: blocks.filter(d=>(d.parentKey||d.chave)===p.key)}; });
+  document.querySelector('#block-parent-table tbody').innerHTML = paisArr.length ? paisArr.map(p=>`
+    <tr data-drill="blockpai_${p.key}" style="cursor:pointer;" title="Ver bloqueios deste item">
+      <td><a class="jira" href="${JIRA_BROWSE}${p.key}" target="_blank" rel="noopener">${p.key}</a></td>
+      <td style="font-size:11.5px;">${p.squad||'—'}</td>
+      <td>${p.n}</td>
+      <td><b>${fmt1(p.total)}</b></td>
+    </tr>`).join('') : '<tr><td colspan="4" style="color:var(--slate-soft);">Nenhum bloqueio no recorte atual.</td></tr>';
 }
 
 /* ===================== Init / Bootstrap ===================== */
