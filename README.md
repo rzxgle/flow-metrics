@@ -1,4 +1,4 @@
-# Flow Metrics — Afya Bridge & Afya One
+# Afya Metrics — Afya Bridge & Afya One
 
 Dashboard ágil (SAFe / Flow Metrics) que agora lê os dados **direto da API do
 Jira**, em vez de depender da exportação manual de uma planilha.
