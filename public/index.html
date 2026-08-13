@@ -378,12 +378,12 @@
 
   <div class="grid grid-2" style="margin-top:14px;">
     <div class="card">
-      <h3>SP planejado x concluído por Squad</h3>
-      <div class="chartwrap tall"><canvas id="chart-sp-squad"></canvas></div>
-    </div>
-    <div class="card">
       <h3>SP planejado x concluído por Value Stream</h3>
       <div class="chartwrap tall"><canvas id="chart-sp-vs"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>SP planejado x concluído por Squad</h3>
+      <div class="chartwrap tall"><canvas id="chart-sp-squad"></canvas></div>
     </div>
   </div>
 
@@ -528,8 +528,8 @@
       <div class="chartwrap tall"><canvas id="chart-block-squad"></canvas></div>
     </div>
     <div class="card">
-      <h3>Bloqueios por Motivo</h3>
-      <div class="cap">Tempo total bloqueado por motivo (contagem no tooltip).</div>
+      <h3>Bloqueios por Motivo — nº de itens</h3>
+      <div class="cap">Quantidade de itens com cada motivo de bloqueio sinalizado.</div>
       <div class="chartwrap tall"><canvas id="chart-block-motivo"></canvas></div>
     </div>
   </div>
@@ -1009,6 +1009,34 @@ const barPctPlugin = {
 };
 Chart.register(barPctPlugin);
 
+// Plugin: rótulos de valor em barras (vertical ou horizontal, múltiplos datasets).
+// Ative com options.barLabels = true. Formata via options.barLabelFmt (opcional).
+const barLabelsPlugin = {
+  id:'barLabels',
+  afterDatasetsDraw(chart){
+    if(!chart.options.barLabels) return;
+    const ctx = chart.ctx;
+    const horiz = chart.options.indexAxis === 'y';
+    const fmt = chart.options.barLabelFmt || (v=>fmt0(v));
+    ctx.save();
+    ctx.font = "600 10.5px 'Inter',sans-serif";
+    ctx.fillStyle = '#3D4C5B';
+    chart.data.datasets.forEach((ds,di)=>{
+      const meta = chart.getDatasetMeta(di);
+      if(meta.hidden) return;
+      meta.data.forEach((bar,i)=>{
+        const v = ds.data[i];
+        if(v===null||v===undefined||v==='' || +v===0) return;
+        const txt = fmt(+v);
+        if(horiz){ ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(txt, bar.x + 5, bar.y); }
+        else { ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(txt, bar.x, bar.y - 3); }
+      });
+    });
+    ctx.restore();
+  }
+};
+Chart.register(barLabelsPlugin);
+
 /* ===================== Rastreabilidade: drawer de issues (Entrega 4) ===================== */
 const JIRA_BROWSE = 'https://medcel.atlassian.net/browse/';
 let __drawerIssues = [];   // issues atualmente exibidas (para o CSV)
@@ -1292,7 +1320,12 @@ function renderExec(f){
       {label:'Planejado', data:spPlanByPi, backgroundColor:'#C9E4E0', borderRadius:4},
       {label:'Concluído', data:spConclByPi, backgroundColor:'#CE0058', borderRadius:4}
     ]},
-    options:{responsive:true,maintainAspectRatio:false, scales:{y:{beginAtZero:true, grid:{color:'#ECECEC'}}, x:{grid:{display:false}}},
+    options:{responsive:true,maintainAspectRatio:false, barLabels:true, layout:{padding:{top:18}},
+      scales:{y:{beginAtZero:true, grid:{color:'#ECECEC'}}, x:{grid:{display:false}}},
+      plugins:{tooltip:{callbacks:{
+        afterBody:(items)=>{ const i=items[0].dataIndex; const plan=spPlanByPi[i]||0, conc=spConclByPi[i]||0, falta=Math.max(0,plan-conc); const p=plan?(conc/plan*100):0;
+          return `Entregue ${fmt0(conc)} de ${fmt0(plan)} planejados (${p.toFixed(0)}%)\nNão entregue: ${fmt0(falta)}`; }
+      }}},
       onClick: drillClick((idx, ds)=>{
         const pi = pis[idx];
         if(ds===1){ // Concluído
@@ -1605,7 +1638,7 @@ function renderFlow(f){
   upsertChart('chart-flow-lead-squad', {
     type:'bar',
     data:{labels:squadLead.map(x=>x[0]), datasets:[{label:'Lead Time P85 (dias)', data:squadLead.map(x=>x[1].toFixed(1)), backgroundColor:'#CE0058', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barLabels:true, barLabelFmt:(v)=>fmt1(v), layout:{padding:{right:36}}, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
       onClick: drillClick((idx)=>{ const k=squadLead[idx][0];
         return {title:`Lead Time · Squad: ${k}`, issues: leadItems.filter(d=>d.Squad===k)}; })}
   });
@@ -1738,7 +1771,7 @@ function renderCancelados(f){
   });
 
   // Por squad
-  const bySquad = Array.from(groupBy(canc, d=>d.Squad), ([k,v])=>[k,v.length]).sort((a,b)=>a[1]-b[1]);
+  const bySquad = Array.from(groupBy(canc, d=>d.Squad), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
   upsertChart('chart-cancel-squad', {
     type:'bar',
     data:{labels:bySquad.map(x=>x[0]), datasets:[{data:bySquad.map(x=>x[1]), backgroundColor:'#D64545', borderRadius:4}]},
@@ -1869,14 +1902,14 @@ function renderBlock(f){
   // Por Motivo de Bloqueio (resolvidos + abertos, todos os que têm motivo)
   const comMotivo = blocks.filter(d=>d.MotivoBloqueio);
   const byMotivoMap = groupBy(comMotivo, d=>d.MotivoBloqueio);
-  const byMotivo = Array.from(byMotivoMap, ([k,v])=>[k, v.reduce((a,d)=>a+dur(d),0), v.length]).sort((a,b)=>b[1]-a[1]);
+  const byMotivo = Array.from(byMotivoMap, ([k,v])=>[k, v.length]).sort((a,b)=>b[1]-a[1]);
   if(byMotivo.length){
     upsertChart('chart-block-motivo', {
       type:'bar',
-      data:{labels:byMotivo.map(x=>x[0]), datasets:[{data:byMotivo.map(x=>+x[1].toFixed(1)), _counts:byMotivo.map(x=>x[2]), backgroundColor:'#0057B8', borderRadius:4}]},
-      options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:(ctx)=>` ${fmt1(ctx.parsed.x)} dias · ${ctx.dataset._counts[ctx.dataIndex]} bloqueio(s)`}}},
-        scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+      data:{labels:byMotivo.map(x=>x[0]), datasets:[{data:byMotivo.map(x=>x[1]), backgroundColor:'#0057B8', borderRadius:4}]},
+      options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barLabels:true, layout:{padding:{right:36}}, plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:(ctx)=>` ${fmt0(ctx.parsed.x)} item(ns)`}}},
+        scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}, title:{display:true, text:'Nº de itens'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
         onClick: drillClick((idx)=>{ const k=byMotivo[idx][0]; return {title:`Bloqueios · Motivo: ${k}`, issues: comMotivo.filter(d=>d.MotivoBloqueio===k)}; })}
     });
   } else {
