@@ -1203,6 +1203,11 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
   btn.classList.add('active');
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  // Gráficos criados enquanto o painel estava oculto (display:none) nascem com
+  // tamanho 0; ao ficar visível, forçamos um resize para eles se redesenharem.
+  requestAnimationFrame(()=>{
+    Object.values(chartsReg).forEach(c=>{ try{ c.resize(); }catch(_){} });
+  });
 });
 
 /* ===================== Render orchestrator ===================== */
