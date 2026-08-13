@@ -302,8 +302,8 @@
   <div class="grid grid-3" style="margin-top:14px;">
     <div class="card">
       <h3>Distribuição por tipo de item</h3>
-      <div class="cap">Épico · História · Sub-task · Bug · Débito Técnico</div>
-      <div class="chartwrap"><canvas id="chart-exec-tipo-donut"></canvas></div>
+      <div class="cap">Tipos de item do Jira (desagrupado).</div>
+      <div class="chartwrap tall"><canvas id="chart-exec-tipo-donut"></canvas></div>
     </div>
     <div class="card">
       <h3>Distribuição por status (top 8)</h3>
@@ -348,7 +348,7 @@
     </div>
     <div class="card">
       <h3>Throughput por tipo de item</h3>
-      <div class="chartwrap short"><canvas id="chart-tp-tipo"></canvas></div>
+      <div class="chartwrap tall"><canvas id="chart-tp-tipo"></canvas></div>
     </div>
   </div>
 
@@ -665,8 +665,7 @@ const FILTER_DIMS = [
   {key:'PI', label:'PI'},
   {key:'AnoCriacao', label:'Ano'},
   {key:'Mes', label:'Mês (criação)'},
-  {key:'Tipo Agrupado', label:'Tipo (agrupado)'},
-  {key:'Tipo de item', label:'Tipo (desagrupado)'},
+  {key:'Tipo de item', label:'Tipo'},
   {key:'Status', label:'Status'}
 ];
 const selections = {};
@@ -1344,15 +1343,16 @@ function renderExec(f){
         return {title:`SP planejado · ${pi}`, issues: f.filter(d=>d.PI===pi && !d.Cancelado)};
       })}
   });
-  const tipos = Array.from(new Set(f.map(d=>d['Tipo Agrupado'])));
-  const tipoCounts = tipos.map(t=> f.filter(d=>d['Tipo Agrupado']===t).length);
+  const tiposArr = Array.from(groupBy(f, d=>d['Tipo de item']), ([k,v])=>[k||'(sem tipo)', v.length]).sort((a,b)=>b[1]-a[1]);
   upsertChart('chart-exec-tipo-donut', {
-    type:'doughnut',
-    data:{labels:tipos, datasets:[{data:tipoCounts, backgroundColor:tipos.map(t=>TIPO_COLOR[t]||'#999'), borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:10}, usePointStyle:true, boxWidth:8, generateLabels:donutLegendPct}}, tooltip:tooltipPct}, cutout:'62%',
+    type:'bar',
+    data:{labels:tiposArr.map(x=>x[0]), datasets:[{data:tiposArr.map(x=>x[1]), backgroundColor:'#CE0058', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barPct:true, layout:{padding:{right:56}},
+      plugins:{legend:{display:false}, tooltip:tooltipPct},
+      scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
       onClick: drillClick((idx)=>{
-        const t = tipos[idx];
-        return {title:`Tipo: ${t}`, issues: f.filter(d=>d['Tipo Agrupado']===t)};
+        const t = tiposArr[idx][0];
+        return {title:`Tipo: ${t}`, issues: f.filter(d=>(d['Tipo de item']||'(sem tipo)')===t)};
       })}
   });
   const statusCounts = Array.from(groupBy(f, d=>d.Status), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
@@ -1448,27 +1448,29 @@ function renderThroughput(f){
       onClick: drillClick((idx)=>{ const v=byPi[idx][0]; return {title:`Concluídos · PI: ${v}`, issues: concl.filter(d=>d.PI===v)}; })}
   });
 
-  const byTipo = topNGroup(concl,'Tipo Agrupado',null);
+  const byTipo = Array.from(groupBy(concl, d=>d['Tipo de item']), ([k,v])=>[k||'(sem tipo)', v.length]).sort((a,b)=>b[1]-a[1]);
   upsertChart('chart-tp-tipo', {
-    type:'doughnut',
-    data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map(x=>TIPO_COLOR[x[0]]||'#999'), borderWidth:2, borderColor:'#fff'}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:10}, usePointStyle:true, boxWidth:8, generateLabels:donutLegendPct}}, tooltip:tooltipPct}, cutout:'55%',
-      onClick: drillClick((idx)=>{ const v=byTipo[idx][0]; return {title:`Concluídos · Tipo: ${v}`, issues: concl.filter(d=>d['Tipo Agrupado']===v)}; })}
+    type:'bar',
+    data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:'#CE0058', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barPct:true, layout:{padding:{right:56}},
+      plugins:{legend:{display:false}, tooltip:tooltipPct},
+      scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=>{ const v=byTipo[idx][0]; return {title:`Concluídos · Tipo: ${v}`, issues: concl.filter(d=>(d['Tipo de item']||'(sem tipo)')===v)}; })}
   });
 
-  // Monthly stacked by tipo
+  // Empilhado mensal por tipo (desagrupado — todos os tipos crus)
   const months = sortedMonthKeys(concl,'AnoMesConclusao');
-  const tipos = ['Épico','História','Sub-task','Bug','Débito Técnico'];
-  const datasets = tipos.map(t=>({
-    label:t, backgroundColor:TIPO_COLOR[t],
-    data: months.map(m=> concl.filter(d=>d.AnoMesConclusao===m && d['Tipo Agrupado']===t).length)
+  const tipos = Array.from(groupBy(concl, d=>d['Tipo de item']), ([k,v])=>[k||'(sem tipo)', v.length]).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  const datasets = tipos.map((t,i)=>({
+    label:t, backgroundColor: COLORS[i % COLORS.length],
+    data: months.map(m=> concl.filter(d=>d.AnoMesConclusao===m && (d['Tipo de item']||'(sem tipo)')===t).length)
   }));
   upsertChart('chart-tp-month-stacked', {
     type:'bar',
     data:{labels:months.map(monthLabel), datasets},
-    options:{responsive:true, maintainAspectRatio:false, scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, grid:{color:'#ECECEC'}}},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{font:{size:9}, usePointStyle:true, boxWidth:7}}}, scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, grid:{color:'#ECECEC'}}},
       onClick: drillClick((idx, ds)=>{ const m=months[idx], t=tipos[ds];
-        return {title:`Concluídos · ${monthLabel(m)} · ${t}`, issues: concl.filter(d=>d.AnoMesConclusao===m && d['Tipo Agrupado']===t)}; })}
+        return {title:`Concluídos · ${monthLabel(m)} · ${t}`, issues: concl.filter(d=>d.AnoMesConclusao===m && (d['Tipo de item']||'(sem tipo)')===t)}; })}
   });
 
   // Compare table by squad: current vs previous month
@@ -1789,22 +1791,22 @@ function renderCancelados(f){
       onClick: drillClick((idx)=>{ const k=bySquad[idx][0]; return {title:`Cancelados · Squad: ${k}`, issues: canc.filter(d=>d.Squad===k)}; })}
   });
 
-  // Por tipo (regra dos 5: donut se <=5, senão barra)
-  const byTipo = Array.from(groupBy(canc, d=>d['Tipo Agrupado']), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
+  // Por tipo desagrupado (regra dos 5: donut se <=5, senão barra)
+  const byTipo = Array.from(groupBy(canc, d=>d['Tipo de item']), ([k,v])=>[k||'(sem tipo)',v.length]).sort((a,b)=>b[1]-a[1]);
   if(byTipo.length<=5){
     upsertChart('chart-cancel-tipo', {
       type:'doughnut',
-      data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map(x=>TIPO_COLOR[x[0]]||'#999'), borderWidth:2, borderColor:'#fff'}]},
+      data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map((x,i)=>COLORS[i%COLORS.length]), borderWidth:2, borderColor:'#fff'}]},
       options:Object.assign(donutPctOptions({cutout:'55%'}), {
-        onClick: drillClick((idx)=>{ const k=byTipo[idx][0]; return {title:`Cancelados · Tipo: ${k}`, issues: canc.filter(d=>d['Tipo Agrupado']===k)}; })
+        onClick: drillClick((idx)=>{ const k=byTipo[idx][0]; return {title:`Cancelados · Tipo: ${k}`, issues: canc.filter(d=>(d['Tipo de item']||'(sem tipo)')===k)}; })
       })
     });
   } else {
     upsertChart('chart-cancel-tipo', {
       type:'bar',
-      data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:byTipo.map(x=>TIPO_COLOR[x[0]]||'#999'), borderRadius:4}]},
+      data:{labels:byTipo.map(x=>x[0]), datasets:[{data:byTipo.map(x=>x[1]), backgroundColor:'#D64545', borderRadius:4}]},
       options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barPct:true, layout:{padding:{right:56}}, plugins:{legend:{display:false}, tooltip:tooltipPct}, scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
-        onClick: drillClick((idx)=>{ const k=byTipo[idx][0]; return {title:`Cancelados · Tipo: ${k}`, issues: canc.filter(d=>d['Tipo Agrupado']===k)}; })}
+        onClick: drillClick((idx)=>{ const k=byTipo[idx][0]; return {title:`Cancelados · Tipo: ${k}`, issues: canc.filter(d=>(d['Tipo de item']||'(sem tipo)')===k)}; })}
     });
   }
 }
