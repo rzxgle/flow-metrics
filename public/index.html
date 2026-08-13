@@ -913,8 +913,8 @@ function percentile(arr, p){
   return s[lo] + (s[hi]-s[lo])*(idx-lo);
 }
 function mean(arr){ return arr.length ? sum(arr,x=>x)/arr.length : null; }
-function fmt1(n){ return (n===null||n===undefined||isNaN(n)) ? '—' : n.toFixed(1); }
-function fmt0(n){ return (n===null||n===undefined||isNaN(n)) ? '—' : Math.round(n).toLocaleString('pt-BR'); }
+function fmt1(n){ const x = typeof n==='number' ? n : parseFloat(n); return (x===null||x===undefined||!isFinite(x)) ? '—' : x.toFixed(1); }
+function fmt0(n){ const x = typeof n==='number' ? n : parseFloat(n); return (x===null||x===undefined||!isFinite(x)) ? '—' : Math.round(x).toLocaleString('pt-BR'); }
 function groupBy(arr, fn){
   const m = new Map();
   arr.forEach(d=>{
@@ -1017,7 +1017,10 @@ const barLabelsPlugin = {
     if(!chart.options.barLabels) return;
     const ctx = chart.ctx;
     const horiz = chart.options.indexAxis === 'y';
-    const fmt = chart.options.barLabelFmt || (v=>fmt0(v));
+    // IMPORTANTE: não usar função em options (Chart.js trataria como "scriptable"
+    // e a invocaria com um objeto de contexto). Usamos uma string de formato.
+    const fmtKind = chart.options.barLabelFmt;
+    const fmt = fmtKind === 'd1' ? (v=>fmt1(v)) : (v=>fmt0(v));
     ctx.save();
     ctx.font = "600 10.5px 'Inter',sans-serif";
     ctx.fillStyle = '#3D4C5B';
@@ -1025,9 +1028,11 @@ const barLabelsPlugin = {
       const meta = chart.getDatasetMeta(di);
       if(meta.hidden) return;
       meta.data.forEach((bar,i)=>{
-        const v = ds.data[i];
-        if(v===null||v===undefined||v==='' || +v===0) return;
-        const txt = fmt(+v);
+        let v = ds.data[i];
+        if(v && typeof v==='object') v = (v.x!=null? v.x : v.y); // dado parseado {x,y}
+        const num = Number(v);
+        if(!isFinite(num) || num===0) return;
+        const txt = fmt(num);
         if(horiz){ ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(txt, bar.x + 5, bar.y); }
         else { ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(txt, bar.x, bar.y - 3); }
       });
@@ -1643,7 +1648,7 @@ function renderFlow(f){
   upsertChart('chart-flow-lead-squad', {
     type:'bar',
     data:{labels:squadLead.map(x=>x[0]), datasets:[{label:'Lead Time P85 (dias)', data:squadLead.map(x=>x[1].toFixed(1)), backgroundColor:'#CE0058', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barLabels:true, barLabelFmt:(v)=>fmt1(v), layout:{padding:{right:36}}, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barLabels:true, barLabelFmt:'d1', layout:{padding:{right:36}}, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, y:{grid:{display:false}, ticks:{font:{size:10}}}},
       onClick: drillClick((idx)=>{ const k=squadLead[idx][0];
         return {title:`Lead Time · Squad: ${k}`, issues: leadItems.filter(d=>d.Squad===k)}; })}
   });
