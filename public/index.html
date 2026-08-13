@@ -581,7 +581,7 @@
   </div>
 
   <div class="card" style="margin-top:14px;">
-    <h3>Itens standard na sprint</h3>
+    <h3>Itens incrementais na sprint</h3>
     <div style="overflow-x:auto;"><table class="datatable" id="sprint-table">
       <thead><tr><th>Item</th><th>Squad</th><th>Subitens</th><th style="width:200px;">Completude</th><th>Status</th></tr></thead>
       <tbody></tbody>
@@ -1680,14 +1680,14 @@ function renderWip(f){
 
   Object.assign(__cardDrills, {
     wip_epicos: {title:'Épicos entregues (EntregueAmplo)', issues: f.filter(d=>d['Tipo Agrupado']==='Épico' && d.EntregueAmplo)},
-    wip_historias: {title:'Histórias entregues (EntregueAmplo)', issues: f.filter(d=>d['Tipo Agrupado']==='História' && d.EntregueAmplo)},
+    wip_historias: {title:'Itens incrementais entregues (EntregueAmplo)', issues: f.filter(d=>d['Tipo Agrupado']==='História' && d.EntregueAmplo)},
     wip_subtasks: {title:'Sub-tasks concluídas', issues: concl.filter(d=>d['Tipo Agrupado']==='Sub-task')},
     wip_concl: {title:'Concluídos (base do % geral)', issues: concl},
     wip_total: {title:'WIP total (em aberto)', issues: wipItems},
   });
   document.getElementById('wip-kpis').innerHTML = [
     kpiCard('Épicos entregues', fmt0(epicosEntreg), null, '', {cls:'flat', text:`${fmt0(epicosConcl)} c/ status "Concluído"`}, null, 'wip_epicos'),
-    kpiCard('Histórias entregues', fmt0(historiasEntreg), null, '', {cls:'flat', text:`${fmt0(historiasConcl)} c/ status "Concluído"`}, null, 'wip_historias'),
+    kpiCard('Itens incrementais entregues', fmt0(historiasEntreg), null, '', {cls:'flat', text:`${fmt0(historiasConcl)} c/ status "Concluído"`}, null, 'wip_historias'),
     kpiCard('Sub-tasks concluídas', fmt0(subtasksConcl), '', '', null, null, 'wip_subtasks'),
     kpiCard('% conclusão geral', pctGeral.toFixed(0), '%', '', null, null, 'wip_concl'),
     kpiCard('WIP total', fmt0(wipItems.length), 'itens', 'coral', null, null, 'wip_total'),
@@ -1989,7 +1989,7 @@ function renderSprint(){
   const subsByParent = groupBy(base.filter(isSubitem), d=>d.parentKey);
   const subsOf = p => subsByParent.get(p.Chave) || [];
 
-  // itens standard que pertencem à sprint (array Sprints contém)
+  // itens incrementais que pertencem à sprint (array Sprints contém)
   const standardNaSprint = base.filter(d=> isStandard(d) && (d.Sprints||[]).includes(sprint));
 
   // por item: X de Y subitens; se Y=0 usa o próprio status
@@ -2010,12 +2010,12 @@ function renderSprint(){
   const allSubs = rows.flatMap(r=>r.subs);
 
   Object.assign(__cardDrills, {
-    sprint_std: {title:`Itens standard · ${sprint}`, issues: standardNaSprint},
+    sprint_std: {title:`Itens incrementais · ${sprint}`, issues: standardNaSprint},
     sprint_sub: {title:`Subitens dos standard · ${sprint}`, issues: allSubs},
     sprint_subconcl: {title:`Subitens concluídos · ${sprint}`, issues: allSubs.filter(s=>s.Concluido)},
   });
   document.getElementById('sprint-kpis').innerHTML = [
-    kpiCard('Itens standard', fmt0(totalStd), 'itens', '', null, null, 'sprint_std'),
+    kpiCard('Itens incrementais', fmt0(totalStd), 'itens', '', null, null, 'sprint_std'),
     kpiCard('Completude média', compMedia.toFixed(0), '%', compMedia>=70?'':'amber'),
     kpiCard('Subitens concluídos', `${fmt0(subConcl)}/${fmt0(totSub)}`, '', '', null, null, 'sprint_sub'),
     kpiCard('Standard concluídos', `${fmt0(stdConcl)}/${fmt0(totalStd)}`, '', ''),
