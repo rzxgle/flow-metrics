@@ -29,6 +29,7 @@ class DashboardController {
   /** GET /api/dashboard -> { issues, epics, generatedAt, coletadoEm, meta } */
   getDashboard = async (req, res) => {
     try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
       if (forceRefresh || !this.cache.has()) {
         await this._runRefresh();
@@ -51,6 +52,7 @@ class DashboardController {
   /** GET /api/refresh -> força nova coleta e devolve a hora. */
   postRefresh = async (_req, res) => {
     try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       await this._runRefresh();
       res.json({ status: 'ok', coletadoEm: this.cache.getSavedAt() });
     } catch (err) {
@@ -60,6 +62,7 @@ class DashboardController {
 
   /** GET /api/health */
   getHealth = (_req, res) => {
+    res.set('Cache-Control', 'no-store');
     res.json({ status: 'ok', time: new Date().toISOString(), coletadoEm: this.cache.getSavedAt() });
   };
 }

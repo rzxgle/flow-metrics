@@ -128,3 +128,12 @@ processo antigo ainda não tratava PI4).
 - **Regra de saúde do épico** → `domain/services/EpicHealthEvaluator.js`.
 - **Trocar Jira por outra fonte** → nova classe que estenda `IssueRepository` e
   troque a linha no `main.js`.
+
+## Deploy no AWS Amplify
+
+O projeto suporta Amplify Hosting Compute com o HTML e a API Express no mesmo
+domínio. A branch de deploy é `afya-metrics-dashboard`; o botão **Atualizar dados**
+continua consultando o Jira em tempo real sem expor o token no navegador.
+
+Consulte `docs/AMPLIFY_DEPLOY.md` para cadastrar as variáveis de ambiente e
+configurar o app no Amplify.
