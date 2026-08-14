@@ -128,3 +128,27 @@ processo antigo ainda não tratava PI4).
 - **Regra de saúde do épico** → `domain/services/EpicHealthEvaluator.js`.
 - **Trocar Jira por outra fonte** → nova classe que estenda `IssueRepository` e
   troque a linha no `main.js`.
+
+## Deploy no AWS Amplify
+
+O projeto suporta Amplify Hosting Compute com o HTML e a API Express no mesmo
+domínio. A branch de deploy é `afya-metrics-dashboard`; o botão **Atualizar dados**
+continua consultando o Jira em tempo real sem expor o token no navegador.
+
+Consulte `docs/AMPLIFY_DEPLOY.md` para cadastrar as variáveis de ambiente e
+configurar o app no Amplify.
+
+### Carga progressiva no Amplify
+
+Para respeitar os limites de tempo e resposta do Web Compute, o navegador busca
+o Jira em lotes de até 500 issues. Os últimos 60 dias têm prioridade; o restante
+do ano é incorporado em seguida. O progresso é salvo no IndexedDB e as relações
+de parent/épico são reconciliadas conforme os lotes chegam.
+
+Cada lote é persistido: uma recarga retoma a paginação já iniciada. Quando o
+snapshot completo existe, abrir o dashboard não repete a consulta das 15 mil
+issues; o botão **Atualizar dados** busca somente itens novos ou modificados pelo
+campo `updated` e os mescla por chave.
+
+O endpoint usado pelo front é `POST /api/dashboard/progressive`. A rota completa
+`GET /api/dashboard` permanece disponível para compatibilidade local.

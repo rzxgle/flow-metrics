@@ -11,9 +11,10 @@
  * - /api/refresh força uma nova coleta (o botão "Atualizar agora").
  */
 class DashboardController {
-  constructor({ refresh, cache }) {
+  constructor({ refresh, cache, getProgressiveDashboardData }) {
     this.refresh = refresh; // async () => payload (executa o caso de uso e grava no cache)
     this.cache = cache;
+    this.getProgressiveDashboardData = getProgressiveDashboardData;
     this._refreshing = null; // evita coletas simultâneas
   }
 
@@ -29,6 +30,7 @@ class DashboardController {
   /** GET /api/dashboard -> { issues, epics, generatedAt, coletadoEm, meta } */
   getDashboard = async (req, res) => {
     try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
       if (forceRefresh || !this.cache.has()) {
         await this._runRefresh();
@@ -48,9 +50,31 @@ class DashboardController {
     }
   };
 
+  /** POST /api/dashboard/progressive -> um lote pequeno, continuado por token. */
+  getProgressiveDashboard = async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      const phase = req.body?.phase || 'recent';
+      const nextPageToken = req.body?.nextPageToken || undefined;
+      const since = req.body?.since || undefined;
+      if (typeof nextPageToken === 'string' && nextPageToken.length > 4096) {
+        return res.status(400).json({ error: 'Token de paginacao invalido.' });
+      }
+      if (typeof since === 'string' && since.length > 64) {
+        return res.status(400).json({ error: 'Data incremental invalida.' });
+      }
+      const payload = await this.getProgressiveDashboardData({ phase, nextPageToken, since });
+      return res.json(payload);
+    } catch (err) {
+      console.error('[DashboardController] erro progressivo:', err.message);
+      return res.status(502).json({ error: 'Falha ao carregar lote do Jira', detail: err.message });
+    }
+  };
+
   /** GET /api/refresh -> força nova coleta e devolve a hora. */
   postRefresh = async (_req, res) => {
     try {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       await this._runRefresh();
       res.json({ status: 'ok', coletadoEm: this.cache.getSavedAt() });
     } catch (err) {
@@ -60,6 +84,7 @@ class DashboardController {
 
   /** GET /api/health */
   getHealth = (_req, res) => {
+    res.set('Cache-Control', 'no-store');
     res.json({ status: 'ok', time: new Date().toISOString(), coletadoEm: this.cache.getSavedAt() });
   };
 }
