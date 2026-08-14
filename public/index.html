@@ -89,6 +89,18 @@
   .btn-refresh:hover{background:var(--primary-d);}
   .progressive-status{font-size:11px;color:#6B7A88;white-space:nowrap;}
   .progressive-status.loading{color:#0057B8;font-weight:600;}
+  body.dashboard-loading > :not(#__loading){
+    filter:blur(3px);opacity:.48;pointer-events:none;user-select:none;
+    transition:filter .2s ease,opacity .2s ease;
+  }
+  #__loading .loading-card{
+    min-width:min(360px,calc(100vw - 48px));background:rgba(255,255,255,.94);
+    border:1px solid #ECECEC;border-radius:14px;box-shadow:0 18px 50px rgba(28,34,40,.16);
+    padding:28px 30px;display:flex;flex-direction:column;align-items:center;gap:10px;
+  }
+  #__loading .loading-title{font-size:16px;font-weight:750;letter-spacing:.04em;color:#333;}
+  #__loading .loading-count{font:700 25px 'JetBrains Mono',monospace;color:var(--primary);}
+  #__loading .loading-detail{font-size:12px;color:#6B7A88;max-width:420px;}
   .tabs{display:flex;gap:2px;flex-wrap:wrap;align-items:center;}
   .tab-btn{
     background:transparent;border:none;
@@ -2147,19 +2159,32 @@ function showLoading(msg){
     el = document.createElement('div');
     el.id = '__loading';
     el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;'
-      + 'background:rgba(250,249,246,.92);z-index:9999;font-family:Inter,system-ui,sans-serif;'
+      + 'background:rgba(250,249,246,.48);backdrop-filter:blur(2px);z-index:9999;font-family:Inter,system-ui,sans-serif;'
       + 'color:#333333;font-size:15px;flex-direction:column;gap:14px;text-align:center;padding:24px;';
     document.body.appendChild(el);
   }
-  el.innerHTML = '<div style="width:34px;height:34px;border:3px solid #E2E2E2;border-top-color:#CE0058;'
+  el.innerHTML = '<div class="loading-card" role="status" aria-live="polite">'
+    + '<div style="width:34px;height:34px;border:3px solid #E2E2E2;border-top-color:#CE0058;'
     + 'border-radius:50%;animation:__spin .8s linear infinite;"></div>'
-    + '<div>' + msg + '</div>'
+    + '<div class="loading-title">CARREGANDO DADOS</div>'
+    + '<div id="__loading_count" class="loading-count">0 issues buscadas</div>'
+    + '<div id="__loading_detail" class="loading-detail"></div></div>'
     + '<style>@keyframes __spin{to{transform:rotate(360deg)}}</style>';
+  document.body.classList.add('dashboard-loading');
+  const detail = document.getElementById('__loading_detail');
+  if(detail) detail.textContent = msg || 'Consultando o Jira...';
   el.style.display = 'flex';
+}
+function updateLoadingProgress(count, detail){
+  const countEl=document.getElementById('__loading_count');
+  const detailEl=document.getElementById('__loading_detail');
+  if(countEl) countEl.textContent=`${Number(count||0).toLocaleString('pt-BR')} issues buscadas`;
+  if(detailEl&&detail) detailEl.textContent=detail;
 }
 function hideLoading(){
   const el = document.getElementById('__loading');
   if(el) el.style.display = 'none';
+  document.body.classList.remove('dashboard-loading');
 }
 function showError(detail){
   let el = document.getElementById('__loading') || document.body.appendChild(document.createElement('div'));
@@ -2171,6 +2196,7 @@ function showError(detail){
     + '<div style="color:#333333;font-size:13.5px;max-width:520px;">' + detail + '</div>'
     + '<button onclick="bootstrap(true)" style="margin-top:6px;padding:9px 18px;border:none;border-radius:6px;'
     + 'background:#CE0058;color:#fff;font-size:13.5px;cursor:pointer;">Tentar novamente</button>';
+  document.body.classList.add('dashboard-loading');
   el.style.display = 'flex';
 }
 
@@ -2308,18 +2334,18 @@ async function loadFullProgressively(cached,generation){
   const phases=['recent','history'];
   const resume=cached?.complete===false&&cached?.progress?.mode==='full';
   const freshMap=new Map((resume&&Array.isArray(cached.issues)?cached.issues:[]).map(i=>[i.Chave,i]));
-  const displayMap=new Map((Array.isArray(cached?.issues)?cached.issues:[]).map(i=>[i.Chave,i]));
   let meta=resume?(cached.meta||{}):{}, generatedAt=cached?.generatedAt||new Date().toISOString();
   const syncStartedAt=resume&&cached.syncStartedAt?cached.syncStartedAt:new Date().toISOString();
   let phaseIndex=resume?Math.max(0,phases.indexOf(cached.progress.phase)):0;
   let firstToken=resume?cached.progress.nextPageToken||null:null;
-  let batchNumber=0, allowPersistedTokenRestart=!!firstToken;
+  let allowPersistedTokenRestart=!!firstToken;
 
   for(let index=phaseIndex;index<phases.length;index+=1){
     const phase=phases[index]; let nextPageToken=index===phaseIndex?firstToken:null, isLast=false;
     while(!isLast){
       if(generation!==progressiveGeneration)return null;
       setProgressiveStatus(`${phase==='recent'?'Dados recentes':'Histórico'}: ${freshMap.size.toLocaleString('pt-BR')} issues salvas`,true);
+      updateLoadingProgress(freshMap.size,phase==='recent'?'Buscando os dados dos últimos dois meses...':'Buscando o histórico restante...');
       let payload;
       try{payload=await requestProgressiveBatch(phase,nextPageToken);}
       catch(error){
@@ -2327,16 +2353,16 @@ async function loadFullProgressively(cached,generation){
         throw error;
       }
       allowPersistedTokenRestart=false;
-      (payload.issues||[]).forEach(item=>{freshMap.set(item.Chave,item);displayMap.set(item.Chave,item);});
+      (payload.issues||[]).forEach(item=>freshMap.set(item.Chave,item));
       meta=mergeProgressiveMeta(meta,payload.meta||{}); generatedAt=payload.generatedAt||generatedAt;
-      nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true; batchNumber+=1;
+      nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true;
       const nextPhase=isLast?phases[index+1]||null:phase;
       const issues=Array.from(freshMap.values());
       const complete=isLast&&index===phases.length-1;
       await persistDashboardSnapshot({schemaVersion:2,issues,meta,generatedAt,complete,
         syncStartedAt, lastSyncAt:complete?syncStartedAt:(cached?.lastSyncAt||null),
         progress:complete?null:{mode:'full',phase:nextPhase,nextPageToken:isLast?null:nextPageToken}});
-      if(!cached||batchNumber%2===0||isLast)renderProgressiveDataset(Array.from(displayMap.values()),meta,generatedAt);
+      updateLoadingProgress(freshMap.size,complete?'Preparando o dashboard...':phase==='recent'?'Buscando os dados dos últimos dois meses...':'Buscando o histórico restante...');
     }
   }
   const finalIssues=Array.from(freshMap.values());
@@ -2355,6 +2381,7 @@ async function loadIncremental(cached,generation){
   while(!isLast){
     if(generation!==progressiveGeneration)return null;
     setProgressiveStatus(`Buscando novas alterações — ${issueMap.size.toLocaleString('pt-BR')} issues em cache`,true);
+    updateLoadingProgress(changedKeys.size,'Buscando novas alterações no Jira...');
     let payload;
     try{payload=await requestProgressiveBatch('delta',nextPageToken,since);}
     catch(error){
@@ -2369,8 +2396,9 @@ async function loadIncremental(cached,generation){
     await persistDashboardSnapshot({schemaVersion:2,issues,meta,generatedAt,complete:isLast,
       syncStartedAt,lastSyncAt:isLast?syncStartedAt:(cached.lastSyncAt||null),
       progress:isLast?null:{mode:'delta',phase:'delta',since,nextPageToken}});
-    renderProgressiveDataset(issues,meta,generatedAt);
+    updateLoadingProgress(changedKeys.size,isLast?'Preparando o dashboard...':'Buscando novas alterações no Jira...');
   }
+  renderProgressiveDataset(Array.from(issueMap.values()),meta,generatedAt);
   setProgressiveStatus(`${issueMap.size.toLocaleString('pt-BR')} issues · ${changedKeys.size.toLocaleString('pt-BR')} atualizadas`,false);
   return Array.from(issueMap.values());
 }
@@ -2382,14 +2410,16 @@ async function bootstrap(forceRefresh){
   try{
     let cached=null;
     try{cached=await readDashboardSnapshot();}catch(e){console.warn('cache IndexedDB indisponivel',e);}
-    if(cached&&Array.isArray(cached.issues)){
-      renderProgressiveDataset(cached.issues,cached.meta||{},cached.generatedAt||new Date().toISOString());
-    }
     const pendingMode=cached?.complete===false?cached?.progress?.mode:null;
     const cacheComplete=!!cached&&cached.complete!==false&&!pendingMode;
     if(cacheComplete&&!forceRefresh){
+      renderProgressiveDataset(cached.issues,cached.meta||{},cached.generatedAt||new Date().toISOString());
       setProgressiveStatus(`${cached.issues.length.toLocaleString('pt-BR')} issues em cache`,false);
       return;
+    }
+    if(cacheComplete&&forceRefresh){
+      renderProgressiveDataset(cached.issues,cached.meta||{},cached.generatedAt||new Date().toISOString());
+      showLoading('Buscando novas alterações no Jira...');
     }
     if(cached&&(pendingMode==='delta'||(cacheComplete&&forceRefresh))){
       await loadIncremental(cached,generation);
