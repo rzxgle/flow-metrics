@@ -68,8 +68,12 @@ function rawIssue(key, type, parentKey = null) {
   assert.match(html, /mode:'delta'/);
   assert.match(html, /cacheComplete&&!forceRefresh/);
   assert.match(html, /loadIncremental\(cached,generation\)/);
+  assert.match(html, /dashboard-loading/);
+  assert.match(html, /CARREGANDO DADOS/);
+  assert.match(html, /updateLoadingProgress/);
+  assert.doesNotMatch(html, /batchNumber%2===0/);
 
-  console.log('Carga progressiva: 23 verificacoes passaram.');
+  console.log('Carga progressiva: 27 verificacoes passaram.');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
