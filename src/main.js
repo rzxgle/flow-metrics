@@ -16,6 +16,7 @@ async function start() {
   const dashboardController = new DashboardController({
     refresh: runtime.refresh,
     cache: runtime.cache,
+    getProgressiveDashboardData: runtime.getProgressiveDashboardData,
   });
   const app = createServer({ dashboardController, publicDir: runtime.publicDir });
   const server = app.listen(runtime.config.port, () => {

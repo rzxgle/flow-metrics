@@ -34,37 +34,58 @@ class JiraHttpClient {
     let isLast = false;
 
     while (!isLast) {
-      const body = {
-        jql,
-        fields,
-        maxResults: this.pageSize,
-        ...(nextPageToken ? { nextPageToken } : {}),
-      };
-
-      const res = await fetch(`${this.baseUrl}${this.searchPath}`, {
-        method: 'POST',
-        headers: {
-          Authorization: this.authHeader,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Jira API ${res.status} ${res.statusText}: ${text.slice(0, 500)}`);
-      }
-
-      const data = await res.json();
-      const issues = data.issues || [];
-      all.push(...issues);
-
-      nextPageToken = data.nextPageToken;
-      isLast = data.isLast === true || !nextPageToken;
+      const page = await this.searchPage(jql, fields, nextPageToken);
+      all.push(...page.issues);
+      nextPageToken = page.nextPageToken;
+      isLast = page.isLast;
     }
 
     return all;
+  }
+
+  async searchPage(jql, fields, nextPageToken) {
+    const body = {
+      jql,
+      fields,
+      maxResults: this.pageSize,
+      ...(nextPageToken ? { nextPageToken } : {}),
+    };
+    const res = await fetch(`${this.baseUrl}${this.searchPath}`, {
+      method: 'POST',
+      headers: {
+        Authorization: this.authHeader,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(25000),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Jira API ${res.status} ${res.statusText}: ${text.slice(0, 500)}`);
+    }
+    const data = await res.json();
+    return {
+      issues: data.issues || [],
+      nextPageToken: data.nextPageToken || null,
+      isLast: data.isLast === true || !data.nextPageToken,
+    };
+  }
+
+  /** Busca poucas paginas para manter cada resposta abaixo dos limites do hosting. */
+  async searchBatch(jql, fields, { nextPageToken, maxPages = 5 } = {}) {
+    const issues = [];
+    let token = nextPageToken;
+    let isLast = false;
+    let pages = 0;
+    while (!isLast && pages < maxPages) {
+      const page = await this.searchPage(jql, fields, token);
+      issues.push(...page.issues);
+      token = page.nextPageToken;
+      isLast = page.isLast;
+      pages += 1;
+    }
+    return { issues, nextPageToken: token || null, isLast, pages };
   }
 }
 

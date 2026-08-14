@@ -10,7 +10,8 @@
     "discover:fields": "node scripts/discover-fields.js",
     "test:transform": "node test/transform.spec.js",
     "test:amplify": "node test/amplify.spec.js",
-    "test": "npm run test:transform && npm run test:amplify"
+    "test:progressive": "node test/progressive.spec.js",
+    "test": "npm run test:transform && npm run test:progressive && npm run test:amplify"
   },
   "engines": {
     "node": ">=18"

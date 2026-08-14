@@ -32,6 +32,7 @@ const jiraEnvironmentKeys = [
 const runtimeConfig = {
   AMPLIFY_COMPUTE: '1', PORT: '3000',
   CACHE_FILE_PATH: '/tmp/jira-flow-metrics/dataset.json',
+  PROGRESSIVE_PAGES_PER_REQUEST: process.env.PROGRESSIVE_PAGES_PER_REQUEST || '5',
 };
 for (const key of jiraEnvironmentKeys) {
   if (process.env[key]) runtimeConfig[key] = process.env[key];

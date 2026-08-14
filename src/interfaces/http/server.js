@@ -15,6 +15,7 @@ function createServer({ dashboardController, publicDir }) {
   // API
   app.get('/api/health', dashboardController.getHealth);
   app.get('/api/dashboard', dashboardController.getDashboard);
+  app.post('/api/dashboard/progressive', dashboardController.getProgressiveDashboard);
   app.get('/api/refresh', dashboardController.postRefresh);
   app.post('/api/refresh', dashboardController.postRefresh);
 

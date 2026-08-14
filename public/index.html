@@ -87,6 +87,8 @@
     cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:background .15s ease;
   }
   .btn-refresh:hover{background:var(--primary-d);}
+  .progressive-status{font-size:11px;color:#6B7A88;white-space:nowrap;}
+  .progressive-status.loading{color:#0057B8;font-weight:600;}
   .tabs{display:flex;gap:2px;flex-wrap:wrap;align-items:center;}
   .tab-btn{
     background:transparent;border:none;
@@ -294,7 +296,8 @@
       </nav>
       <div class="updated">
         <span class="coleta"><span class="dot"></span>Atualizado em&nbsp;<span id="exportDate" class="mono"></span></span>
-        <button class="btn-refresh" onclick="bootstrap(true)">↻ Atualizar dados</button>
+        <button id="btn-refresh" class="btn-refresh" onclick="bootstrap(true)">↻ Atualizar dados</button>
+        <span id="progressive-status" class="progressive-status" aria-live="polite"></span>
       </div>
     </div>
   </div>
@@ -699,6 +702,7 @@ const FILTER_DIMS = [
 ];
 const selections = {};
 FILTER_DIMS.forEach(f=> selections[f.key] = new Set());
+let filterDocumentHandlerBound = false;
 // Filtro padrão de Tipo de item (recorte inicial): tipos crus de produção.
 const DEFAULT_TIPO = ['Enabler','Melhoria','Story','Technical Debt'];
 DEFAULT_TIPO.forEach(t=> selections['Tipo de item'].add(t));
@@ -759,6 +763,13 @@ function uniqueVals(key){
 
 function buildFilterBar(){
   const bar = document.getElementById('filterBar');
+  // A carga progressiva reconstrói as opções a cada lote. Limpar primeiro torna
+  // esta função idempotente e impede a duplicação dos controles.
+  bar.replaceChildren();
+  const filterLabel = document.createElement('span');
+  filterLabel.className = 'flabel';
+  filterLabel.textContent = 'Filtros';
+  bar.appendChild(filterLabel);
   FILTER_DIMS.forEach(f=>{
     const wrap = document.createElement('div');
     wrap.className = 'dropdown';
@@ -850,9 +861,12 @@ function buildFilterBar(){
   });
   bar.appendChild(clearAll);
 
-  document.addEventListener('click', ()=>{
-    document.querySelectorAll('.dd-panel.open').forEach(p=>p.classList.remove('open'));
-  });
+  if(!filterDocumentHandlerBound){
+    document.addEventListener('click', ()=>{
+      document.querySelectorAll('.dd-panel.open').forEach(p=>p.classList.remove('open'));
+    });
+    filterDocumentHandlerBound = true;
+  }
 }
 
 /* Controle de intervalo de datas (item 6) */
@@ -2013,10 +2027,12 @@ function sprintDates(name){
 function initSprintSelector(){
   const sel = document.getElementById('sprintSelect');
   if(!sel) return;
+  const previousValue = sel.value;
   const names = sprintNamesFromData();
   sel.innerHTML = names.length
     ? names.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')
     : '<option value="">(nenhuma sprint encontrada nos dados)</option>';
+  if(names.includes(previousValue)) sel.value = previousValue;
   sel.onchange = ()=> renderSprint();
 }
 const isStandard = d => d['Tipo Agrupado'] && d['Tipo Agrupado']!=='Épico' && d['Tipo Agrupado']!=='Sub-task';
@@ -2168,34 +2184,224 @@ function formatExportDate(iso){
   }catch(e){ return iso; }
 }
 
-async function bootstrap(forceRefresh){
-  showLoading('Buscando dados do Jira...');
-  try{
-    const url = '/api/dashboard' + (forceRefresh ? '?refresh=1' : '');
-    const res = await fetch(url, { cache: 'no-store' });
-    if(!res.ok){
-      let detail = res.status + ' ' + res.statusText;
-      try{ const j = await res.json(); detail = j.detail || j.error || detail; }catch(e){}
-      throw new Error(detail);
-    }
-    const payload = await res.json();
-    DATA = payload.issues || [];
-    EPICS = payload.epics || [];
-    const meta = payload.meta || {};
-    window.__RULES_PENDING = meta.pendingStatuses || [];
-    window.__RULES_INPROG = meta.inProgressStatuses || [];
-    window.__SPRINTS = meta.sprints || [];
-    document.getElementById('exportDate').textContent = formatExportDate(payload.coletadoEm || payload.generatedAt);
+const DASHBOARD_DB = 'afya-metrics-dashboard';
+const DASHBOARD_STORE = 'snapshots';
+let dashboardInitialized = false;
+let progressiveGeneration = 0;
 
-    normalizeData();
-    setDefaultDateRange();
-    buildFilterBar();
-    initSprintSelector();
-    renderAll();
-    hideLoading();
+function openDashboardDb(){
+  return new Promise((resolve,reject)=>{
+    if(!window.indexedDB) return reject(new Error('IndexedDB indisponivel'));
+    const req = indexedDB.open(DASHBOARD_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(DASHBOARD_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function readDashboardSnapshot(){
+  const db = await openDashboardDb();
+  return new Promise((resolve,reject)=>{
+    const req = db.transaction(DASHBOARD_STORE,'readonly').objectStore(DASHBOARD_STORE).get('current');
+    req.onsuccess=()=>{db.close();resolve(req.result||null);};
+    req.onerror=()=>{db.close();reject(req.error);};
+  });
+}
+async function writeDashboardSnapshot(value){
+  const db = await openDashboardDb();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction(DASHBOARD_STORE,'readwrite');
+    tx.objectStore(DASHBOARD_STORE).put(value,'current');
+    tx.oncomplete=()=>{db.close();resolve();};
+    tx.onerror=()=>{db.close();reject(tx.error);};
+  });
+}
+function setProgressiveStatus(text, loading){
+  const el=document.getElementById('progressive-status');
+  if(!el) return;
+  el.textContent=text||'';
+  el.classList.toggle('loading',!!loading);
+}
+function mergeProgressiveMeta(target, incoming){
+  const result={...(target||{})};
+  ['pendingStatuses','inProgressStatuses','doneStatuses','cancelledStatuses'].forEach(k=>{
+    if(incoming&&incoming[k]) result[k]=incoming[k];
+  });
+  const sprints=new Map((result.sprints||[]).map(s=>[s.name,s]));
+  (incoming?.sprints||[]).forEach(s=>{if(s&&s.name)sprints.set(s.name,{...(sprints.get(s.name)||{}),...s});});
+  result.sprints=Array.from(sprints.values());
+  return result;
+}
+function reconcileProgressiveIssues(items){
+  const index=new Map(items.map(item=>[item.Chave,item]));
+  const healthByEpic=new Map();
+  items.forEach(item=>{
+    if(item['Tipo Agrupado']==='Épico'){
+      item.EpicoChave=item.Chave;
+      if(item.SaudeEpico) healthByEpic.set(item.Chave,item.SaudeEpico);
+    }
+  });
+  items.forEach(item=>{
+    if(item['Tipo Agrupado']!=='Épico'){
+      const seen=new Set(); let current=item; let epic=null;
+      while(current&&current.parentKey&&!seen.has(current.parentKey)){
+        seen.add(current.parentKey); current=index.get(current.parentKey);
+        if(current&&current['Tipo Agrupado']==='Épico'){epic=current.Chave;break;}
+      }
+      item.EpicoChave=epic;
+    }
+    if(item['Tipo Agrupado']==='Sub-task'){
+      const seen=new Set(); let current=item; let incremental=true;
+      while(current&&current.parentKey&&!seen.has(current.parentKey)){
+        seen.add(current.parentKey); current=index.get(current.parentKey);
+        if(current&&current['Tipo Agrupado']!=='Sub-task'){
+          incremental=current['Tipo Agrupado']==='História'||current['Tipo Agrupado']==='Épico'; break;
+        }
+      }
+      item.Incremental=incremental;
+    }else item.Incremental=item['Tipo Agrupado']==='História'||item['Tipo Agrupado']==='Épico';
+  });
+  items.forEach(item=>{if(item.EpicoChave)item.SaudeEpico=healthByEpic.get(item.EpicoChave)||null;});
+  return items;
+}
+function buildProgressiveEpicSummaries(items){
+  const roundHalfEven=(value)=>{
+    const scaled=value*10, floor=Math.floor(scaled), fraction=scaled-floor;
+    if(Math.abs(fraction-.5)<1e-9) return (floor%2===0?floor:floor+1)/10;
+    return Math.round(scaled)/10;
+  };
+  const epics=new Map(items.filter(i=>i['Tipo Agrupado']==='Épico').map(i=>[i.Chave,i]));
+  const members=new Map();
+  items.forEach(i=>{if(i.EpicoChave){if(!members.has(i.EpicoChave))members.set(i.EpicoChave,[]);members.get(i.EpicoChave).push(i);}});
+  return Array.from(members.entries()).flatMap(([key,list])=>{
+    const epic=epics.get(key); if(!epic)return [];
+    const done=list.filter(i=>i.Concluido), cancelled=list.filter(i=>i.Cancelado).length;
+    const denominator=list.length-cancelled;
+    return [{Chave:key,Resumo:epic.Resumo,Squad:epic.Squad,VS:epic.VS,Programa:epic.Programa,PI:epic.PI,
+      Status:epic.Status,TotalItens:list.length,Concluidos:done.length,Cancelados:cancelled,
+      PctConclusao:denominator?roundHalfEven(done.length/denominator*100):0,
+      SPTotal:roundHalfEven(list.reduce((s,i)=>s+(i['Story Points']||0),0)),
+      SPConcluido:roundHalfEven(done.reduce((s,i)=>s+(i['Story Points']||0),0))}];
+  });
+}
+function renderProgressiveDataset(items, meta, generatedAt){
+  DATA=reconcileProgressiveIssues(items);
+  EPICS=buildProgressiveEpicSummaries(DATA);
+  window.__RULES_PENDING=meta.pendingStatuses||[];
+  window.__RULES_INPROG=meta.inProgressStatuses||[];
+  window.__SPRINTS=meta.sprints||[];
+  document.getElementById('exportDate').textContent=formatExportDate(generatedAt);
+  normalizeData();
+  if(!dashboardInitialized){setDefaultDateRange();dashboardInitialized=true;}
+  buildFilterBar(); initSprintSelector(); renderAll(); hideLoading();
+}
+
+async function requestProgressiveBatch(phase,nextPageToken,since){
+  const res=await fetch('/api/dashboard/progressive',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({phase,nextPageToken,since})});
+  if(!res.ok){let detail=`${res.status} ${res.statusText}`;try{const j=await res.json();detail=j.detail||j.error||detail;}catch(e){}throw new Error(detail);}
+  return res.json();
+}
+async function persistDashboardSnapshot(snapshot){
+  try{await writeDashboardSnapshot(snapshot);}catch(e){console.warn('falha ao salvar IndexedDB',e);}
+}
+async function loadFullProgressively(cached,generation){
+  const phases=['recent','history'];
+  const resume=cached?.complete===false&&cached?.progress?.mode==='full';
+  const freshMap=new Map((resume&&Array.isArray(cached.issues)?cached.issues:[]).map(i=>[i.Chave,i]));
+  const displayMap=new Map((Array.isArray(cached?.issues)?cached.issues:[]).map(i=>[i.Chave,i]));
+  let meta=resume?(cached.meta||{}):{}, generatedAt=cached?.generatedAt||new Date().toISOString();
+  const syncStartedAt=resume&&cached.syncStartedAt?cached.syncStartedAt:new Date().toISOString();
+  let phaseIndex=resume?Math.max(0,phases.indexOf(cached.progress.phase)):0;
+  let firstToken=resume?cached.progress.nextPageToken||null:null;
+  let batchNumber=0, allowPersistedTokenRestart=!!firstToken;
+
+  for(let index=phaseIndex;index<phases.length;index+=1){
+    const phase=phases[index]; let nextPageToken=index===phaseIndex?firstToken:null, isLast=false;
+    while(!isLast){
+      if(generation!==progressiveGeneration)return null;
+      setProgressiveStatus(`${phase==='recent'?'Dados recentes':'Histórico'}: ${freshMap.size.toLocaleString('pt-BR')} issues salvas`,true);
+      let payload;
+      try{payload=await requestProgressiveBatch(phase,nextPageToken);}
+      catch(error){
+        if(allowPersistedTokenRestart&&nextPageToken){nextPageToken=null;allowPersistedTokenRestart=false;continue;}
+        throw error;
+      }
+      allowPersistedTokenRestart=false;
+      (payload.issues||[]).forEach(item=>{freshMap.set(item.Chave,item);displayMap.set(item.Chave,item);});
+      meta=mergeProgressiveMeta(meta,payload.meta||{}); generatedAt=payload.generatedAt||generatedAt;
+      nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true; batchNumber+=1;
+      const nextPhase=isLast?phases[index+1]||null:phase;
+      const issues=Array.from(freshMap.values());
+      const complete=isLast&&index===phases.length-1;
+      await persistDashboardSnapshot({schemaVersion:2,issues,meta,generatedAt,complete,
+        syncStartedAt, lastSyncAt:complete?syncStartedAt:(cached?.lastSyncAt||null),
+        progress:complete?null:{mode:'full',phase:nextPhase,nextPageToken:isLast?null:nextPageToken}});
+      if(!cached||batchNumber%2===0||isLast)renderProgressiveDataset(Array.from(displayMap.values()),meta,generatedAt);
+    }
+  }
+  const finalIssues=Array.from(freshMap.values());
+  renderProgressiveDataset(finalIssues,meta,generatedAt);
+  setProgressiveStatus(`${finalIssues.length.toLocaleString('pt-BR')} issues salvas`,false);
+  return finalIssues;
+}
+async function loadIncremental(cached,generation){
+  const resume=cached?.complete===false&&cached?.progress?.mode==='delta';
+  const issueMap=new Map((cached?.issues||[]).map(i=>[i.Chave,i]));
+  let meta=cached?.meta||{}, generatedAt=cached?.generatedAt||new Date().toISOString();
+  const since=resume?cached.progress.since:(cached.lastSyncAt||cached.generatedAt||new Date(Date.now()-86400000).toISOString());
+  const syncStartedAt=resume&&cached.syncStartedAt?cached.syncStartedAt:new Date().toISOString();
+  let nextPageToken=resume?cached.progress.nextPageToken||null:null, isLast=false;
+  let allowPersistedTokenRestart=!!nextPageToken; const changedKeys=new Set();
+  while(!isLast){
+    if(generation!==progressiveGeneration)return null;
+    setProgressiveStatus(`Buscando novas alterações — ${issueMap.size.toLocaleString('pt-BR')} issues em cache`,true);
+    let payload;
+    try{payload=await requestProgressiveBatch('delta',nextPageToken,since);}
+    catch(error){
+      if(allowPersistedTokenRestart&&nextPageToken){nextPageToken=null;allowPersistedTokenRestart=false;continue;}
+      throw error;
+    }
+    allowPersistedTokenRestart=false;
+    (payload.issues||[]).forEach(item=>{issueMap.set(item.Chave,item);changedKeys.add(item.Chave);});
+    meta=mergeProgressiveMeta(meta,payload.meta||{}); generatedAt=payload.generatedAt||generatedAt;
+    nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true;
+    const issues=Array.from(issueMap.values());
+    await persistDashboardSnapshot({schemaVersion:2,issues,meta,generatedAt,complete:isLast,
+      syncStartedAt,lastSyncAt:isLast?syncStartedAt:(cached.lastSyncAt||null),
+      progress:isLast?null:{mode:'delta',phase:'delta',since,nextPageToken}});
+    renderProgressiveDataset(issues,meta,generatedAt);
+  }
+  setProgressiveStatus(`${issueMap.size.toLocaleString('pt-BR')} issues · ${changedKeys.size.toLocaleString('pt-BR')} atualizadas`,false);
+  return Array.from(issueMap.values());
+}
+async function bootstrap(forceRefresh){
+  const generation=++progressiveGeneration;
+  const refreshButton=document.getElementById('btn-refresh');
+  if(refreshButton)refreshButton.disabled=true;
+  showLoading('Carregando dados do dashboard...');
+  try{
+    let cached=null;
+    try{cached=await readDashboardSnapshot();}catch(e){console.warn('cache IndexedDB indisponivel',e);}
+    if(cached&&Array.isArray(cached.issues)){
+      renderProgressiveDataset(cached.issues,cached.meta||{},cached.generatedAt||new Date().toISOString());
+    }
+    const pendingMode=cached?.complete===false?cached?.progress?.mode:null;
+    const cacheComplete=!!cached&&cached.complete!==false&&!pendingMode;
+    if(cacheComplete&&!forceRefresh){
+      setProgressiveStatus(`${cached.issues.length.toLocaleString('pt-BR')} issues em cache`,false);
+      return;
+    }
+    if(cached&&(pendingMode==='delta'||(cacheComplete&&forceRefresh))){
+      await loadIncremental(cached,generation);
+    }else{
+      await loadFullProgressively(cached,generation);
+    }
   }catch(err){
-    console.error('bootstrap error:', err);
-    showError(err.message || String(err));
+    console.error('bootstrap error:',err);
+    setProgressiveStatus('Carga parcial salva — tente novamente',false);
+    if(DATA.length)hideLoading();else showError(err.message||String(err));
+  }finally{
+    if(generation===progressiveGeneration&&refreshButton)refreshButton.disabled=false;
   }
 }
 

@@ -24,6 +24,14 @@ class JiraIssueRepository extends IssueRepository {
     return raw.map((r) => this._toIssue(r));
   }
 
+  async findBatch({ jql = this.jql, nextPageToken, maxPages }) {
+    const result = await this.httpClient.searchBatch(jql, this.fieldMap.requestedFields(), {
+      nextPageToken,
+      maxPages,
+    });
+    return { ...result, issues: result.issues.map((raw) => this._toIssue(raw)) };
+  }
+
   _toIssue(raw) {
     const f = raw.fields || {};
     const fm = this.fieldMap;

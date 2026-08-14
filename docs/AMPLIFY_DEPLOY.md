@@ -21,10 +21,15 @@ JIRA_FIELD_ACTUAL_END
 JIRA_FIELD_SPRINT
 JIRA_FIELD_BCP
 JIRA_FIELD_BLOCK_REASON
+PROGRESSIVE_PAGES_PER_REQUEST
 ```
 
 `JIRA_EMAIL` e `JIRA_API_TOKEN` sao obrigatorias. As demais devem reproduzir a
 configuracao do `.env` local.
+
+`PROGRESSIVE_PAGES_PER_REQUEST` e opcional e usa `5` por padrao. Nao configure
+acima de 5: esse limite mantem cada chamada confortavelmente abaixo do timeout e
+do tamanho maximo de resposta do Amplify.
 
 O Amplify disponibiliza essas variaveis durante o build, mas nao automaticamente
 para um servidor Express em runtime. Por isso, `scripts/build-amplify.js` copia
@@ -47,6 +52,16 @@ Nao e necessario criar Parameter Store nem SSR Compute role para esta modalidade
 
 ## Refresh
 
-O frontend chama `/api/dashboard?refresh=1` com cache HTTP desabilitado. O
-controller consolida requisicoes simultaneas em uma coleta e devolve o ultimo
-cache com aviso se o Jira falhar. O disco do Compute e tratado como efemero.
+O frontend chama `POST /api/dashboard/progressive` sequencialmente. Primeiro
+carrega os ultimos 60 dias e depois o restante do recorte da JQL. Cada resposta
+traz ate cinco paginas do Jira e um `nextPageToken` para o lote seguinte.
+
+O snapshot completo fica no IndexedDB do navegador. Ao abrir novamente, o
+dashboard exibe esse snapshot imediatamente sem repetir a carga completa. Se a
+carga anterior foi interrompida, cada lote ja salvo e o token de continuacao sao
+recuperados e o processo continua do ponto em que parou.
+
+Depois que o snapshot estiver completo, o botao **Atualizar dados** consulta
+somente issues novas ou alteradas desde a ultima sincronizacao, usando o campo
+`updated` do Jira e uma pequena sobreposicao temporal de seguranca. O disco do
+Compute e tratado como efemero.

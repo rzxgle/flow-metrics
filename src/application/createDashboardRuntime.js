@@ -9,6 +9,7 @@ const IssueEnricher = require('../domain/services/IssueEnricher');
 const EpicSummaryBuilder = require('../domain/services/EpicSummaryBuilder');
 const EpicHealthEvaluator = require('../domain/services/EpicHealthEvaluator');
 const GetDashboardDataUseCase = require('./use-cases/GetDashboardDataUseCase');
+const GetProgressiveDashboardDataUseCase = require('./use-cases/GetProgressiveDashboardDataUseCase');
 const JiraFieldMap = require('../infrastructure/jira/JiraFieldMap');
 const JiraHttpClient = require('../infrastructure/jira/JiraHttpClient');
 const JiraIssueRepository = require('../infrastructure/jira/JiraIssueRepository');
@@ -33,6 +34,13 @@ function createDashboardRuntime(env = process.env) {
   const getDashboardDataUseCase = new GetDashboardDataUseCase({
     issueRepository, enricher, epicSummaryBuilder, epicHealthEvaluator,
   });
+  const getProgressiveDashboardDataUseCase = new GetProgressiveDashboardDataUseCase({
+    issueRepository,
+    enricher,
+    epicHealthEvaluator,
+    baseJql: config.jira.jql,
+    maxPages: env.PROGRESSIVE_PAGES_PER_REQUEST || 5,
+  });
 
   async function refresh() {
     const t0 = Date.now();
@@ -46,7 +54,13 @@ function createDashboardRuntime(env = process.env) {
     return payload;
   }
 
-  return { config, cache, refresh, publicDir: path.join(__dirname, '..', '..', 'public') };
+  return {
+    config,
+    cache,
+    refresh,
+    getProgressiveDashboardData: (input) => getProgressiveDashboardDataUseCase.execute(input),
+    publicDir: path.join(__dirname, '..', '..', 'public'),
+  };
 }
 
 module.exports = { createDashboardRuntime };
