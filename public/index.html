@@ -2029,7 +2029,7 @@ function renderBlock(f){
 /* ===================== TAB: SPRINT (itens 10/11) ===================== */
 function sprintNamesFromData(){
   const set = new Set();
-  DATA.forEach(d=> (d.Sprints||[]).forEach(s=> set.add(s)));
+  DATA.filter(d=>!d.Cancelado).forEach(d=> (d.Sprints||[]).forEach(s=> set.add(s)));
   return Array.from(set).sort((a,b)=> String(b).localeCompare(String(a),'pt',{numeric:true})); // mais recente primeiro
 }
 function sprintDates(name){
@@ -2055,7 +2055,7 @@ function renderSprint(){
   if(!sel) return;
   const sprint = sel.value;
   // base: respeita filtros da barra, ignora o filtro de data (para não truncar a sprint)
-  const base = getFilteredNoDate(SKIP_TIPO);
+  const base = getFilteredNoDate(SKIP_TIPO).filter(d=>!d.Cancelado);
   const subsByParent = groupBy(base.filter(isSubitem), d=>d.parentKey);
   const subsOf = p => subsByParent.get(p.Chave) || [];
 
