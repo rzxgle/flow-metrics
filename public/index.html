@@ -145,7 +145,7 @@
     padding:12px 28px;
     display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center;
   }
-  .filterbar .flabel{
+  .flabel{
     font-family:'Inter',sans-serif;font-size:11px;color:#8A8A8A;font-weight:600;
     text-transform:uppercase;letter-spacing:.06em;margin-right:2px;
   }
@@ -172,6 +172,12 @@
   .dd-search{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px;margin-bottom:6px;font-family:'Inter',sans-serif;}
   .dd-item{display:flex;align-items:center;gap:7px;padding:5px 6px;border-radius:5px;font-size:12.5px;cursor:pointer;color:var(--slate);}
   .dd-item:hover{background:var(--teal-light);}
+  /* Variante de seleção única (aba Sprint): mesmo visual, sem checkbox. */
+  .dd-item.single{padding-left:8px;}
+  .dd-item.single.selected{background:var(--teal-light);font-weight:600;color:var(--teal-d);}
+  .dd-item.single.selected::after{content:'✓';margin-left:auto;font-size:12px;}
+  .dd-btn .dd-val{font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .dd-empty{padding:8px 6px;font-size:12px;color:var(--slate-soft);}
   .dd-actions{display:flex;justify-content:space-between;padding:5px 6px 2px;border-top:1px solid var(--line);margin-top:4px;}
   .dd-actions button{background:none;border:none;color:var(--teal-d);font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
   .clear-btn{
@@ -603,8 +609,9 @@
   <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
     <h2>Progresso por Sprint</h2>
     <div style="display:flex;align-items:center;gap:8px;">
-      <label for="sprintSelect" style="font-size:12.5px;color:var(--slate-soft);">Sprint:</label>
-      <select id="sprintSelect" style="padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;min-width:280px;"></select>
+      <span class="flabel">Sprint</span>
+      <!-- Dropdown com o mesmo padrão da barra de filtros (.dd-*), porém de seleção única. -->
+      <div class="dropdown" id="dd-sprintPick"></div>
     </div>
   </div>
   <div class="cap" style="margin:-6px 0 10px;">Um item "pertence" à sprint se seu histórico de sprints a contém (Nível A). Completude = subitens concluídos ÷ total de subitens do item (todos os Sub-*, independente da sprint deles). Depende do preenchimento de sprint no Jira.</div>
@@ -873,6 +880,12 @@ function buildFilterBar(){
   });
   bar.appendChild(clearAll);
 
+  bindDropdownOutsideClick();
+}
+
+/* Fecha qualquer .dd-panel aberto ao clicar fora. Compartilhado pela barra de
+   filtros e pelo seletor de sprint (aba Sprint). */
+function bindDropdownOutsideClick(){
   if(!filterDocumentHandlerBound){
     document.addEventListener('click', ()=>{
       document.querySelectorAll('.dd-panel.open').forEach(p=>p.classList.remove('open'));
@@ -2036,24 +2049,98 @@ function sprintDates(name){
   const c = (window.__SPRINTS||[]).find(s=>s.name===name);
   return c ? {start: c.startDate? new Date(c.startDate): null, end: c.endDate? new Date(c.endDate): null} : {start:null, end:null};
 }
+/* Sprint selecionada na aba Sprint (seleção única). */
+let sprintSelection = null;
+
+/* Dropdown de sprint no mesmo padrão da barra de filtros (.dd-*), com busca
+   interna. Seleção única: clicar em um item troca a sprint e fecha o painel.
+   Idempotente — a carga progressiva chama esta função a cada lote. */
 function initSprintSelector(){
-  const sel = document.getElementById('sprintSelect');
-  if(!sel) return;
-  const previousValue = sel.value;
+  const wrap = document.getElementById('dd-sprintPick');
+  if(!wrap) return;
   const names = sprintNamesFromData();
-  sel.innerHTML = names.length
-    ? names.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')
-    : '<option value="">(nenhuma sprint encontrada nos dados)</option>';
-  if(names.includes(previousValue)) sel.value = previousValue;
-  sel.onchange = ()=> renderSprint();
+  if(!names.includes(sprintSelection)) sprintSelection = names[0] || null;
+
+  wrap.replaceChildren();
+
+  const btn = document.createElement('button');
+  btn.className = 'dd-btn';
+  btn.style.minWidth = '260px';
+  const val = document.createElement('span');
+  val.className = 'dd-val';
+  val.textContent = sprintSelection || '(nenhuma sprint encontrada nos dados)';
+  btn.appendChild(val);
+  const caret = document.createElement('span');
+  caret.textContent = '▾';
+  caret.style.cssText = 'margin-left:auto;color:var(--slate-soft);font-size:11px;';
+  btn.appendChild(caret);
+
+  const panel = document.createElement('div');
+  panel.className = 'dd-panel';
+  panel.style.minWidth = '260px';   // acompanha a largura do botão
+
+  const search = document.createElement('input');
+  search.className = 'dd-search';
+  search.placeholder = 'Buscar sprint...';
+  panel.appendChild(search);
+
+  const list = document.createElement('div');
+  list.className = 'dd-list';
+  if(names.length){
+    names.forEach(n=>{
+      const item = document.createElement('div');
+      item.className = 'dd-item single' + (n===sprintSelection ? ' selected' : '');
+      item.textContent = n;
+      item.addEventListener('click', e=>{
+        e.stopPropagation();
+        sprintSelection = n;
+        val.textContent = n;
+        list.querySelectorAll('.dd-item').forEach(it=> it.classList.toggle('selected', it===item));
+        panel.classList.remove('open');
+        renderSprint();
+      });
+      list.appendChild(item);
+    });
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'dd-empty';
+    empty.textContent = 'Nenhuma sprint encontrada nos dados.';
+    list.appendChild(empty);
+  }
+  panel.appendChild(list);
+
+  wrap.appendChild(btn);
+  wrap.appendChild(panel);
+
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    document.querySelectorAll('.dd-panel.open').forEach(p=>{ if(p!==panel) p.classList.remove('open'); });
+    const opening = !panel.classList.contains('open');
+    panel.classList.toggle('open');
+    if(opening){
+      search.value = '';
+      list.querySelectorAll('.dd-item').forEach(it=>{ it.style.display='flex'; });
+      search.focus();
+    }
+  });
+  search.addEventListener('click', e=>e.stopPropagation());
+  search.addEventListener('input', ()=>{
+    const q = search.value.toLowerCase();
+    list.querySelectorAll('.dd-item').forEach(it=>{
+      it.style.display = it.textContent.toLowerCase().includes(q) ? 'flex' : 'none';
+    });
+  });
+  list.addEventListener('click', e=>e.stopPropagation());
+  panel.addEventListener('click', e=>e.stopPropagation());
+
+  bindDropdownOutsideClick();
 }
 const isStandard = d => d['Tipo Agrupado'] && d['Tipo Agrupado']!=='Épico' && d['Tipo Agrupado']!=='Sub-task';
 const isSubitem  = d => d['Tipo Agrupado']==='Sub-task';
 
 function renderSprint(){
-  const sel = document.getElementById('sprintSelect');
-  if(!sel) return;
-  const sprint = sel.value;
+  // '' quando não há sprints nos dados — mantém o render com estado vazio.
+  const sprint = sprintSelection || '';
   // base: respeita filtros da barra, ignora o filtro de data (para não truncar a sprint)
   const base = getFilteredNoDate(SKIP_TIPO).filter(d=>!d.Cancelado);
   const subsByParent = groupBy(base.filter(isSubitem), d=>d.parentKey);
