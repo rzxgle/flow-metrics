@@ -331,7 +331,7 @@
 <section class="tabpanel active" id="panel-exec">
   <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Visão Executiva</h2>
-    <button id="btn-ver-issues-exec" class="drill-btn" onclick="openDrawer('Issues do recorte atual', getFiltered())">📋 Ver issues do recorte</button>
+    <button id="btn-ver-issues-exec" class="drill-btn" onclick="openDrawer('Issues do recorte atual', getFilteredNoDate())">📋 Ver issues do recorte</button>
   </div>
 
   <div class="kpi-row" id="exec-kpis"></div>
@@ -378,7 +378,7 @@
   <div class="grid grid-2">
     <div class="card">
       <h3>Throughput por Squad</h3>
-      <div class="cap">Ranking de itens concluídos no recorte atual.</div>
+      <div class="cap">Ranking de itens concluídos no período filtrado.</div>
       <div class="chartwrap tall"><canvas id="chart-tp-squad"></canvas></div>
     </div>
     <div class="card">
@@ -421,7 +421,7 @@
 <section class="tabpanel" id="panel-sp">
   <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Story Points</h2>
-    <button class="drill-btn" onclick="openDrawer('Itens do recorte (com SP)', getFiltered().filter(d=>(d['Story Points']||0)>0))">📋 Ver issues com SP</button>
+    <button class="drill-btn" onclick="openDrawer('Itens do recorte (com SP)', getFilteredNoDate().filter(d=>(d['Story Points']||0)>0))">📋 Ver issues com SP</button>
   </div>
 
   <div class="kpi-row" id="sp-kpis"></div>
@@ -540,7 +540,7 @@
 
   <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:22px;">
     <h2 style="font-size:16px;">Itens cancelados</h2>
-    <button class="drill-btn" onclick="openDrawer('Itens cancelados do recorte', getFiltered().filter(d=>d.Cancelado))">📋 Ver cancelados</button>
+    <button class="drill-btn" onclick="openDrawer('Itens cancelados do recorte', getFilteredNoDate().filter(d=>d.Cancelado))">📋 Ver cancelados</button>
   </div>
   <div class="cap" style="margin:-6px 0 10px;">Cancelamentos independem do filtro de período (itens cancelados não têm data de conclusão). Agrupamento mensal por data de criação.</div>
   <div class="kpi-row" id="cancel-kpis"></div>
@@ -565,7 +565,7 @@
 <section class="tabpanel" id="panel-block">
   <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <h2>Bloqueios</h2>
-    <button class="drill-btn" onclick="openDrawer('Bloqueios (sub-blocks) do recorte', getFiltered().filter(d=>d['Tipo de item']==='Sub-block'))">📋 Ver bloqueios</button>
+    <button class="drill-btn" onclick="openDrawer('Bloqueios (sub-blocks) do recorte', getFilteredNoDate(SKIP_TIPO).filter(d=>d['Tipo de item']==='Sub-block'))">📋 Ver bloqueios</button>
   </div>
   <div class="cap" style="margin:-6px 0 10px;">Cada <b>Sub-block</b> é um episódio de bloqueio. A <b>duração</b> = Cycle Time (início real → fim real) e é <b>atribuída ao item pai</b>. Bloqueios abertos usam o aging (dias em aberto). Depende do preenchimento de datas reais e do "Motivo de Bloqueio" no Jira.</div>
 
@@ -949,22 +949,34 @@ function matchesBarFilters(d, skip){
   return true;
 }
 
-/** Recorte SEM o filtro de data — usado nas caixinhas de estado atual (Pendente/Andamento). */
+/**
+ * Recorte de ESTADO ATUAL — só os filtros da barra, sem o intervalo de datas.
+ * Base de tudo que é "foto de hoje" ou planejamento: backlog, WIP, aging,
+ * bloqueios abertos, cancelados, SP planejado e distribuições por tipo/status.
+ * Esses conceitos não têm data de conclusão, então nunca cabem numa janela de
+ * conclusão — filtrá-los por período só os apagaria.
+ */
 function getFilteredNoDate(skip){
   return DATA.filter(d=>matchesBarFilters(d, skip));
 }
 
-/** Recorte completo: filtros da barra + intervalo por data de conclusão. */
+/**
+ * Recorte de ENTREGA NO PERÍODO — filtros da barra + intervalo de conclusão.
+ *
+ * Regra estrita: com um período selecionado, o item só entra se tiver
+ * `Data Conclusao` (= "Fim real", ou "Conclusão" quando o Fim real está vazio)
+ * DENTRO do intervalo. Item sem nenhuma das duas datas fica de fora — antes ele
+ * passava sempre, o que fazia ~30% da base ignorar o período selecionado.
+ * Para métricas de estado atual/planejamento use getFilteredNoDate().
+ */
 function getFiltered(skip){
   return DATA.filter(d=>{
     if(!matchesBarFilters(d, skip)) return false;
-    // Item 6 — intervalo por data de conclusão (Opção A: WIP sempre visível)
     if(dateRange.from || dateRange.to){
       const dc = d['Data Conclusao'];
-      if(dc){ // só filtra quem tem conclusão; em aberto passa sempre
-        if(dateRange.from && dc < dateRange.from) return false;
-        if(dateRange.to && dc > dateRange.to) return false;
-      }
+      if(!dc) return false; // exige Fim real ou Conclusão preenchidos
+      if(dateRange.from && dc < dateRange.from) return false;
+      if(dateRange.to && dc > dateRange.to) return false;
     }
     return true;
   });
@@ -1296,33 +1308,44 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
 });
 
 /* ===================== Render orchestrator ===================== */
+/**
+ * Dois recortes percorrem todo o dashboard:
+ *   f     — entrega no período (exige data de conclusão dentro do intervalo)
+ *   atual — estado atual/planejamento (ignora o intervalo de datas)
+ * Cada render recebe os dois e escolhe a base correta por métrica.
+ */
 function renderAll(){
   const f = getFiltered();
-  renderPeriodo(f);
-  renderExec(f);
+  const atual = getFilteredNoDate();
+  renderPeriodo(f, atual);
+  renderExec(f, atual);
   renderThroughput(f);
-  renderSP(f);
+  renderSP(f, atual);
   renderFlow(f);
-  renderWip(f);
-  renderBlock(getFiltered(SKIP_TIPO));
+  renderWip(f, atual);
+  renderBlock(getFiltered(SKIP_TIPO), getFilteredNoDate(SKIP_TIPO));
   renderSprint();
 }
 
 /* Item 2 — mostra o intervalo de datas presente no recorte filtrado */
-function renderPeriodo(f){
+function renderPeriodo(f, atual){
   const el = document.getElementById('periodoDados');
   if(!el) return;
   const fmt = iso => { const [a,m,dd]=iso.split('-'); return `${dd}/${m}/${a}`; };
+  const temPeriodo = !!(dateRange.from || dateRange.to);
   let prefixo = '';
-  if(dateRange.from || dateRange.to){
+  if(temPeriodo){
     const de = dateRange.from ? fmt(dateRange.from) : 'início';
     const ate = dateRange.to ? fmt(dateRange.to) : 'hoje';
     prefixo = `Filtro de conclusão: ${de} → ${ate} · `;
   }
-  const criadas = f.map(d=>d.Criado).filter(Boolean).sort();
   const concl = f.map(d=>d['Data Conclusao']).filter(Boolean).sort();
-  if(!criadas.length){ el.textContent = prefixo + 'sem dados no recorte atual'; return; }
-  let txt = prefixo + `${f.length.toLocaleString('pt-BR')} itens no recorte`;
+  if(!atual.length){ el.textContent = prefixo + 'sem dados no recorte atual'; return; }
+  // Com período ativo, f contém só quem concluiu dentro dele; `atual` é o recorte
+  // completo dos filtros da barra. Mostrar os dois evita leitura ambígua.
+  let txt = prefixo + (temPeriodo
+    ? `${f.length.toLocaleString('pt-BR')} concluídos no período · ${atual.length.toLocaleString('pt-BR')} itens no recorte`
+    : `${atual.length.toLocaleString('pt-BR')} itens no recorte`);
   if(concl.length) txt += ` · conclusões de ${fmt(concl[0])} a ${fmt(concl[concl.length-1])}`;
   el.textContent = txt;
 }
@@ -1338,20 +1361,21 @@ function kpiCard(eyebrow, value, unit, extraClass, delta, titleAttr, drillKey){
 }
 
 /* ===================== TAB: EXEC ===================== */
-function renderExec(f){
-  const total = f.length;
+function renderExec(f, atual){
+  // f = concluídos no período; atual = recorte completo (estado atual/planejamento).
   const concl = f.filter(d=>d.Concluido);
-  const cancel = f.filter(d=>d.Cancelado).length;
+  const total = atual.length;
+  const cancel = atual.filter(d=>d.Cancelado).length;
   const ativos = total - cancel;
   const pct = ativos? (concl.length/ativos*100) : 0;
-  const spTotal = sum(f.filter(d=>!d.Cancelado), d=>d['Story Points']);
-  const spConcl = sum(concl, d=>d['Story Points']);
+  const naoCancel = atual.filter(d=>!d.Cancelado);
+  const spTotal = sum(naoCancel, d=>d['Story Points']);   // planejado: não tem data de conclusão
+  const spConcl = sum(concl, d=>d['Story Points']);       // entregue: dentro do período
   const leadVals = f.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
   const cycleVals = f.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
 
   // Pendentes e Em andamento refletem o ESTADO ATUAL (ignoram o filtro de data,
   // respeitam os demais filtros). Concluídos respeita o período selecionado.
-  const atual = getFilteredNoDate();
   const pendentes = atual.filter(d=>d.FaseFluxo==='Pendente').length;
   const andamento = atual.filter(d=>d.FaseFluxo==='Em andamento').length;
   const temPeriodo = !!(dateRange.from || dateRange.to);
@@ -1361,7 +1385,7 @@ function renderExec(f){
 
   // Registro dos drills de cada KPI (issues por trás de cada número)
   const spConclItems = concl.filter(d=>(d['Story Points']||0)>0);
-  const spPlanItems  = f.filter(d=>!d.Cancelado && (d['Story Points']||0)>0);
+  const spPlanItems  = naoCancel.filter(d=>(d['Story Points']||0)>0);
   const hojeFmt = (()=>{ const [a,m,d]=isoToday().split('-'); return `${d}/${m}/${a}`; })();
   Object.assign(__cardDrills, {
     pendentes: {title:`Backlog atual · posição em ${hojeFmt}`, issues: atual.filter(d=>d.FaseFluxo==='Pendente')},
@@ -1401,9 +1425,10 @@ function renderExec(f){
         return {title:`Concluídos em ${monthLabel(m)}`, issues: concl.filter(d=>d.AnoMesConclusao===m)};
       })}
   });
-  const pis = Array.from(new Set(f.map(d=>d.PI))).sort();
-  const spPlanByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && !d.Cancelado), d=>d['Story Points']));
-  const spConclByPi = pis.map(pi=> sum(f.filter(d=>d.PI===pi && d.Concluido), d=>d['Story Points']));
+  // Planejado vem do recorte completo (não tem data de conclusão); concluído, do período.
+  const pis = Array.from(new Set(atual.map(d=>d.PI))).sort();
+  const spPlanByPi = pis.map(pi=> sum(naoCancel.filter(d=>d.PI===pi), d=>d['Story Points']));
+  const spConclByPi = pis.map(pi=> sum(concl.filter(d=>d.PI===pi), d=>d['Story Points']));
   upsertChart('chart-exec-sp-pi', {
     type:'bar',
     data:{labels:pis, datasets:[
@@ -1419,12 +1444,13 @@ function renderExec(f){
       onClick: drillClick((idx, ds)=>{
         const pi = pis[idx];
         if(ds===1){ // Concluído
-          return {title:`SP concluído · ${pi}`, issues: f.filter(d=>d.PI===pi && d.Concluido)};
+          return {title:`SP concluído · ${pi}`, issues: concl.filter(d=>d.PI===pi)};
         }
-        return {title:`SP planejado · ${pi}`, issues: f.filter(d=>d.PI===pi && !d.Cancelado)};
+        return {title:`SP planejado · ${pi}`, issues: naoCancel.filter(d=>d.PI===pi)};
       })}
   });
-  const tiposArr = Array.from(groupBy(f, d=>d['Tipo de item']), ([k,v])=>[k||'(sem tipo)', v.length]).sort((a,b)=>b[1]-a[1]);
+  // Distribuições descrevem o recorte inteiro, não só o que concluiu no período.
+  const tiposArr = Array.from(groupBy(atual, d=>d['Tipo de item']), ([k,v])=>[k||'(sem tipo)', v.length]).sort((a,b)=>b[1]-a[1]);
   upsertChart('chart-exec-tipo-donut', {
     type:'bar',
     data:{labels:tiposArr.map(x=>x[0]), datasets:[{data:tiposArr.map(x=>x[1]), backgroundColor:'#CE0058', borderRadius:4}]},
@@ -1433,10 +1459,10 @@ function renderExec(f){
       scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
       onClick: drillClick((idx)=>{
         const t = tiposArr[idx][0];
-        return {title:`Tipo: ${t}`, issues: f.filter(d=>(d['Tipo de item']||'(sem tipo)')===t)};
+        return {title:`Tipo: ${t}`, issues: atual.filter(d=>(d['Tipo de item']||'(sem tipo)')===t)};
       })}
   });
-  const statusCounts = Array.from(groupBy(f, d=>d.Status), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
+  const statusCounts = Array.from(groupBy(atual, d=>d.Status), ([k,v])=>[k,v.length]).sort((a,b)=>b[1]-a[1]);
   const top8 = statusCounts.slice(0,8);
   const outros = statusCounts.slice(8).reduce((a,c)=>a+c[1],0);
   const labels = top8.map(x=>x[0]).concat(outros>0?['Outros']:[]);
@@ -1452,9 +1478,9 @@ function renderExec(f){
         const lbl = labels[idx];
         if(lbl==='Outros'){
           const top8Set = new Set(top8.map(x=>x[0]));
-          return {title:'Status: Outros (fora do top 8)', issues: f.filter(d=>!top8Set.has(d.Status))};
+          return {title:'Status: Outros (fora do top 8)', issues: atual.filter(d=>!top8Set.has(d.Status))};
         }
-        return {title:`Status: ${lbl}`, issues: f.filter(d=>d.Status===lbl)};
+        return {title:`Status: ${lbl}`, issues: atual.filter(d=>d.Status===lbl)};
       })}
   });
 
@@ -1473,11 +1499,16 @@ function renderExec(f){
   } else {
     html += `<div class="cap">Dados insuficientes para comparar meses (mín. 2 meses com conclusões no recorte).</div>`;
   }
-  if(pis.length>=2){
-    const piSorted = pis.slice().sort();
+  // O PI já é um período em si: aplicar por cima a janela de conclusão faria os
+  // PIs anteriores aparecerem com ~0 entregas. Este bloco usa as conclusões do
+  // recorte inteiro, sem o filtro de datas.
+  const atualConcl = atual.filter(d=>d.Concluido);
+  const pisConcl = Array.from(new Set(atualConcl.map(d=>d.PI))).sort();
+  if(pisConcl.length>=2){
+    const piSorted = pisConcl;
     const curPi = piSorted[piSorted.length-1], prevPi = piSorted[piSorted.length-2];
-    const curN = concl.filter(d=>d.PI===curPi).length;
-    const prevN = concl.filter(d=>d.PI===prevPi).length;
+    const curN = atualConcl.filter(d=>d.PI===curPi).length;
+    const prevN = atualConcl.filter(d=>d.PI===prevPi).length;
     const diff = curN-prevN;
     const pctDiff = prevN? (diff/prevN*100):0;
     html += `<div><div class="eyebrow">${prevPi} → ${curPi}</div>
@@ -1572,9 +1603,11 @@ function renderThroughput(f){
 }
 
 /* ===================== TAB: STORY POINTS ===================== */
-function renderSP(f){
+function renderSP(f, atual){
+  // Planejado = recorte completo (item não concluído não tem data e nunca cabe
+  // numa janela de conclusão). Concluído = entregue dentro do período.
   const concl = f.filter(d=>d.Concluido);
-  const naoCancel = f.filter(d=>!d.Cancelado);
+  const naoCancel = atual.filter(d=>!d.Cancelado);
   const spTotal = sum(naoCancel, d=>d['Story Points']);
   const spConcl = sum(concl, d=>d['Story Points']);
   const pct = spTotal? (spConcl/spTotal*100):0;
@@ -1583,13 +1616,13 @@ function renderSP(f){
     sptab_plan: {title:'Itens com SP planejado (não cancelados)', issues: naoCancel.filter(d=>(d['Story Points']||0)>0)},
     sptab_concl: {title:'Itens com SP concluído', issues: concl.filter(d=>(d['Story Points']||0)>0)},
     sptab_pct: {title:'Base do % entregue (planejados com SP)', issues: naoCancel.filter(d=>(d['Story Points']||0)>0)},
-    sptab_nosp: {title:'Itens sem Story Points (exceto cancelados)', issues: f.filter(d=>!d.Cancelado && !d['Story Points'])},
+    sptab_nosp: {title:'Itens sem Story Points (exceto cancelados)', issues: naoCancel.filter(d=>!d['Story Points'])},
   });
   document.getElementById('sp-kpis').innerHTML = [
     kpiCard('SP planejado', fmt0(spTotal), 'sp', '', null, null, 'sptab_plan'),
     kpiCard('SP concluído', fmt0(spConcl), 'sp', '', null, null, 'sptab_concl'),
     kpiCard('% entregue', pct.toFixed(0), '%', pct>=70?'':'amber', null, null, 'sptab_pct'),
-    kpiCard('Itens sem SP', fmt0(f.filter(d=>!d.Cancelado && !d['Story Points']).length), 'itens', 'coral', null, null, 'sptab_nosp'),
+    kpiCard('Itens sem SP', fmt0(naoCancel.filter(d=>!d['Story Points']).length), 'itens', 'coral', null, null, 'sptab_nosp'),
   ].join('');
 
   function plannedVsCompleted(key){
@@ -1748,15 +1781,17 @@ function renderFlow(f){
 }
 
 /* ===================== TAB: WIP / ENTREGAS / AGING ===================== */
-function renderWip(f){
+function renderWip(f, atual){
+  // Entregas seguem o período (f); WIP e Aging são foto de hoje e usam `atual`
+  // — item em aberto não tem data de conclusão e sumiria do recorte por período.
   const concl = f.filter(d=>d.Concluido);
-  const wipItems = f.filter(d=>d.WIP);
+  const wipItems = atual.filter(d=>d.WIP);
   const epicosConcl = concl.filter(d=>d['Tipo Agrupado']==='Épico').length;
   const historiasConcl = concl.filter(d=>d['Tipo Agrupado']==='História').length;
   const subtasksConcl = concl.filter(d=>d['Tipo Agrupado']==='Sub-task').length;
   const epicosEntreg = f.filter(d=>d['Tipo Agrupado']==='Épico' && d.EntregueAmplo).length;
   const historiasEntreg = f.filter(d=>d['Tipo Agrupado']==='História' && d.EntregueAmplo).length;
-  const ativos = f.filter(d=>!d.Cancelado).length;
+  const ativos = atual.filter(d=>!d.Cancelado).length;
   const pctGeral = ativos? (concl.length/ativos*100):0;
 
   Object.assign(__cardDrills, {
@@ -1835,13 +1870,16 @@ function renderWip(f){
       onClick: drillClick((idx)=>{ const k=agingSquad[idx][0]; return {title:`WIP em aberto · Squad: ${k}`, issues: agingWip.filter(d=>d.Squad===k)}; })}
   });
 
-  renderCancelados(f);
+  // Cancelados são estado atual: o cancelamento não gera data de conclusão.
+  renderCancelados(atual);
 }
 
 /* ===================== Bloco: Itens cancelados ===================== */
-function renderCancelados(f){
-  const canc = f.filter(d=>d.Cancelado);
-  const totalItens = f.length || 1;
+/* Recebe o recorte de estado atual (sem filtro de data): cancelamento não gera
+   data de conclusão, então numerador e denominador vêm da mesma base. */
+function renderCancelados(atual){
+  const canc = atual.filter(d=>d.Cancelado);
+  const totalItens = atual.length || 1;
   const pct = (canc.length/totalItens*100);
 
   Object.assign(__cardDrills, {
@@ -1959,10 +1997,12 @@ function renderRank(f){
 }
 
 /* ===================== TAB: BLOQUEIOS ===================== */
-function renderBlock(f){
-  const blocks = f.filter(d=>d['Tipo de item']==='Sub-block');
+function renderBlock(f, atual){
+  // Bloqueio em aberto não tem data de conclusão: sai de `atual`. Resolvidos e
+  // tempo médio de bloqueio são entregas e seguem o período (f).
+  const blocks = atual.filter(d=>d['Tipo de item']==='Sub-block');
   const abertos = blocks.filter(d=>!d.Concluido && !d.Cancelado);
-  const resolvidos = blocks.filter(d=>d.Concluido);
+  const resolvidos = f.filter(d=>d['Tipo de item']==='Sub-block' && d.Concluido);
   // duração do bloqueio = Cycle Time (dias); só conta quando calculável
   const dur = d => (d.CycleTimeDias!=null ? d.CycleTimeDias : 0);
   const tempoMedio = (()=>{ const v=resolvidos.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; })();
