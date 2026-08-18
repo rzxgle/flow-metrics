@@ -71,9 +71,11 @@ function rawIssue(key, type, parentKey = null) {
   assert.match(html, /dashboard-loading/);
   assert.match(html, /CARREGANDO DADOS/);
   assert.match(html, /updateLoadingProgress/);
+  assert.match(html, /DATA\.filter\(d=>!d\.Cancelado\)\.forEach\(d=> \(d\.Sprints\|\|\[\]\)\.forEach\(s=> set\.add\(s\)\)\)/);
+  assert.match(html, /getFilteredNoDate\(SKIP_TIPO\)\.filter\(d=>!d\.Cancelado\)/);
   assert.doesNotMatch(html, /batchNumber%2===0/);
 
-  console.log('Carga progressiva: 27 verificacoes passaram.');
+  console.log('Carga progressiva: 29 verificacoes passaram.');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;
