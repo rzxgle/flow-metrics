@@ -9,7 +9,7 @@ const { diffDays, startOfDayUtc, toDate } = require('../../shared/date.utils');
  * Fórmulas (validadas contra o dataset original, 100% de correspondência):
  *   - Lead Time  = (data de fim real | resolução) - data de criação   [só p/ concluídos]
  *   - Cycle Time = (data de fim real) - (data de início real)          [só p/ concluídos c/ início real]
- *   - Aging      = (meia-noite do dia de referência) - (início real | criação)   [todos os itens]
+ *   - Aging      = (meia-noite do dia de referência) - (início real)   [só p/ itens com início real]
  *
  * O "dia de referência" (referenceDate) é injetado — por padrão a data de
  * geração do relatório —, tornando o cálculo determinístico e testável.
@@ -36,9 +36,19 @@ class FlowMetricsCalculator {
     return this._nonNegativeDiff(issue.actualStartDate, issue.actualEndDate, 2);
   }
 
+  /**
+   * Aging só existe para itens com Data de início real preenchida — sem fallback
+   * para a criação: contar tempo de fila como "envelhecimento em execução"
+   * distorcia a leitura do WIP.
+   *
+   * ATENÇÃO: o dashboard RECALCULA este valor no navegador, a cada abertura
+   * (`normalizeData` em public/index.html), porque o snapshot em cache pode ser
+   * de dias atrás e congelaria o envelhecimento. O valor daqui serve aos
+   * consumidores da API. Se mudar a regra, mude nos dois lugares.
+   */
   agingDays(issue) {
-    const base = issue.actualStartDate || issue.createdAt;
-    return diffDays(base, this.now, 1);
+    if (!issue.actualStartDate) return null;
+    return diffDays(issue.actualStartDate, this.now, 1);
   }
 
   /**

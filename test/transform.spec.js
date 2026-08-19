@@ -131,9 +131,14 @@ function build() {
     assert.strictEqual(byKey['AONE-5'].CycleTimeDias, null);
     assert.strictEqual(byKey['AONE-5'].LeadTimeDias, null);
   });
-  check('Aging (meia-noite ref - início/criação)', () => {
+  check('Aging (meia-noite ref - início real)', () => {
     // AONE-3: início 2026-06-11 09:00 -> ref meia-noite 2026-07-15 = 33.6 dias
     assert.strictEqual(byKey['AONE-3'].AgingDias, 33.6);
+  });
+  check('Aging nulo sem Data de início real (sem fallback p/ criação)', () => {
+    // AONE-1: em WIP, criado em 2026-05-01, mas nunca iniciado de fato
+    assert.strictEqual(byKey['AONE-1']['Data Inicio Real'], null);
+    assert.strictEqual(byKey['AONE-1'].AgingDias, null);
   });
 
   check('EpicoChave resolvido via cadeia de parents', () => {

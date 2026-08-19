@@ -529,7 +529,7 @@
   <div class="grid grid-2" style="margin-top:14px;">
     <div class="card">
       <h3>Distribuição de Aging (itens em WIP)</h3>
-      <div class="cap">Dias desde o início real (ou criação, se não iniciado) até hoje (15/07/2026).</div>
+      <div class="cap" id="cap-aging-hist">Dias desde a Data de início real até hoje. Itens sem início real preenchido não entram no cálculo.</div>
       <div class="chartwrap"><canvas id="chart-wip-aging-hist"></canvas></div>
     </div>
     <div class="card">
@@ -567,7 +567,7 @@
     <h2>Bloqueios</h2>
     <button class="drill-btn" onclick="openDrawer('Bloqueios (sub-blocks) do recorte', getFilteredNoDate(SKIP_TIPO).filter(d=>d['Tipo de item']==='Sub-block'))">📋 Ver bloqueios</button>
   </div>
-  <div class="cap" style="margin:-6px 0 10px;">Cada <b>Sub-block</b> é um episódio de bloqueio. A <b>duração</b> = Cycle Time (início real → fim real) e é <b>atribuída ao item pai</b>. Bloqueios abertos usam o aging (dias em aberto). Depende do preenchimento de datas reais e do "Motivo de Bloqueio" no Jira.</div>
+  <div class="cap" style="margin:-6px 0 10px;">Cada <b>Sub-block</b> é um episódio de bloqueio. A <b>duração</b> = Cycle Time (início real → fim real) e é <b>atribuída ao item pai</b>. Bloqueios abertos contam da Criação até hoje. Depende do preenchimento de datas reais e do "Motivo de Bloqueio" no Jira.</div>
 
   <div class="kpi-row" id="block-kpis"></div>
 
@@ -587,7 +587,7 @@
   <div class="grid grid-2" style="margin-top:14px;">
     <div class="card">
       <h3>Bloqueios em aberto — mais antigos primeiro</h3>
-      <div class="cap">Sub-blocks ainda não resolvidos, por tempo em aberto (aging).</div>
+      <div class="cap">Sub-blocks ainda não resolvidos, por tempo em aberto — contado da <b>Criação</b> até hoje: um bloqueio nasce no momento em que é criado e deve ser tratado de imediato (regra própria, não usa o Aging).</div>
       <div style="overflow-x:auto;"><table class="datatable" id="block-open-table">
         <thead><tr><th>Item pai</th><th>Squad</th><th>Motivo</th><th>Aberto há (dias)</th></tr></thead>
         <tbody></tbody>
@@ -666,7 +666,8 @@
         <li><b>Inconsistências de datas</b>: 10 itens tinham Cycle Time negativo e 7 tinham Lead Time negativo (datas de início posteriores às de fim, provavelmente reaberturas ou correções manuais no Jira). Esses registros foram excluídos do cálculo de tempo, mas mantidos nas demais métricas.</li>
         <li><b>Hierarquia Épico → História → Sub-task incompleta</b>: 1.165 itens (36%) não têm um Épico identificável na cadeia de "parent" (podem ser itens órfãos, ou Bugs/Débitos Técnicos que não estão vinculados a um Épico formal). O rollup de progresso de Épicos considera apenas os 2.037 itens com vínculo identificado.</li>
         <li><b>Velocity / Capacidade por Sprint não calculável</b> — pela ausência do campo Sprint. Como proxy, este dashboard apresenta SP concluído por PI e por mês.</li>
-        <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados), usando a Data de início real (ou Criação, se ainda não iniciado) até a data de referência 15/07/2026.</li>
+        <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados) <b>e com Data de início real preenchida</b> — da Data de início real até hoje. Itens em aberto que nunca foram iniciados ficam fora do indicador (não há fallback para a Criação), pois tempo em fila não é envelhecimento em execução. O planejamento do quarter cria itens em lote, e um item só é considerado em andamento quando foi efetivamente puxado — ou seja, quando ganhou Data de início real. O valor é recalculado a cada abertura do dashboard, em dias corridos até a data de hoje, mesmo que os dados venham do cache local.</li>
+        <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Apenas Sub-tasks são consistentemente marcadas como Concluído. Por isso, além do Throughput estrito (Status = Concluído), a aba de Entregas mostra também "Entregue (amplo)", que considera todos os status pós-desenvolvimento. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
       </ul>
     </div>
@@ -705,6 +706,11 @@ function normalizeData(){
   DATA.forEach(d=>{
     d.Mes = d.AnoMesCriacao ? d.AnoMesCriacao.split('-')[1] : null;
     d.MesConclusao = d.AnoMesConclusao ? d.AnoMesConclusao.split('-')[1] : null;
+    // Aging é RECALCULADO aqui, sobrescrevendo o valor que veio do servidor: o
+    // snapshot em cache pode ser de dias atrás e congelaria o envelhecimento.
+    // Mesma regra do FlowMetricsCalculator.agingDays — exige Data de início real,
+    // sem fallback para a Criação —, só que em dias inteiros.
+    d.AgingDias = diasCorridosAteHoje(d['Data Inicio Real']);
   });
 }
 
@@ -740,6 +746,17 @@ function isoLocalDate(date){
   return `${year}-${month}-${day}`;
 }
 function isoToday(){ return isoLocalDate(new Date()); }
+/* Dias corridos (inteiros) de uma data 'YYYY-MM-DD' até hoje.
+   null quando a data não vier preenchida; data futura conta como 0.
+   As duas pontas são lidas como meia-noite UTC, então a subtração não sofre
+   deslocamento de fuso — o resultado é a diferença entre datas de calendário. */
+function diasCorridosAteHoje(isoDate){
+  if(!isoDate) return null;
+  const inicioMs = Date.parse(String(isoDate).slice(0,10)+'T00:00:00Z');
+  const hojeMs = Date.parse(isoToday()+'T00:00:00Z');
+  if(Number.isNaN(inicioMs)||Number.isNaN(hojeMs)) return null;
+  return Math.max(0, Math.round((hojeMs-inicioMs)/86400000));
+}
 /* Default: hoje e os 30 dias corridos anteriores (D-30). */
 function setDefaultDateRange(){
   const today = new Date();
@@ -1854,7 +1871,15 @@ function renderWip(f, atual){
       onClick: drillClick((idx)=>{ const k=wipSquad[idx][0]; return {title:`WIP · Squad: ${k}`, issues: wipItems.filter(d=>d.Squad===k)}; })}
   });
 
+  // Aging exige Data de início real (AgingDias vem null quando ela não existe).
   const agingWip = wipItems.filter(d=>d.AgingDias!=null && d.AgingDias>=0);
+  const semInicioReal = wipItems.filter(d=>!d['Data Inicio Real']);
+  const capAging = document.getElementById('cap-aging-hist');
+  if(capAging){
+    capAging.innerHTML = `Dias desde a Data de início real até hoje. Considera ${fmt0(agingWip.length)} de ${fmt0(wipItems.length)} itens em WIP`
+      + (semInicioReal.length ? ` — <span class="drill-inline" data-drill="wip_sem_inicio" style="cursor:pointer;text-decoration:underline;">${fmt0(semInicioReal.length)} sem início real</span> ficam fora.` : '.');
+  }
+  __cardDrills.wip_sem_inicio = {title:'WIP sem Data de início real (fora do Aging)', issues: semInicioReal};
   const agingVals = agingWip.map(d=>d.AgingDias);
   const agingHist = histogramBins(agingVals, 12);
   upsertChart('chart-wip-aging-hist', {
@@ -2009,6 +2034,12 @@ function renderBlock(f, atual){
   const resolvidos = f.filter(d=>d['Tipo de item']==='Sub-block' && d.Concluido);
   // duração do bloqueio = Cycle Time (dias); só conta quando calculável
   const dur = d => (d.CycleTimeDias!=null ? d.CycleTimeDias : 0);
+  // Tempo em aberto de um bloqueio — regra PRÓPRIA, não é o Aging.
+  // Um Sub-block nasce bloqueado no instante em que é criado e precisa ser tratado
+  // de imediato, então a contagem parte da Criação. O Aging exige início real porque
+  // lá o planejamento cria itens em lote no começo do quarter sem que sejam puxados —
+  // premissa que não vale para bloqueio.
+  const abertoHaDias = d => diasCorridosAteHoje(d.Criado);
   const tempoMedio = (()=>{ const v=resolvidos.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; })();
   const paisImpactados = new Set(blocks.map(d=>d.parentKey).filter(Boolean)).size;
 
@@ -2054,15 +2085,16 @@ function renderBlock(f, atual){
       options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false}, y:{grid:{display:false}}}}});
   }
 
-  // Tabela: bloqueios em aberto (aging desc)
-  const abertosOrd = abertos.slice().sort((a,b)=>(b.AgingDias||0)-(a.AgingDias||0));
-  document.querySelector('#block-open-table tbody').innerHTML = abertosOrd.length ? abertosOrd.map(d=>`
+  // Tabela: bloqueios em aberto (mais tempo em aberto primeiro, contado da Criação)
+  const abertosOrd = abertos.map(d=>({d, dias: abertoHaDias(d)}))
+    .sort((a,b)=>(b.dias!=null?b.dias:-1)-(a.dias!=null?a.dias:-1));
+  document.querySelector('#block-open-table tbody').innerHTML = abertosOrd.length ? abertosOrd.map(({d, dias})=>`
     <tr>
       <td><a class="jira" href="${JIRA_BROWSE}${d.parentKey||d.chave}" target="_blank" rel="noopener">${d.parentKey||'—'}</a>
           <span style="color:var(--slate-soft);font-size:11px;"> (${d.chave})</span></td>
       <td style="font-size:11.5px;">${d.Squad||'—'}</td>
       <td style="font-size:11.5px;">${d.MotivoBloqueio||'—'}</td>
-      <td><b>${d.AgingDias!=null?fmt1(d.AgingDias):'—'}</b></td>
+      <td><b>${dias!=null?fmt0(dias):'—'}</b></td>
     </tr>`).join('') : '<tr><td colspan="4" style="color:var(--slate-soft);">Nenhum bloqueio em aberto no recorte atual.</td></tr>';
 
   // Tabela: itens-pai mais bloqueados (soma de tempo), clicável
@@ -2343,6 +2375,10 @@ function formatExportDate(iso){
 
 const DASHBOARD_DB = 'afya-metrics-dashboard';
 const DASHBOARD_STORE = 'snapshots';
+// Suba a versão sempre que uma regra de cálculo mudar: snapshots gravados com
+// versão anterior são descartados (senão o cache serviria métricas pela regra antiga).
+// 3 = Aging só para itens com Data de início real (sem fallback para a Criação).
+const DASHBOARD_SCHEMA_VERSION = 3;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 
@@ -2359,7 +2395,9 @@ async function readDashboardSnapshot(){
   const db = await openDashboardDb();
   return new Promise((resolve,reject)=>{
     const req = db.transaction(DASHBOARD_STORE,'readonly').objectStore(DASHBOARD_STORE).get('current');
-    req.onsuccess=()=>{db.close();resolve(req.result||null);};
+    req.onsuccess=()=>{db.close();
+      const snap=req.result||null;
+      resolve(snap&&snap.schemaVersion===DASHBOARD_SCHEMA_VERSION?snap:null);};
     req.onerror=()=>{db.close();reject(req.error);};
   });
 }
@@ -2490,7 +2528,7 @@ async function loadFullProgressively(cached,generation){
       const nextPhase=isLast?phases[index+1]||null:phase;
       const issues=Array.from(freshMap.values());
       const complete=isLast&&index===phases.length-1;
-      await persistDashboardSnapshot({schemaVersion:2,issues,meta,generatedAt,complete,
+      await persistDashboardSnapshot({schemaVersion:DASHBOARD_SCHEMA_VERSION,issues,meta,generatedAt,complete,
         syncStartedAt, lastSyncAt:complete?syncStartedAt:(cached?.lastSyncAt||null),
         progress:complete?null:{mode:'full',phase:nextPhase,nextPageToken:isLast?null:nextPageToken}});
       updateLoadingProgress(freshMap.size,complete?'Preparando o dashboard...':phase==='recent'?'Buscando os dados dos últimos dois meses...':'Buscando o histórico restante...');
@@ -2524,7 +2562,7 @@ async function loadIncremental(cached,generation){
     meta=mergeProgressiveMeta(meta,payload.meta||{}); generatedAt=payload.generatedAt||generatedAt;
     nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true;
     const issues=Array.from(issueMap.values());
-    await persistDashboardSnapshot({schemaVersion:2,issues,meta,generatedAt,complete:isLast,
+    await persistDashboardSnapshot({schemaVersion:DASHBOARD_SCHEMA_VERSION,issues,meta,generatedAt,complete:isLast,
       syncStartedAt,lastSyncAt:isLast?syncStartedAt:(cached.lastSyncAt||null),
       progress:isLast?null:{mode:'delta',phase:'delta',since,nextPageToken}});
     updateLoadingProgress(changedKeys.size,isLast?'Preparando o dashboard...':'Buscando novas alterações no Jira...');
