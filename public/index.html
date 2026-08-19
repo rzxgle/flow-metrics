@@ -733,16 +733,20 @@ const SKIP_TIPO = new Set(['Tipo de item']);
    itens em aberto (WIP, sem data de conclusão) permanecem sempre visíveis. */
 const dateRange = { from: null, to: null }; // 'YYYY-MM-DD'
 
-function isoToday(){ return new Date().toISOString().slice(0,10); }
-function isoFirstDayMonthsAgo(n){
-  const now = new Date();
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth()-n, 1));
-  return d.toISOString().slice(0,10);
+function isoLocalDate(date){
+  const year = date.getFullYear();
+  const month = String(date.getMonth()+1).padStart(2,'0');
+  const day = String(date.getDate()).padStart(2,'0');
+  return `${year}-${month}-${day}`;
 }
-/* Default: últimos 6 meses (mês atual + 5 anteriores) */
+function isoToday(){ return isoLocalDate(new Date()); }
+/* Default: hoje e os 30 dias corridos anteriores (D-30). */
 function setDefaultDateRange(){
-  dateRange.from = isoFirstDayMonthsAgo(5);
-  dateRange.to = isoToday();
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
+  dateRange.from = isoLocalDate(thirtyDaysAgo);
+  dateRange.to = isoLocalDate(today);
 }
 
 function uniqueVals(key){
