@@ -21,7 +21,9 @@ class JiraIssueRepository extends IssueRepository {
 
   async findAll() {
     const raw = await this.httpClient.searchAll(this.jql, this.fieldMap.requestedFields());
-    return raw.map((r) => this._toIssue(r));
+    const issues = raw.map((r) => this._toIssue(r));
+    await this.attachSprintTransitions(issues);
+    return issues;
   }
 
   async findBatch({ jql = this.jql, nextPageToken, maxPages }) {
@@ -29,13 +31,82 @@ class JiraIssueRepository extends IssueRepository {
       nextPageToken,
       maxPages,
     });
-    return { ...result, issues: result.issues.map((raw) => this._toIssue(raw)) };
+    const issues = result.issues.map((raw) => this._toIssue(raw));
+    await this.attachSprintTransitions(issues);
+    return { ...result, issues };
+  }
+
+  /**
+   * Preenche `issue.sprintTransitions` com o changelog do campo Sprint.
+   *
+   * Uma única chamada em lote para todas as issues recebidas. Falha aqui NÃO
+   * derruba o dashboard: sem o histórico, o resolver de sprint apenas marca os
+   * itens como não reconstruídos e a interface exibe a ressalva — degradar é
+   * melhor do que não abrir.
+   */
+  async attachSprintTransitions(issues) {
+    if (!this.httpClient.fetchFieldChangelogs) return issues;
+    const comId = issues.filter((i) => i.id);
+    if (!comId.length) return issues;
+    try {
+      const logs = await this.httpClient.fetchFieldChangelogs(
+        comId.map((i) => i.id),
+        [this.fieldMap.sprint],
+      );
+      const porId = new Map(logs.map((l) => [String(l.issueId), l]));
+      for (const issue of comId) {
+        const log = porId.get(issue.id);
+        if (log) issue.sprintTransitions = this._toSprintTransitions(log.changeHistories);
+      }
+    } catch (error) {
+      console.warn('[jira] changelog de sprint indisponivel:', error.message);
+    }
+    return issues;
+  }
+
+  /**
+   * Normaliza o changelog cru em [{at, from:[nomes], to:[nomes]}].
+   *
+   * Dois detalhes do formato, confirmados contra a API:
+   *   - `created` vem ora em ISO, ora em epoch em milissegundos;
+   *   - com múltiplas sprints, `fromString`/`toString` vêm como lista separada
+   *     por vírgula ("A, B") — são snapshots do conjunto, não deltas.
+   */
+  _toSprintTransitions(changeHistories) {
+    const sprintFieldId = this.fieldMap.sprint;
+    const out = [];
+    for (const h of changeHistories || []) {
+      for (const item of h.items || []) {
+        const ehSprint = String(item.field).toLowerCase() === 'sprint'
+          || (item.fieldId && item.fieldId === sprintFieldId);
+        if (!ehSprint) continue;
+        out.push({
+          at: this._toIsoInstant(h.created),
+          from: this._splitSprintNames(item.fromString),
+          to: this._splitSprintNames(item.toString),
+        });
+      }
+    }
+    return out;
+  }
+
+  _toIsoInstant(value) {
+    if (value == null) return null;
+    if (/^\d+$/.test(String(value))) return new Date(Number(value)).toISOString();
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  }
+
+  _splitSprintNames(value) {
+    if (!value) return [];
+    return String(value).split(',').map((s) => s.trim()).filter(Boolean);
   }
 
   _toIssue(raw) {
     const f = raw.fields || {};
     const fm = this.fieldMap;
     return new Issue({
+      id: raw.id,
       key: raw.key,
       summary: f[fm.summary] || '',
       issueType: f[fm.issuetype] ? f[fm.issuetype].name : null,
@@ -74,15 +145,27 @@ class JiraIssueRepository extends IssueRepository {
   }
 
   /**
-   * Metadados das sprints (nome + datas de início/fim), para o burndown.
-   * O objeto Sprint do Jira traz startDate/endDate; strings puras não têm datas.
+   * Metadados das sprints, para o burndown e para o velocity.
+   * O objeto Sprint do Jira traz id/state/startDate/endDate/completeDate;
+   * strings puras não têm nada disso.
+   *
+   * `state` ('closed' | 'active' | 'future') é o que permite ao velocity não
+   * misturar sprint em andamento — que está sempre "sub-entregue" — com sprint
+   * fechada no cálculo da média.
    */
   _readSprintMeta(value) {
     if (!value) return [];
     const arr = Array.isArray(value) ? value : [value];
     return arr
       .filter((s) => s && typeof s === 'object' && s.name)
-      .map((s) => ({ name: s.name, startDate: s.startDate || null, endDate: s.endDate || null }));
+      .map((s) => ({
+        name: s.name,
+        startDate: s.startDate || null,
+        endDate: s.endDate || null,
+        completeDate: s.completeDate || null,
+        state: s.state || null,
+        id: s.id != null ? s.id : null,
+      }));
   }
 
   /**

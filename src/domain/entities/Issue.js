@@ -10,6 +10,7 @@
  */
 class Issue {
   constructor({
+    id,
     key,
     summary,
     issueType,
@@ -28,9 +29,13 @@ class Issue {
     sprint,
     sprints,
     sprintMeta,
+    sprintTransitions,
     bcp,
     blockReason,
   }) {
+    // id numérico do Jira: é a chave pela qual o changelog em lote identifica a
+    // issue (o bulkfetch responde por issueId, não por key).
+    this.id = id != null ? String(id) : null;
     this.key = key;
     this.summary = summary;
     this.issueType = issueType;
@@ -48,7 +53,11 @@ class Issue {
     this.parentKey = parentKey || null;
     this.sprint = sprint || null; // nome da última sprint ativa
     this.sprints = Array.isArray(sprints) ? sprints : []; // histórico de sprints
-    this.sprintMeta = Array.isArray(sprintMeta) ? sprintMeta : []; // [{name,startDate,endDate}]
+    // [{name,startDate,endDate,state,completeDate}]
+    this.sprintMeta = Array.isArray(sprintMeta) ? sprintMeta : [];
+    // Changelog do campo Sprint, normalizado: [{at, from:[nomes], to:[nomes]}].
+    // Preenchido pelo repositório em passo separado (uma chamada em lote).
+    this.sprintTransitions = Array.isArray(sprintTransitions) ? sprintTransitions : [];
     this.bcp = (bcp === 0 || bcp) ? Number(bcp) : null; // complexidade normalizada (numérico)
     this.blockReason = blockReason || null; // motivo de bloqueio
   }

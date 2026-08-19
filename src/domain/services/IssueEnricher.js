@@ -11,14 +11,16 @@ const { toIsoDate, toYearMonth, toYear } = require('../../shared/date.utils');
  * issues) — fica a cargo do caso de uso, após montar o índice.
  */
 class IssueEnricher {
-  constructor(classifier, metricsCalculator) {
+  constructor(classifier, metricsCalculator, sprintHistoryResolver = null) {
     this.classifier = classifier;
     this.metrics = metricsCalculator;
+    this.sprintHistory = sprintHistoryResolver;
   }
 
   /** @param {import('../entities/Issue')} issue */
   enrich(issue) {
     const grupo = this.classifier.groupOf(issue.issueType);
+    const sprintHist = this._resolveSprintHistory(issue);
     const done = this.classifier.isDone(issue.status);
     const cancelled = this.classifier.isCancelled(issue.status);
     const conclusao = issue.actualEndDate || issue.resolvedAt || null;
@@ -44,6 +46,12 @@ class IssueEnricher {
       BCP: issue.bcp,
       Sprint: issue.sprint,
       Sprints: issue.sprints,
+      // Quando a issue entrou/saiu de cada sprint (do changelog). Base do
+      // velocity: separa compromisso de início de escopo adicionado no meio.
+      SprintPeriodos: sprintHist.membership,
+      // false = conjunto de sprints conhecido, cronologia não. O dashboard
+      // conta esses itens e mostra a ressalva em vez de fingir precisão.
+      SprintHistoricoOk: sprintHist.reconstructed,
       MotivoBloqueio: issue.blockReason,
       Criado: toIsoDate(issue.createdAt),
       'Data Conclusao': toIsoDate(conclusao),
@@ -65,6 +73,22 @@ class IssueEnricher {
       grupo,
       chave: issue.key,
     };
+  }
+
+  /**
+   * Sem resolver injetado (ou sem sprint na issue), devolve o equivalente a
+   * "não sei a cronologia": membership vazio e histórico não reconstruído,
+   * nunca um palpite.
+   */
+  _resolveSprintHistory(issue) {
+    if (!this.sprintHistory || !(issue.sprints || []).length) {
+      return { membership: [], reconstructed: !(issue.sprints || []).length };
+    }
+    return this.sprintHistory.resolve({
+      createdAt: issue.createdAt,
+      sprints: issue.sprints,
+      transitions: issue.sprintTransitions,
+    });
   }
 }
 

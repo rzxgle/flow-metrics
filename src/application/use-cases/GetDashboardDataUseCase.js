@@ -64,15 +64,19 @@ class GetDashboardDataUseCase {
     // 6. limpar campos internos antes de expor
     const cleanIssues = enriched.map((e) => this._stripInternal(e));
 
-    // Catálogo de sprints (nome -> datas), para o burndown. Dedup por nome;
-    // mantém as datas mais completas encontradas.
+    // Catálogo de sprints (nome -> datas/estado), para o burndown e o velocity.
+    // Dedup por nome; mantém os metadados mais completos encontrados.
     const sprintCatalog = new Map();
     for (const i of issues) {
       for (const sm of (i.sprintMeta || [])) {
         if (!sm || !sm.name) continue;
-        const prev = sprintCatalog.get(sm.name) || { name: sm.name, startDate: null, endDate: null };
+        const prev = sprintCatalog.get(sm.name)
+          || { name: sm.name, startDate: null, endDate: null, completeDate: null, state: null, id: null };
         if (!prev.startDate && sm.startDate) prev.startDate = sm.startDate;
         if (!prev.endDate && sm.endDate) prev.endDate = sm.endDate;
+        if (!prev.completeDate && sm.completeDate) prev.completeDate = sm.completeDate;
+        if (!prev.state && sm.state) prev.state = sm.state;
+        if (prev.id == null && sm.id != null) prev.id = sm.id;
         sprintCatalog.set(sm.name, prev);
       }
     }

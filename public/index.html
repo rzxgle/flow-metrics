@@ -267,6 +267,16 @@
   .callout .icon{font-size:15px;line-height:1;}
   .callout b{font-weight:700;}
 
+  /* Separador entre as duas metades da aba Sprint: acima, uma sprint em detalhe;
+     abaixo, a série entre sprints. O corte visual evita que alguém leia o bloco
+     de baixo como se ainda estivesse filtrado pelo seletor de sprint. */
+  .velocity-sep{
+    display:flex;align-items:center;gap:12px;margin:30px 0 14px;
+    font-family:'JetBrains Mono',monospace;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--slate-soft);
+  }
+  .velocity-sep::before,.velocity-sep::after{content:'';height:1px;background:var(--line);flex:1;}
+
   .legend-row{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--slate-soft);margin-top:6px;}
   .legend-row span{display:inline-flex;align-items:center;gap:5px;}
   .legend-row i{width:9px;height:9px;border-radius:2px;display:inline-block;}
@@ -638,6 +648,54 @@
       <tbody></tbody>
     </table></div>
   </div>
+
+  <!-- ===== Velocity: evolução ENTRE sprints (escopo diferente do seletor acima) ===== -->
+  <div class="velocity-sep">
+    <span>Velocity — evolução entre sprints</span>
+  </div>
+  <div class="callout" style="margin:0 0 14px;">
+    <span class="icon">ⓘ</span>
+    <div>Este bloco <b>não segue o seletor de sprint acima</b> — ele percorre várias sprints e usa
+      os <b>filtros do topo</b> (Squad, Value Stream, Programa). A sprint escolhida no seletor aparece
+      <b>destacada</b> no gráfico. Só entram <b>itens standard</b> (exclui Épico e Sub-task, para não
+      somar Story Points do pai e do filho) e não cancelados.
+      <span id="velocity-ressalva"></span></div>
+  </div>
+
+  <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:0;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="flabel">Sprints</span>
+      <div class="dropdown" id="dd-velocityRange"></div>
+    </div>
+  </div>
+
+  <div id="velocity-vazio" class="card" style="display:none;margin-top:12px;text-align:center;padding:34px 20px;">
+    <div style="font-size:30px;line-height:1;margin-bottom:10px;">🎯</div>
+    <h3 style="margin-bottom:6px;">Selecione uma squad para ver o velocity</h3>
+    <div class="cap" style="max-width:560px;margin:0 auto;">
+      Velocity é capacidade <b>de um time</b>: somar Story Points de squads diferentes na mesma barra
+      produz um número que não serve para planejar. Escolha uma squad no filtro <b>Squad</b> do topo.
+      <br><br>O comparativo abaixo continua mostrando todas as squads — use-o para decidir qual abrir.
+    </div>
+  </div>
+
+  <div id="velocity-conteudo">
+    <div class="kpi-row" id="velocity-kpis" style="margin-top:12px;"></div>
+    <div class="card" style="margin-top:14px;">
+      <h3>Story Points: comprometido × adicionado × entregue, por sprint</h3>
+      <div class="cap" id="cap-velocity">
+        <b>Comprometido</b> = já estava na sprint quando ela começou. <b>Adicionado</b> = entrou depois
+        do início (escopo novo no meio do caminho). <b>Entregue</b> = concluído dentro da janela da sprint.
+      </div>
+      <div class="chartwrap tall"><canvas id="chart-velocity"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3>Velocity média por squad</h3>
+    <div class="cap" id="cap-velocity-squad">Média de Story Points entregues por sprint fechada.</div>
+    <div class="chartwrap tall"><canvas id="chart-velocity-squad"></canvas></div>
+  </div>
 </section>
 
 <!-- ===================== TAB: NOTAS SOBRE OS DADOS ===================== -->
@@ -659,7 +717,7 @@
     <div class="card">
       <h3>Limitações identificadas</h3>
       <ul style="font-size:12.5px;line-height:1.7;padding-left:18px;margin:0;">
-        <li><b>Sem histórico de status</b>: a planilha é um snapshot único (extraído em 15/07/2026). Não há registro de quando cada item mudou de status ao longo do tempo. Isso <b>impede o cálculo de CFD (Cumulative Flow Diagram), Burndown e Burnup clássicos</b>, que exigem série temporal de status por dia. O que este dashboard oferece como aproximação é a evolução de itens concluídos por mês (throughput), que é a melhor proxy disponível.</li>
+        <li><b>Histórico de sprint: reconstruído. Histórico de status: ainda não coletado.</b> O dashboard busca no changelog do Jira as transições do campo <b>Sprint</b>, o que permite saber quando cada item entrou e saiu de cada sprint — é o que sustenta o "comprometido no início" do velocity. O changelog de <b>status</b> está disponível na mesma API, mas ainda não é coletado; enquanto não for, seguem <b>indisponíveis o CFD (Cumulative Flow Diagram), o Burndown por status e o Burnup clássicos</b>, que exigem série temporal de status por dia. A aproximação atual é a evolução de itens concluídos por mês (throughput) e o burndown de subitens por data de conclusão.</li>
         <li><b>Cycle Time com cobertura parcial</b>: apenas 437 dos 1.684 itens Concluídos (26%) têm tanto "Data de início real" quanto "Data de fim real" preenchidas. Os demais 74% não permitem calcular Cycle Time e foram excluídos dessa métrica especificamente (mas continuam contando em Throughput e Story Points).</li>
         <li><b>Lead Time com cobertura maior, mas não total</b>: 1.382 dos 1.684 Concluídos (82%) têm "Data de fim real" preenchida, permitindo Lead Time = Data de fim real − Criado. A coluna "Resolvido" quase não é usada neste projeto (apenas 204 registros no total), por isso não foi a base do cálculo.</li>
         <li><b>Story Points ausentes em 715 itens (22%)</b> — tratados como 0 nos totais, o que pode subestimar levemente o volume de esforço, especialmente em Sub-tasks menores.</li>
@@ -667,6 +725,8 @@
         <li><b>Hierarquia Épico → História → Sub-task incompleta</b>: 1.165 itens (36%) não têm um Épico identificável na cadeia de "parent" (podem ser itens órfãos, ou Bugs/Débitos Técnicos que não estão vinculados a um Épico formal). O rollup de progresso de Épicos considera apenas os 2.037 itens com vínculo identificado.</li>
         <li><b>Velocity / Capacidade por Sprint não calculável</b> — pela ausência do campo Sprint. Como proxy, este dashboard apresenta SP concluído por PI e por mês.</li>
         <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados) <b>e com Data de início real preenchida</b> — da Data de início real até hoje. Itens em aberto que nunca foram iniciados ficam fora do indicador (não há fallback para a Criação), pois tempo em fila não é envelhecimento em execução. O planejamento do quarter cria itens em lote, e um item só é considerado em andamento quando foi efetivamente puxado — ou seja, quando ganhou Data de início real. O valor é recalculado a cada abertura do dashboard, em dias corridos até a data de hoje, mesmo que os dados venham do cache local.</li>
+        <li><b>Velocity: o que entra e o que não entra</b>. Só <b>itens standard</b> (exclui Épico, cujo SP é agregado, e Sub-task, que somaria de novo o SP do pai) e não cancelados. <b>Comprometido</b> = era membro da sprint no instante em que ela começou; <b>adicionado</b> = entrou depois do início; <b>entregue</b> = tem Data de conclusão dentro da janela da sprint, o que atribui cada entrega a uma única sprint. Sprint <b>em andamento</b> aparece em tom claro e fica fora das médias (está sempre sub-entregue); sprint <b>futura</b> não aparece. Sprint em que a squad não teve nenhum item não entra no gráfico nem na média — itens emprestados entre boards fariam aparecer sprints de outros times zeradas.</li>
+        <li><b>Cerca de 4% dos itens standard não têm cronologia de sprint recuperável</b>: o campo Sprint preenchido na criação não gera changelog, e movimentações em massa entre sprints às vezes também não. Nesses casos sabemos o conjunto de sprints, não as datas, e o item é contado como presente desde a criação — o bloco de velocity mostra quantos itens estão nessa condição e permite abrir a lista. Subtarefas são o caso extremo (herdam a sprint do pai sem gerar histórico), mas não afetam o velocity porque não entram no cálculo.</li>
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Apenas Sub-tasks são consistentemente marcadas como Concluído. Por isso, além do Throughput estrito (Status = Concluído), a aba de Entregas mostra também "Entregue (amplo)", que considera todos os status pós-desenvolvimento. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
       </ul>
@@ -2125,6 +2185,62 @@ function sprintDates(name){
   const c = (window.__SPRINTS||[]).find(s=>s.name===name);
   return c ? {start: c.startDate? new Date(c.startDate): null, end: c.endDate? new Date(c.endDate): null} : {start:null, end:null};
 }
+
+/* ---------- Base do velocity ----------
+   O catálogo de sprints vem do campo Sprint do Jira e traz name/state/datas.
+   Ordem cronológica por startDate: o nome NÃO serve para ordenar (a base tem
+   itens com [PI3_4, PI3_2], fora de ordem, e cada squad nomeia à sua maneira). */
+function sprintCatalogoOrdenado(){
+  return (window.__SPRINTS||[])
+    .filter(s=>s && s.name && s.startDate)
+    .slice()
+    .sort((a,b)=> Date.parse(a.startDate) - Date.parse(b.startDate));
+}
+/* Fim da sprint: endDate; se faltar, completeDate. */
+function sprintFimMs(s){
+  const fim = s.endDate || s.completeDate;
+  return fim ? Date.parse(fim) : null;
+}
+/* Fechada = o Jira diz 'closed'. Sem `state`, cai para "já passou do fim". */
+function sprintFechada(s){
+  if(s.state) return String(s.state).toLowerCase()==='closed';
+  const fim = sprintFimMs(s);
+  return fim!=null && fim < Date.now();
+}
+/* Sprint FUTURA fica fora do velocity: exibir "30 sp comprometidos, 0 entregues"
+   de uma sprint que ainda não começou lê como fracasso, quando é só planejamento. */
+function sprintComecou(s){
+  if(s.state) return String(s.state).toLowerCase()!=='future';
+  return Date.parse(s.startDate) <= Date.now();
+}
+/* A issue era membro da sprint NESTE instante? Uma issue pode ter entrado,
+   saído e voltado, então basta uma passagem cobrir o instante. */
+function membroNoInstante(d, sprint, instanteMs){
+  return (d.SprintPeriodos||[]).some(p=> p.sprint===sprint
+    && p.enteredAt && Date.parse(p.enteredAt) <= instanteMs
+    && (!p.leftAt || Date.parse(p.leftAt) > instanteMs));
+}
+/* Entrou na sprint dentro da janela (start, end] -> escopo adicionado no meio. */
+function entrouDuranteSprint(d, sprint, iniMs, fimMs){
+  return (d.SprintPeriodos||[]).some(p=>{
+    if(p.sprint!==sprint || !p.enteredAt) return false;
+    const t = Date.parse(p.enteredAt);
+    return t > iniMs && (fimMs==null || t <= fimMs);
+  });
+}
+/* Passou pela sprint em algum momento. Cai no campo Sprints quando o histórico
+   não pôde ser reconstruído — aí sabemos o conjunto, não a cronologia. */
+function passouPelaSprint(d, sprint){
+  return (d.SprintPeriodos||[]).some(p=>p.sprint===sprint) || (d.Sprints||[]).includes(sprint);
+}
+/* Concluiu dentro da janela da sprint (atribuição única: cada entrega conta
+   numa sprint só, pela Data Conclusao). */
+function entregouNaJanela(d, iniMs, fimMs){
+  if(!d.Concluido || !d['Data Conclusao']) return false;
+  const t = Date.parse(String(d['Data Conclusao']).slice(0,10)+'T12:00:00Z');
+  return !Number.isNaN(t) && t >= iniMs && (fimMs==null || t <= fimMs);
+}
+const spDe = d => Number(d['Story Points']) || 0;
 /* Sprint selecionada na aba Sprint (seleção única). */
 let sprintSelection = null;
 
@@ -2281,6 +2397,296 @@ function renderSprint(){
 
   // Burndown de subitens
   renderBurndown(sprint, allSubs);
+
+  // Bloco de velocity: escopo próprio (várias sprints, sem o seletor acima).
+  initVelocityRange();
+  renderVelocity();
+}
+
+/* ===================== VELOCITY (entre sprints) ===================== */
+/* Quantas sprints FECHADAS o gráfico mostra; a(s) em andamento entram sempre.
+   O número conta só sprint fechada de propósito: contar as duas juntas não
+   garantiria a presença do ciclo corrente (uma squad pode ter duas sprints
+   ativas ao mesmo tempo, ou nenhuma no intervalo entre elas). 0 = todas. */
+let velocityRange = 3;
+const VELOCITY_RANGES = [
+  {n:3, label:'3 fechadas + atual'},
+  {n:6, label:'6 fechadas + atual'},
+  {n:12, label:'12 fechadas + atual'},
+  {n:0, label:'todas'},
+];
+
+function initVelocityRange(){
+  const wrap = document.getElementById('dd-velocityRange');
+  if(!wrap) return;
+  wrap.replaceChildren();
+  const btn = document.createElement('button');
+  btn.className = 'dd-btn';
+  btn.style.minWidth = '150px';
+  const val = document.createElement('span');
+  val.className = 'dd-val';
+  val.textContent = (VELOCITY_RANGES.find(r=>r.n===velocityRange)||VELOCITY_RANGES[0]).label;
+  btn.appendChild(val);
+  const caret = document.createElement('span');
+  caret.textContent = '▾';
+  caret.style.cssText = 'margin-left:auto;color:var(--slate-soft);font-size:11px;';
+  btn.appendChild(caret);
+  const panel = document.createElement('div');
+  panel.className = 'dd-panel';
+  panel.style.minWidth = '150px';
+  const list = document.createElement('div');
+  list.className = 'dd-list';
+  VELOCITY_RANGES.forEach(r=>{
+    const item = document.createElement('div');
+    item.className = 'dd-item single' + (r.n===velocityRange ? ' selected' : '');
+    item.textContent = r.label;
+    item.addEventListener('click', e=>{
+      e.stopPropagation();
+      velocityRange = r.n;
+      val.textContent = r.label;
+      list.querySelectorAll('.dd-item').forEach(it=> it.classList.toggle('selected', it===item));
+      panel.classList.remove('open');
+      renderVelocity();
+    });
+    list.appendChild(item);
+  });
+  panel.appendChild(list);
+  wrap.appendChild(btn); wrap.appendChild(panel);
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    document.querySelectorAll('.dd-panel.open').forEach(p=>{ if(p!==panel) p.classList.remove('open'); });
+    panel.classList.toggle('open');
+  });
+  panel.addEventListener('click', e=>e.stopPropagation());
+  bindDropdownOutsideClick();
+}
+
+/**
+ * Série por sprint de uma base de itens: comprometido no início, adicionado
+ * depois, entregue na janela e removido antes do fim.
+ */
+function serieVelocity(itens, sprints){
+  return sprints.map(s=>{
+    const ini = Date.parse(s.startDate);
+    const fim = sprintFimMs(s);
+    const doSprint = itens.filter(d=>passouPelaSprint(d, s.name));
+    const comprometidos = doSprint.filter(d=>membroNoInstante(d, s.name, ini));
+    const adicionados = doSprint.filter(d=>!membroNoInstante(d, s.name, ini) && entrouDuranteSprint(d, s.name, ini, fim));
+    const entregues = doSprint.filter(d=>entregouNaJanela(d, ini, fim));
+    // Removido = saiu dentro da janela E não voltou até o fim (item que saiu e
+    // retornou no meio da sprint não é escopo perdido).
+    const removidos = doSprint.filter(d=>{
+      const saiu = (d.SprintPeriodos||[]).some(p=> p.sprint===s.name && p.leftAt
+        && Date.parse(p.leftAt) <= (fim==null?Infinity:fim));
+      return saiu && !(fim!=null && membroNoInstante(d, s.name, fim));
+    });
+    const soma = arr => arr.reduce((a,d)=>a+spDe(d), 0);
+    return {
+      sprint: s, fechada: sprintFechada(s),
+      comprometido: soma(comprometidos), adicionado: soma(adicionados),
+      entregue: soma(entregues), removido: soma(removidos),
+      itens: {comprometidos, adicionados, entregues, removidos},
+    };
+  });
+}
+
+/**
+ * A sprint teve participação real desta base?
+ *
+ * Um item pode listar a sprint de OUTRA squad no histórico (item emprestado,
+ * movimentação entre boards). Sem este corte, a squad selecionada ganha no eixo
+ * sprints alheias zeradas — e, pior, elas entrariam na média por squad puxando-a
+ * para baixo como se o time tivesse entregado nada num ciclo que não era dele.
+ */
+function sprintTeveParticipacao(r){
+  return (r.itens.comprometidos.length + r.itens.adicionados.length + r.itens.entregues.length) > 0;
+}
+
+function renderVelocity(){
+  const temSquad = selections['Squad'].size > 0;
+  const vazio = document.getElementById('velocity-vazio');
+  const conteudo = document.getElementById('velocity-conteudo');
+  if(vazio) vazio.style.display = temSquad ? 'none' : 'block';
+  if(conteudo) conteudo.style.display = temSquad ? 'block' : 'none';
+
+  // Base: filtros do topo, sem o filtro de data (a janela da sprint é o período)
+  // e sem o filtro de Tipo (o recorte de tipos é próprio deste bloco: standard).
+  const base = getFilteredNoDate(SKIP_TIPO)
+    .filter(d=>!d.Cancelado && isStandard(d));
+
+  // Ressalva de transparência: itens cuja cronologia de sprint não pôde ser
+  // reconstruída (conjunto conhecido, datas não) — ver SprintHistoryResolver.
+  const semHistorico = base.filter(d=>(d.Sprints||[]).length && d.SprintHistoricoOk===false);
+  const ressalva = document.getElementById('velocity-ressalva');
+  if(ressalva){
+    const um = semHistorico.length === 1;
+    ressalva.innerHTML = semHistorico.length
+      ? ` <b>${fmt0(semHistorico.length)} ${um?'item':'itens'}</b> do recorte ${um?'não tem':'não têm'}`
+        + ` histórico de sprint no Jira — o conjunto de sprints é conhecido, a data de entrada não,`
+        + ` então ${um?'entra':'entram'} como se ${um?'estivesse':'estivessem'} na sprint desde a criação`
+        + ` (<span data-drill="velocity_sem_hist" style="cursor:pointer;text-decoration:underline;">ver itens</span>).`
+      : '';
+  }
+  __cardDrills.velocity_sem_hist = {title:'Itens sem histórico de sprint reconstruível', issues: semHistorico};
+
+  // Só sprints por onde a base efetivamente passou — senão apareceriam as 254
+  // sprints de todas as squads.
+  const nomesNaBase = new Set();
+  base.forEach(d=>{
+    (d.SprintPeriodos||[]).forEach(p=>nomesNaBase.add(p.sprint));
+    (d.Sprints||[]).forEach(s=>nomesNaBase.add(s));
+  });
+  // Candidatas: sprints que a base tocou e que já começaram. O recorte para as
+  // "últimas N" acontece DEPOIS de descartar as sem participação — senão sprints
+  // alheias zeradas ocupariam as vagas do gráfico.
+  const candidatas = sprintCatalogoOrdenado().filter(s=>nomesNaBase.has(s.name) && sprintComecou(s));
+
+  if(temSquad) renderVelocityPorSprint(base, candidatas);
+  renderVelocityPorSquad(base);
+}
+
+function renderVelocityPorSprint(base, candidatas){
+  let serie = serieVelocity(base, candidatas).filter(sprintTeveParticipacao);
+  if(velocityRange>0){
+    // O recorte limita as FECHADAS; a(s) em andamento entram sempre, para o time
+    // não perder de vista o ciclo corrente ao reduzir a janela.
+    const emAndamento = serie.filter(r=>!r.fechada);
+    serie = serie.filter(r=>r.fechada).slice(-velocityRange).concat(emAndamento)
+      .sort((a,b)=> Date.parse(a.sprint.startDate) - Date.parse(b.sprint.startDate));
+  }
+  const sprints = serie.map(r=>r.sprint);
+  const fechadas = serie.filter(r=>r.fechada);
+
+  // Média e say-do só de sprint FECHADA: sprint em andamento está sempre
+  // sub-entregue e afundaria os dois indicadores.
+  const mediaEntregue = fechadas.length ? fechadas.reduce((a,r)=>a+r.entregue,0)/fechadas.length : null;
+  const totalEscopo = fechadas.reduce((a,r)=>a+r.comprometido+r.adicionado,0);
+  const totalEntregue = fechadas.reduce((a,r)=>a+r.entregue,0);
+  const sayDo = totalEscopo ? (totalEntregue/totalEscopo*100) : null;
+  const mediaAdicionado = fechadas.length ? fechadas.reduce((a,r)=>a+r.adicionado,0)/fechadas.length : null;
+
+  Object.assign(__cardDrills, {
+    velocity_entregue: {title:'Itens entregues nas sprints fechadas do recorte',
+      issues: Array.from(new Set(fechadas.flatMap(r=>r.itens.entregues)))},
+    velocity_escopo: {title:'Itens no escopo das sprints fechadas',
+      issues: Array.from(new Set(fechadas.flatMap(r=>[...r.itens.comprometidos, ...r.itens.adicionados])))},
+    velocity_adicionado: {title:'Itens adicionados depois do início da sprint',
+      issues: Array.from(new Set(fechadas.flatMap(r=>r.itens.adicionados)))},
+  });
+  document.getElementById('velocity-kpis').innerHTML = [
+    kpiCard('Velocity média', mediaEntregue==null?'—':fmt1(mediaEntregue), 'sp',
+      '', {cls:'flat', text:`${fmt0(fechadas.length)} sprint(s) fechada(s)`}, null, 'velocity_entregue'),
+    kpiCard('Say-do ratio', sayDo==null?'—':sayDo.toFixed(0), '%',
+      sayDo!=null && sayDo>=70?'':'amber', {cls:'flat', text:'entregue ÷ escopo'}, null, 'velocity_escopo'),
+    kpiCard('Escopo adicionado', mediaAdicionado==null?'—':fmt1(mediaAdicionado), 'sp/sprint',
+      'coral', {cls:'flat', text:'entrou após o início'}, null, 'velocity_adicionado'),
+    kpiCard('Sprints no gráfico', fmt0(serie.length), '', '', {cls:'flat',
+      text: serie.length>fechadas.length ? `${serie.length-fechadas.length} em aberto` : 'todas fechadas'}),
+  ].join('');
+
+  // A sprint escolhida no seletor do topo ganha borda — amarra as duas metades.
+  const destaque = serie.map(r=> r.sprint.name===sprintSelection ? '#333333' : 'transparent');
+  const larguraBorda = serie.map(r=> r.sprint.name===sprintSelection ? 2 : 0);
+  // Sprint em andamento: entregue em tom claro, para não ler como resultado final.
+  const corEntregue = serie.map(r=> r.fechada ? '#CE0058' : '#F7C9DD');
+
+  upsertChart('chart-velocity', {
+    type:'bar',
+    data:{labels:serie.map(r=>rotuloSprint(r.sprint.name)), datasets:[
+      {label:'Comprometido no início', data:serie.map(r=>r.comprometido), backgroundColor:'#8AA0B0',
+        borderRadius:3, borderColor:destaque, borderWidth:larguraBorda},
+      {label:'Adicionado depois', data:serie.map(r=>r.adicionado), backgroundColor:'#D98E3B',
+        borderRadius:3, borderColor:destaque, borderWidth:larguraBorda},
+      {label:'Entregue', data:serie.map(r=>r.entregue), backgroundColor:corEntregue,
+        borderRadius:3, borderColor:destaque, borderWidth:larguraBorda},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{
+      legend:{position:'bottom'},
+      tooltip:{callbacks:{
+        afterBody:(ctx)=>{
+          const r = serie[ctx[0].dataIndex];
+          const linhas = [];
+          if(!r.fechada) linhas.push('⚠ sprint ainda não fechada');
+          if(r.removido) linhas.push(`saiu da sprint antes do fim: ${fmt1(r.removido)} sp`);
+          const escopo = r.comprometido + r.adicionado;
+          if(escopo) linhas.push(`entregue ÷ escopo: ${(r.entregue/escopo*100).toFixed(0)}%`);
+          return linhas;
+        }}}},
+      scales:{y:{beginAtZero:true, grid:{color:'#ECECEC'}, title:{display:true, text:'Story Points'}},
+        x:{grid:{display:false}, ticks:{font:{size:9.5}, maxRotation:60, minRotation:0}}},
+      onClick: drillClick((idx, ds)=>{
+        const r = serie[idx];
+        const nome = rotuloSprint(r.sprint.name);
+        if(ds===0) return {title:`Comprometido no início · ${nome}`, issues:r.itens.comprometidos};
+        if(ds===1) return {title:`Adicionado depois do início · ${nome}`, issues:r.itens.adicionados};
+        return {title:`Entregue na janela · ${nome}`, issues:r.itens.entregues};
+      })}
+  });
+
+  const cap = document.getElementById('cap-velocity');
+  if(cap && sprints.length){
+    const de = sprints[0], ate = sprints[sprints.length-1];
+    cap.innerHTML = '<b>Comprometido</b> = já estava na sprint quando ela começou. <b>Adicionado</b> = entrou'
+      + ' depois do início (escopo novo no meio do caminho). <b>Entregue</b> = concluído dentro da janela'
+      + ' da sprint. Sprint em andamento aparece em tom claro e fica fora das médias; sprint futura não entra.'
+      + ` Período: ${String(de.startDate).slice(0,10).split('-').reverse().join('/')}`
+      + ` a ${String(sprintFimMs(ate)? new Date(sprintFimMs(ate)).toISOString().slice(0,10):'').split('-').reverse().join('/')}.`;
+  }
+}
+
+/* Rótulo curto: os nomes de sprint são longos ("26_SQD_PREPARATORIOS_PI3_5") e
+   repetem o prefixo da squad, que já está no filtro. */
+function rotuloSprint(nome){
+  return String(nome).replace(/^\d+_SQD_/i, '').replace(/_/g, ' ');
+}
+
+function renderVelocityPorSquad(base){
+  // Sem squad selecionada, mostra todas — é o panorama que ajuda a escolher uma.
+  // Com filtro aplicado, `base` já vem restrita às selecionadas.
+  const porSquad = Array.from(groupBy(base, d=>d.Squad));
+  const linhas = porSquad.map(([squad, itens])=>{
+    const nomes = new Set();
+    itens.forEach(d=>{
+      (d.SprintPeriodos||[]).forEach(p=>nomes.add(p.sprint));
+      (d.Sprints||[]).forEach(s=>nomes.add(s));
+    });
+    const candidatas = sprintCatalogoOrdenado().filter(s=>nomes.has(s.name) && sprintFechada(s));
+    // Mesma regra do gráfico por sprint: sprint sem participação da squad não é
+    // sprint dela e não pode entrar na média.
+    let serie = serieVelocity(itens, candidatas).filter(sprintTeveParticipacao);
+    if(velocityRange>0) serie = serie.slice(-velocityRange);
+    if(!serie.length) return null;
+    const sprints = serie.map(r=>r.sprint);
+    const media = serie.reduce((a,r)=>a+r.entregue,0)/serie.length;
+    const escopo = serie.reduce((a,r)=>a+r.comprometido+r.adicionado,0);
+    const entregue = serie.reduce((a,r)=>a+r.entregue,0);
+    return {squad, media, n:sprints.length, sayDo: escopo? entregue/escopo*100 : null,
+      issues: Array.from(new Set(serie.flatMap(r=>r.itens.entregues)))};
+  }).filter(Boolean).sort((a,b)=>b.media-a.media);
+
+  const cap = document.getElementById('cap-velocity-squad');
+  if(cap){
+    cap.innerHTML = 'Média de Story Points entregues por sprint fechada'
+      + (velocityRange>0 ? ` (até ${velocityRange} sprints fechadas por squad)` : '')
+      + '. Só itens standard, não cancelados.'
+      + (selections['Squad'].size ? ' Mostrando apenas as squads filtradas no topo.' : ' Todas as squads do recorte.');
+  }
+  linhas.forEach((l,i)=>{ __cardDrills['velsq_'+i] = {title:`Entregas nas sprints fechadas · ${l.squad}`, issues:l.issues}; });
+  upsertChart('chart-velocity-squad', {
+    type:'bar',
+    data:{labels:linhas.map(l=>l.squad), datasets:[{data:linhas.map(l=>+l.media.toFixed(1)),
+      backgroundColor:'#0057B8', borderRadius:4}]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barLabels:true, barLabelFmt:'d1',
+      layout:{padding:{right:56}}, plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:(ctx)=>{
+          const l = linhas[ctx.dataIndex];
+          return ` ${fmt1(l.media)} sp/sprint · ${l.n} sprint(s)`
+            + (l.sayDo!=null ? ` · say-do ${l.sayDo.toFixed(0)}%` : '');
+        }}}},
+      scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'}, title:{display:true, text:'SP entregues por sprint'}},
+        y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
+      onClick: drillClick((idx)=> __cardDrills['velsq_'+idx])}
+  });
 }
 
 function renderBurndown(sprint, subs){
@@ -2378,7 +2784,8 @@ const DASHBOARD_STORE = 'snapshots';
 // Suba a versão sempre que uma regra de cálculo mudar: snapshots gravados com
 // versão anterior são descartados (senão o cache serviria métricas pela regra antiga).
 // 3 = Aging só para itens com Data de início real (sem fallback para a Criação).
-const DASHBOARD_SCHEMA_VERSION = 3;
+// 4 = payload passa a trazer SprintPeriodos/SprintHistoricoOk (velocity).
+const DASHBOARD_SCHEMA_VERSION = 4;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 

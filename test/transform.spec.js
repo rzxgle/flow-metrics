@@ -17,6 +17,7 @@ const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalcula
 const IssueEnricher = require('../src/domain/services/IssueEnricher');
 const EpicSummaryBuilder = require('../src/domain/services/EpicSummaryBuilder');
 const EpicHealthEvaluator = require('../src/domain/services/EpicHealthEvaluator');
+const SprintHistoryResolver = require('../src/domain/services/SprintHistoryResolver');
 const GetDashboardDataUseCase = require('../src/application/use-cases/GetDashboardDataUseCase');
 const IssueRepository = require('../src/domain/repositories/IssueRepository');
 
@@ -42,6 +43,24 @@ const fixture = [
     projectName: 'APRENDER', team: 'Squad Aprender - Preparatórios', status: 'EM ANDAMENTO',
     storyPoints: 1, createdAt: '2026-06-10T09:00:00Z', actualStartDate: '2026-06-11T09:00:00Z',
     labels: ['PI3AfyaOne'], parentKey: 'AONE-2',
+  },
+  {
+    // Spillover: entrou na S1 depois de criado e foi ACUMULADO na S2 (padrão do Jira).
+    key: 'AONE-6', summary: 'História que arrastou de sprint', issueType: 'História',
+    projectName: 'APRENDER', team: 'Squad Aprender - Preparatórios', status: 'EM ANDAMENTO',
+    storyPoints: 8, createdAt: '2026-06-01T08:00:00Z',
+    // sem épico de propósito: mantém a agregação de AONE-1 igual, isolando o
+    // que este item existe para testar (a reconstrução de sprint).
+    labels: ['PI3AfyaOne'], parentKey: null,
+    sprints: ['S1', 'S2'],
+    sprintMeta: [
+      { name: 'S1', startDate: '2026-06-02T00:00:00Z', endDate: '2026-06-15T00:00:00Z', state: 'closed' },
+      { name: 'S2', startDate: '2026-06-16T00:00:00Z', endDate: '2026-06-29T00:00:00Z', state: 'active' },
+    ],
+    sprintTransitions: [
+      { at: '2026-06-03T10:00:00.000Z', from: [], to: ['S1'] },
+      { at: '2026-06-16T09:00:00.000Z', from: ['S1'], to: ['S1', 'S2'] },
+    ],
   },
   {
     key: 'AONE-4', summary: 'Bug (não incremental)', issueType: 'Bug hotfix',
@@ -71,7 +90,7 @@ function build() {
   const metrics = new FlowMetricsCalculator(REF);
   return new GetDashboardDataUseCase({
     issueRepository: new FakeRepo(),
-    enricher: new IssueEnricher(classifier, metrics),
+    enricher: new IssueEnricher(classifier, metrics, new SprintHistoryResolver()),
     epicSummaryBuilder: new EpicSummaryBuilder(),
     epicHealthEvaluator: new EpicHealthEvaluator(classifier, REF),
   });
@@ -139,6 +158,20 @@ function build() {
     // AONE-1: em WIP, criado em 2026-05-01, mas nunca iniciado de fato
     assert.strictEqual(byKey['AONE-1']['Data Inicio Real'], null);
     assert.strictEqual(byKey['AONE-1'].AgingDias, null);
+  });
+
+  check('SprintPeriodos: entrada por sprint reconstruída do changelog', () => {
+    const p = byKey['AONE-6'].SprintPeriodos;
+    assert.strictEqual(byKey['AONE-6'].SprintHistoricoOk, true);
+    assert.deepStrictEqual(p.find((x) => x.sprint === 'S1'),
+      { sprint: 'S1', enteredAt: '2026-06-03T10:00:00.000Z', leftAt: null });
+    // entrou na S2 só no dia 16 -> na S1 era compromisso, na S2 é escopo adicionado
+    assert.deepStrictEqual(p.find((x) => x.sprint === 'S2'),
+      { sprint: 'S2', enteredAt: '2026-06-16T09:00:00.000Z', leftAt: null });
+  });
+  check('item sem sprint não inventa histórico', () => {
+    assert.deepStrictEqual(byKey['AONE-2'].SprintPeriodos, []);
+    assert.strictEqual(byKey['AONE-2'].SprintHistoricoOk, true);
   });
 
   check('EpicoChave resolvido via cadeia de parents', () => {
