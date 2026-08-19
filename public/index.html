@@ -683,10 +683,7 @@
     <div class="kpi-row" id="velocity-kpis" style="margin-top:12px;"></div>
     <div class="card" style="margin-top:14px;">
       <h3>Story Points: comprometido × adicionado × entregue, por sprint</h3>
-      <div class="cap" id="cap-velocity">
-        <b>Comprometido</b> = já estava na sprint quando ela começou. <b>Adicionado</b> = entrou depois
-        do início (escopo novo no meio do caminho). <b>Entregue</b> = concluído dentro da janela da sprint.
-      </div>
+      <div class="cap" id="cap-velocity">Story Points por sprint. Sprint em andamento em tom claro e fora das médias.</div>
       <div class="chartwrap tall"><canvas id="chart-velocity"></canvas></div>
     </div>
   </div>
@@ -725,7 +722,7 @@
         <li><b>Hierarquia Épico → História → Sub-task incompleta</b>: 1.165 itens (36%) não têm um Épico identificável na cadeia de "parent" (podem ser itens órfãos, ou Bugs/Débitos Técnicos que não estão vinculados a um Épico formal). O rollup de progresso de Épicos considera apenas os 2.037 itens com vínculo identificado.</li>
         <li><b>Velocity / Capacidade por Sprint não calculável</b> — pela ausência do campo Sprint. Como proxy, este dashboard apresenta SP concluído por PI e por mês.</li>
         <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados) <b>e com Data de início real preenchida</b> — da Data de início real até hoje. Itens em aberto que nunca foram iniciados ficam fora do indicador (não há fallback para a Criação), pois tempo em fila não é envelhecimento em execução. O planejamento do quarter cria itens em lote, e um item só é considerado em andamento quando foi efetivamente puxado — ou seja, quando ganhou Data de início real. O valor é recalculado a cada abertura do dashboard, em dias corridos até a data de hoje, mesmo que os dados venham do cache local.</li>
-        <li><b>Velocity: o que entra e o que não entra</b>. Só <b>itens standard</b> (exclui Épico, cujo SP é agregado, e Sub-task, que somaria de novo o SP do pai) e não cancelados. <b>Comprometido</b> = era membro da sprint no instante em que ela começou; <b>adicionado</b> = entrou depois do início; <b>entregue</b> = tem Data de conclusão dentro da janela da sprint, o que atribui cada entrega a uma única sprint. Sprint <b>em andamento</b> aparece em tom claro e fica fora das médias (está sempre sub-entregue); sprint <b>futura</b> não aparece. Sprint em que a squad não teve nenhum item não entra no gráfico nem na média — itens emprestados entre boards fariam aparecer sprints de outros times zeradas.</li>
+        <li><b>Velocity: o que entra e o que não entra</b>. Só <b>itens standard</b> (exclui Épico, cujo SP é agregado, e Sub-task, que somaria de novo o SP do pai) e não cancelados. <b>Comprometido</b> = era membro da sprint no instante em que ela começou; <b>adicionado</b> = entrou depois do início; <b>entregue</b> = a entrega é atribuída a <b>uma única</b> sprint, a primeira sprint do item que termina em ou depois da Data de conclusão. Na prática: se a conclusão cai dentro de uma janela, é aquela sprint; se o item já estava <b>pronto quando a sprint abriu</b> (trabalho puxado antes do início), conta na sprint que abriu com ele pronto. Item concluído <b>depois do fim de todas as suas sprints</b> não conta em sprint alguma — vai para o KPI "Entregue fora de sprint", clicável. As janelas são comparadas em <b>datas</b>, não em horários, para não descartar entregas do último dia da sprint. Sprint <b>em andamento</b> aparece em tom claro e fica fora das médias (está sempre sub-entregue); sprint <b>futura</b> não aparece. Sprint em que a squad não teve nenhum item não entra no gráfico nem na média — itens emprestados entre boards fariam aparecer sprints de outros times zeradas.</li>
         <li><b>Cerca de 4% dos itens standard não têm cronologia de sprint recuperável</b>: o campo Sprint preenchido na criação não gera changelog, e movimentações em massa entre sprints às vezes também não. Nesses casos sabemos o conjunto de sprints, não as datas, e o item é contado como presente desde a criação — o bloco de velocity mostra quantos itens estão nessa condição e permite abrir a lista. Subtarefas são o caso extremo (herdam a sprint do pai sem gerar histórico), mas não afetam o velocity porque não entram no cálculo.</li>
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Apenas Sub-tasks são consistentemente marcadas como Concluído. Por isso, além do Throughput estrito (Status = Concluído), a aba de Entregas mostra também "Entregue (amplo)", que considera todos os status pós-desenvolvimento. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
@@ -1193,9 +1190,14 @@ const barLabelsPlugin = {
     // IMPORTANTE: não usar função em options (Chart.js trataria como "scriptable"
     // e a invocaria com um objeto de contexto). Usamos uma string de formato.
     const fmtKind = chart.options.barLabelFmt;
-    const fmt = fmtKind === 'd1' ? (v=>fmt1(v)) : (v=>fmt0(v));
+    // 'sp' = Story Points: mostra decimal só quando existe (40 · 8,5 · 0,5). Nem
+    // fmt0 (arredondaria 0,5 para 1) nem fmt1 (poluiria com "40,0") servem aqui.
+    const fmt = fmtKind === 'sp' ? (v=>(Math.round(v*10)/10).toLocaleString('pt-BR'))
+      : fmtKind === 'd1' ? (v=>fmt1(v)) : (v=>fmt0(v));
     ctx.save();
-    ctx.font = "600 10.5px 'Inter',sans-serif";
+    // Barras agrupadas ficam estreitas; deixar a fonte configurável evita rótulo
+    // sobrepondo rótulo quando há três séries por sprint.
+    ctx.font = chart.options.barLabelFont || "600 10.5px 'Inter',sans-serif";
     ctx.fillStyle = '#3D4C5B';
     chart.data.datasets.forEach((ds,di)=>{
       const meta = chart.getDatasetMeta(di);
@@ -2233,12 +2235,46 @@ function entrouDuranteSprint(d, sprint, iniMs, fimMs){
 function passouPelaSprint(d, sprint){
   return (d.SprintPeriodos||[]).some(p=>p.sprint===sprint) || (d.Sprints||[]).includes(sprint);
 }
-/* Concluiu dentro da janela da sprint (atribuição única: cada entrega conta
-   numa sprint só, pela Data Conclusao). */
-function entregouNaJanela(d, iniMs, fimMs){
-  if(!d.Concluido || !d['Data Conclusao']) return false;
-  const t = Date.parse(String(d['Data Conclusao']).slice(0,10)+'T12:00:00Z');
-  return !Number.isNaN(t) && t >= iniMs && (fimMs==null || t <= fimMs);
+/* Janela da sprint em DATAS locais ('YYYY-MM-DD'), inclusive nas duas pontas.
+   `Data Conclusao` é uma data sem hora; comparar com o timestamp da sprint (que
+   costuma terminar às 03:00 UTC = meia-noite no Brasil) descartava as entregas
+   do próprio último dia da sprint. */
+function sprintJanelaDatas(s){
+  const fim = s.endDate || s.completeDate || s.startDate;
+  return { de: isoLocalDate(new Date(s.startDate)), ate: isoLocalDate(new Date(fim)) };
+}
+/**
+ * Atribui a entrega de cada item concluído a UMA sprint — atribuição única, para
+ * a mesma entrega nunca contar duas vezes.
+ *
+ * Ordem de prioridade:
+ *   1) a sprint cuja janela CONTÉM a Data Conclusao;
+ *   2) senão, a primeira sprint (cronológica) que termina em/depois da conclusão.
+ *      Cobre o item que já estava PRONTO quando a sprint abriu — acontece quando
+ *      o time puxa o trabalho antes do início (ex.: LEG-2049, concluído em 16/07
+ *      numa sprint que só começou em 20/07). Sem esta regra o item contava em
+ *      "comprometido" e em entregue nenhum, abrindo um buraco permanente no say-do;
+ *   3) senão, nenhuma: foi concluído DEPOIS do fim de todas as suas sprints, então
+ *      não é velocity de sprint alguma. Vai para o contador "entregue fora de
+ *      sprint", visível na tela em vez de desaparecer.
+ */
+function atribuirEntregas(itens, sprints){
+  const janelas = new Map(sprints.map(s=>[s.name, sprintJanelaDatas(s)]));
+  const porSprint = new Map();
+  const foraDeSprint = [];
+  itens.forEach(d=>{
+    if(!d.Concluido || !d['Data Conclusao']) return;
+    const dc = String(d['Data Conclusao']).slice(0,10);
+    const suas = sprints.filter(s=>passouPelaSprint(d, s.name)); // já cronológicas
+    if(!suas.length) return; // não participou de nenhuma sprint do recorte
+    // (1) e (2) colapsam em "a primeira que termina em/depois da conclusão":
+    // se ela também começou antes, é o caso 1; se começou depois, é o caso 2.
+    const alvo = suas.find(s=>dc <= janelas.get(s.name).ate);
+    if(!alvo){ foraDeSprint.push(d); return; }
+    if(!porSprint.has(alvo.name)) porSprint.set(alvo.name, []);
+    porSprint.get(alvo.name).push(d);
+  });
+  return {porSprint, foraDeSprint};
 }
 const spDe = d => Number(d['Story Points']) || 0;
 /* Sprint selecionada na aba Sprint (seleção única). */
@@ -2466,13 +2502,16 @@ function initVelocityRange(){
  * depois, entregue na janela e removido antes do fim.
  */
 function serieVelocity(itens, sprints){
-  return sprints.map(s=>{
+  // A atribuição de entregas é feita UMA vez, olhando todas as sprints juntas —
+  // é o que garante que a mesma entrega não caia em duas sprints.
+  const {porSprint, foraDeSprint} = atribuirEntregas(itens, sprints);
+  const serie = sprints.map(s=>{
     const ini = Date.parse(s.startDate);
     const fim = sprintFimMs(s);
     const doSprint = itens.filter(d=>passouPelaSprint(d, s.name));
     const comprometidos = doSprint.filter(d=>membroNoInstante(d, s.name, ini));
     const adicionados = doSprint.filter(d=>!membroNoInstante(d, s.name, ini) && entrouDuranteSprint(d, s.name, ini, fim));
-    const entregues = doSprint.filter(d=>entregouNaJanela(d, ini, fim));
+    const entregues = porSprint.get(s.name) || [];
     // Removido = saiu dentro da janela E não voltou até o fim (item que saiu e
     // retornou no meio da sprint não é escopo perdido).
     const removidos = doSprint.filter(d=>{
@@ -2488,6 +2527,7 @@ function serieVelocity(itens, sprints){
       itens: {comprometidos, adicionados, entregues, removidos},
     };
   });
+  return {serie, foraDeSprint};
 }
 
 /**
@@ -2546,7 +2586,8 @@ function renderVelocity(){
 }
 
 function renderVelocityPorSprint(base, candidatas){
-  let serie = serieVelocity(base, candidatas).filter(sprintTeveParticipacao);
+  const calc = serieVelocity(base, candidatas);
+  let serie = calc.serie.filter(sprintTeveParticipacao);
   if(velocityRange>0){
     // O recorte limita as FECHADAS; a(s) em andamento entram sempre, para o time
     // não perder de vista o ciclo corrente ao reduzir a janela.
@@ -2572,7 +2613,13 @@ function renderVelocityPorSprint(base, candidatas){
       issues: Array.from(new Set(fechadas.flatMap(r=>[...r.itens.comprometidos, ...r.itens.adicionados])))},
     velocity_adicionado: {title:'Itens adicionados depois do início da sprint',
       issues: Array.from(new Set(fechadas.flatMap(r=>r.itens.adicionados)))},
+    velocity_fora: {title:'Entregues depois do fim de todas as suas sprints (fora do velocity)',
+      issues: calc.foraDeSprint},
   });
+  // Entregas que não pertencem a sprint alguma: concluídas depois do fim da última
+  // sprint do item. Não entram em velocity nenhuma — mas ficam à vista, senão o
+  // say-do parece quebrado sem explicação.
+  const spFora = calc.foraDeSprint.reduce((a,d)=>a+spDe(d), 0);
   document.getElementById('velocity-kpis').innerHTML = [
     kpiCard('Velocity média', mediaEntregue==null?'—':fmt1(mediaEntregue), 'sp',
       '', {cls:'flat', text:`${fmt0(fechadas.length)} sprint(s) fechada(s)`}, null, 'velocity_entregue'),
@@ -2582,6 +2629,9 @@ function renderVelocityPorSprint(base, candidatas){
       'coral', {cls:'flat', text:'entrou após o início'}, null, 'velocity_adicionado'),
     kpiCard('Sprints no gráfico', fmt0(serie.length), '', '', {cls:'flat',
       text: serie.length>fechadas.length ? `${serie.length-fechadas.length} em aberto` : 'todas fechadas'}),
+    kpiCard('Entregue fora de sprint', spFora ? fmt1(spFora) : '0', 'sp',
+      spFora?'amber':'', {cls:'flat', text:`${fmt0(calc.foraDeSprint.length)} item(ns) concluído(s) após o fim`},
+      null, 'velocity_fora'),
   ].join('');
 
   // A sprint escolhida no seletor do topo ganha borda — amarra as duas metades.
@@ -2600,7 +2650,12 @@ function renderVelocityPorSprint(base, candidatas){
       {label:'Entregue', data:serie.map(r=>r.entregue), backgroundColor:corEntregue,
         borderRadius:3, borderColor:destaque, borderWidth:larguraBorda},
     ]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{
+    options:{responsive:true, maintainAspectRatio:false,
+      // Rótulo de SP em cada barra das três séries. Zeros não recebem rótulo
+      // (o plugin os ignora), o que evita poluir sprints sem escopo adicionado.
+      barLabels:true, barLabelFmt:'sp', barLabelFont:"600 9px 'Inter',sans-serif",
+      layout:{padding:{top:20}},
+      plugins:{
       legend:{position:'bottom'},
       tooltip:{callbacks:{
         afterBody:(ctx)=>{
@@ -2626,9 +2681,9 @@ function renderVelocityPorSprint(base, candidatas){
   const cap = document.getElementById('cap-velocity');
   if(cap && sprints.length){
     const de = sprints[0], ate = sprints[sprints.length-1];
-    cap.innerHTML = '<b>Comprometido</b> = já estava na sprint quando ela começou. <b>Adicionado</b> = entrou'
-      + ' depois do início (escopo novo no meio do caminho). <b>Entregue</b> = concluído dentro da janela'
-      + ' da sprint. Sprint em andamento aparece em tom claro e fica fora das médias; sprint futura não entra.'
+    // Texto curto: os rótulos nas barras já dão os números, e as definições de
+    // comprometido/adicionado/entregue estão na aba "Notas sobre os Dados".
+    cap.innerHTML = 'Story Points por sprint. Sprint em andamento em tom claro e fora das médias.'
       + ` Período: ${String(de.startDate).slice(0,10).split('-').reverse().join('/')}`
       + ` a ${String(sprintFimMs(ate)? new Date(sprintFimMs(ate)).toISOString().slice(0,10):'').split('-').reverse().join('/')}.`;
   }
@@ -2653,7 +2708,7 @@ function renderVelocityPorSquad(base){
     const candidatas = sprintCatalogoOrdenado().filter(s=>nomes.has(s.name) && sprintFechada(s));
     // Mesma regra do gráfico por sprint: sprint sem participação da squad não é
     // sprint dela e não pode entrar na média.
-    let serie = serieVelocity(itens, candidatas).filter(sprintTeveParticipacao);
+    let serie = serieVelocity(itens, candidatas).serie.filter(sprintTeveParticipacao);
     if(velocityRange>0) serie = serie.slice(-velocityRange);
     if(!serie.length) return null;
     const sprints = serie.map(r=>r.sprint);
@@ -2676,7 +2731,7 @@ function renderVelocityPorSquad(base){
     type:'bar',
     data:{labels:linhas.map(l=>l.squad), datasets:[{data:linhas.map(l=>+l.media.toFixed(1)),
       backgroundColor:'#0057B8', borderRadius:4}]},
-    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barLabels:true, barLabelFmt:'d1',
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, barLabels:true, barLabelFmt:'sp',
       layout:{padding:{right:56}}, plugins:{legend:{display:false},
         tooltip:{callbacks:{label:(ctx)=>{
           const l = linhas[ctx.dataIndex];
@@ -2906,6 +2961,16 @@ async function requestProgressiveBatch(phase,nextPageToken,since){
 async function persistDashboardSnapshot(snapshot){
   try{await writeDashboardSnapshot(snapshot);}catch(e){console.warn('falha ao salvar IndexedDB',e);}
 }
+/* Rótulo da etapa na carga completa.
+   A mensagem antiga ("Buscando os dados dos últimos dois meses") era lida como o
+   LIMITE do que seria carregado, quando é só a primeira das duas etapas — nada é
+   renderizado antes de as duas terminarem. Dizer "etapa 1 de 2" evita a leitura
+   de que o dashboard só tem 60 dias de dados. */
+function rotuloEtapaCarga(phase){
+  return phase==='recent'
+    ? 'Etapa 1 de 2: buscando os últimos 60 dias...'
+    : 'Etapa 2 de 2: buscando o histórico anterior a 60 dias...';
+}
 async function loadFullProgressively(cached,generation){
   const phases=['recent','history'];
   const resume=cached?.complete===false&&cached?.progress?.mode==='full';
@@ -2920,8 +2985,9 @@ async function loadFullProgressively(cached,generation){
     const phase=phases[index]; let nextPageToken=index===phaseIndex?firstToken:null, isLast=false;
     while(!isLast){
       if(generation!==progressiveGeneration)return null;
-      setProgressiveStatus(`${phase==='recent'?'Dados recentes':'Histórico'}: ${freshMap.size.toLocaleString('pt-BR')} issues salvas`,true);
-      updateLoadingProgress(freshMap.size,phase==='recent'?'Buscando os dados dos últimos dois meses...':'Buscando o histórico restante...');
+      setProgressiveStatus(`${phase==='recent'?'Etapa 1 de 2 (últimos 60 dias)':'Etapa 2 de 2 (histórico)'}`
+        + `: ${freshMap.size.toLocaleString('pt-BR')} issues salvas`,true);
+      updateLoadingProgress(freshMap.size,rotuloEtapaCarga(phase));
       let payload;
       try{payload=await requestProgressiveBatch(phase,nextPageToken);}
       catch(error){
@@ -2938,7 +3004,7 @@ async function loadFullProgressively(cached,generation){
       await persistDashboardSnapshot({schemaVersion:DASHBOARD_SCHEMA_VERSION,issues,meta,generatedAt,complete,
         syncStartedAt, lastSyncAt:complete?syncStartedAt:(cached?.lastSyncAt||null),
         progress:complete?null:{mode:'full',phase:nextPhase,nextPageToken:isLast?null:nextPageToken}});
-      updateLoadingProgress(freshMap.size,complete?'Preparando o dashboard...':phase==='recent'?'Buscando os dados dos últimos dois meses...':'Buscando o histórico restante...');
+      updateLoadingProgress(freshMap.size,complete?'Preparando o dashboard...':rotuloEtapaCarga(nextPhase||phase));
     }
   }
   const finalIssues=Array.from(freshMap.values());
