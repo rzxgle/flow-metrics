@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "jira-flow-metrics",
   "version": "1.0.0",
   "description": "Dashboard de Flow Metrics (SAFe) alimentado diretamente pela API do Jira, em Clean Architecture + SOLID.",
