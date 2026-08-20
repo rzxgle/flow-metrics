@@ -2947,7 +2947,15 @@ function renderBurndown(sprint, subs){
    e depois pega TODOS os filhos por EpicoChave — filtrar filhos por PI cortaria
    40% da base silenciosamente. */
 
-const piCollapsedSquads = new Set(); // squads recolhidas pelo usuário
+/* Squads que o usuário ABRIU. Todas nascem recolhidas: com 14 squads e ~60
+   épicos, abrir tudo joga o leitor numa parede de linhas e esconde os KPIs
+   acima. Recolhido, a página abre mostrando o ranking de squads — que é a
+   leitura de entrada — e o detalhe vem por escolha.
+
+   Guardar o que foi aberto (em vez do que foi fechado) preserva a escolha do
+   usuário entre renders: a lista é reconstruída a cada mudança de filtro, e a
+   squad que ele abriu tem de continuar aberta. */
+const piExpandedSquads = new Set();
 
 /* O PI vem do filtro do topo — é a MESMA dimensão (label do Jira), então um
    seletor próprio aqui seria uma segunda fonte de verdade para a mesma pergunta.
@@ -3250,7 +3258,7 @@ function renderPiTracking(){
   }
 
   squadsEl.innerHTML = t.squads.map(s=>{
-    const collapsed = piCollapsedSquads.has(s.squad) ? ' collapsed' : '';
+    const collapsed = piExpandedSquads.has(s.squad) ? '' : ' collapsed';
     const rows = s.epics.map(e=>{
       const badges = [
         e.epicDone ? '<span class="badge ok">entregue</span>' : '',
@@ -3316,8 +3324,8 @@ document.addEventListener('click', (e)=>{
     const card = head.closest('.pi-squad');
     const squad = card.getAttribute('data-pi-squad');
     card.classList.toggle('collapsed');
-    if(card.classList.contains('collapsed')) piCollapsedSquads.add(squad);
-    else piCollapsedSquads.delete(squad);
+    if(card.classList.contains('collapsed')) piExpandedSquads.delete(squad);
+    else piExpandedSquads.add(squad);
   }
 });
 

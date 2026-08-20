@@ -70,7 +70,7 @@ const epilogo = `
   set DATA(v){ DATA.length=0; DATA.push(...v); PI_DATA.length=0; PI_DATA.push(...v); },
   set activeTab(v){ activeTab = v; },
   selections, piBuildTracking, piOptionsFromData, piQuarterWindow, piTimeProgress, renderPiTracking,
-  piSelectedPis, syncFilterBarForTab, buildFilterBar,
+  piSelectedPis, syncFilterBarForTab, buildFilterBar, piExpandedSquads,
   piIsDone, piIsInProgress, piIsIgnored, piIsCountableChild, piIsTransbordo,
   set isoToday(fn){ isoToday = fn; },
 };`;
@@ -375,6 +375,26 @@ assert.equal(drills['pi-epics-done'].issues.length, t.kpis.epicsDone);
 assert.equal(drills['pi-epics'].issues.length, t.kpis.totalEpics, 'Total de épicos deve abrir a lista de épicos');
 assert.ok(kpisHtml.includes('data-drill="pi-epics"'), 'o cartão de Total de épicos tem de ser clicável');
 assert.deepEqual(drills['pi-epics'].issues.map((i) => i.Chave).sort(), ['E-1', 'E-2', 'E-3', 'E-6']);
+
+// Squads nascem RECOLHIDAS: com 14 squads e ~60 épicos, abrir tudo enterra os
+// KPIs e a página deixa de ter uma leitura de entrada.
+const CARD_RX = /class="pi-squad( collapsed)?" data-pi-squad="([^"]*)"/g;
+const cards = squadsHtml.match(CARD_RX) || [];
+assert.equal(cards.length, 2, 'as duas squads do cenário devem ser renderizadas');
+assert.ok(cards.every((c) => c.includes('collapsed')), `toda squad deve nascer recolhida: ${cards}`);
+
+// E a escolha de quem abriu uma squad sobrevive ao re-render (a lista é
+// reconstruída a cada mudança de filtro).
+T.piExpandedSquads.add('Squad B');
+T.renderPiTracking();
+const depois = getEl('pi-squads').innerHTML.match(CARD_RX) || [];
+const abertas = depois.filter((c) => !c.includes('collapsed'));
+assert.equal(abertas.length, 1, 'só a squad aberta pelo usuário fica expandida');
+assert.ok(abertas[0].includes('Squad B'), `a squad aberta deve ser a escolhida: ${abertas[0]}`);
+T.piExpandedSquads.clear();
+T.renderPiTracking();
+assert.ok((getEl('pi-squads').innerHTML.match(CARD_RX) || [])
+  .every((c) => c.includes('collapsed')), 'limpar a escolha volta tudo a recolhido');
 
 // O recorte tem de aparecer no cabeçalho: com o filtro do topo aberto, o "3 PIs"
 // é a única coisa que dá contexto aos números.
