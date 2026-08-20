@@ -57,13 +57,17 @@ class DashboardController {
       const phase = req.body?.phase || 'recent';
       const nextPageToken = req.body?.nextPageToken || undefined;
       const since = req.body?.since || undefined;
+      const epicKeys = req.body?.epicKeys || undefined;
       if (typeof nextPageToken === 'string' && nextPageToken.length > 4096) {
         return res.status(400).json({ error: 'Token de paginacao invalido.' });
       }
       if (typeof since === 'string' && since.length > 64) {
         return res.status(400).json({ error: 'Data incremental invalida.' });
       }
-      const payload = await this.getProgressiveDashboardData({ phase, nextPageToken, since });
+      if (epicKeys !== undefined && (!Array.isArray(epicKeys) || epicKeys.length > 50)) {
+        return res.status(400).json({ error: 'Lista de epicos invalida.' });
+      }
+      const payload = await this.getProgressiveDashboardData({ phase, nextPageToken, since, epicKeys });
       return res.json(payload);
     } catch (err) {
       console.error('[DashboardController] erro progressivo:', err.message);

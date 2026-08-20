@@ -102,8 +102,8 @@ const broadlyDeliveredStatuses = doneStatuses;
  * A ordem importa: o primeiro token encontrado (de cima para baixo) define o PI.
  * Assim, se um item tiver PI2 e PI3, prevalece o PI mais recente.
  *
- * Além do label "principal" de cada PI, entram aqui os labels de TRANSBORDO,
- * de item NOVO e de item DESPRIORIZADO. Eles não são um PI à parte: marcam um
+ * Além do label "principal" de cada PI, entram aqui os labels de TRANSBORDO e
+ * de item NOVO. Eles não são um PI à parte: marcam um
  * item que passou a ser acompanhado DENTRO de um PI, e é assim que a ferramenta
  * de quarter (afya-quarter, `label_options.py`) monta o conjunto de cada ciclo.
  * Um item com `PI2AfyaOne` + `TransbordoPI2AfyaOne` transbordou para o PI3 e é

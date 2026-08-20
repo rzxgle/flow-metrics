@@ -20,10 +20,8 @@
  *     "Pronto para Prod" e "PRONTO PARA PROD" contam igual;
  *   - "Em Homologação", "Pronto para Staging" e "Staging" contam como CONCLUÍDO;
  *   - "Inválido" conta como CANCELADO (aqui só "CANCELADO" contava);
- *   - sub-tarefas e o próprio épico ficam FORA do denominador de progresso.
- *     Medido no dataset real: nos 65 épicos de PI3 - Afya One isso é a
- *     diferença entre 51,1% (regra do afya-quarter, 499 filhos) e 66,2%
- *     (regra do EpicSummaryBuilder, 3.465 membros incluindo 3.336 sub-tarefas).
+ *   - sub-tarefas e o próprio épico ficam FORA do denominador de progresso,
+ *     evitando contar a história e seus subitens como entregas separadas.
  */
 
 /** Status que contam como CONCLUÍDO no acompanhamento de PI. */

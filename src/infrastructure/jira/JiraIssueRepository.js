@@ -26,13 +26,13 @@ class JiraIssueRepository extends IssueRepository {
     return issues;
   }
 
-  async findBatch({ jql = this.jql, nextPageToken, maxPages }) {
+  async findBatch({ jql = this.jql, nextPageToken, maxPages, includeSprintHistory = true }) {
     const result = await this.httpClient.searchBatch(jql, this.fieldMap.requestedFields(), {
       nextPageToken,
       maxPages,
     });
     const issues = result.issues.map((raw) => this._toIssue(raw));
-    await this.attachSprintTransitions(issues);
+    if (includeSprintHistory) await this.attachSprintTransitions(issues);
     return { ...result, issues };
   }
 

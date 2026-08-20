@@ -135,7 +135,7 @@ abas (3.465 membros, dos quais 3.336 são sub-tarefas).
 As regras vivem no servidor e **viajam com o payload** (`meta.quarterRules`) — o
 navegador não guarda uma segunda cópia que sairia de sincronia.
 
-Dois detalhes que valem saber:
+Três detalhes que valem saber:
 
 - **Os filhos não herdam o PI do épico.** As labels ficam no épico; 1.430 dos
   3.465 filhos dos épicos de PI3 têm PI "Não informado". A aba seleciona os
@@ -145,6 +145,9 @@ Dois detalhes que valem saber:
   `LegadoTransbordoP226` passaram a ser reconhecidas em
   `classification.rules.js` — antes caíam em "Não informado", **em todas as
   abas**.
+- **O PI Tracking usa uma coleta dedicada.** Os épicos são buscados pelas labels
+  de PI sem o corte `created >= startOfYear()` e seus filhos são consultados em
+  lotes. Esse conjunto não alimenta as demais abas.
 
 KPIs: Progresso do PI, Épicos entregues, Quarter percorrido, Gap plano × tempo,
 Total de épicos, Épicos vazios e Squads abaixo do esperado — todos clicáveis,

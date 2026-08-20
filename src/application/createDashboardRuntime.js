@@ -41,6 +41,7 @@ function createDashboardRuntime(env = process.env) {
     enricher,
     epicHealthEvaluator,
     quarterRules,
+    piLabelRules: classificationRules.piRulesInPriorityOrder,
     baseJql: config.jira.jql,
     maxPages: env.PROGRESSIVE_PAGES_PER_REQUEST || 5,
   });
