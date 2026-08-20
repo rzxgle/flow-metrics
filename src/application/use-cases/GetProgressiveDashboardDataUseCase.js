@@ -1,10 +1,11 @@
 'use strict';
 
 class GetProgressiveDashboardDataUseCase {
-  constructor({ issueRepository, enricher, epicHealthEvaluator, baseJql, maxPages = 5 }) {
+  constructor({ issueRepository, enricher, epicHealthEvaluator, quarterRules, baseJql, maxPages = 5 }) {
     this.issueRepository = issueRepository;
     this.enricher = enricher;
     this.epicHealthEvaluator = epicHealthEvaluator;
+    this.quarterRules = quarterRules || null;
     this.baseJql = baseJql;
     this.maxPages = Math.max(1, Math.min(Number(maxPages) || 5, 5));
   }
@@ -56,6 +57,9 @@ class GetProgressiveDashboardDataUseCase {
         inProgressStatuses: this.enricher.classifier.rules.inProgressStatuses || [],
         doneStatuses: this.enricher.classifier.rules.doneStatuses || [],
         cancelledStatuses: this.enricher.classifier.rules.cancelledStatuses || [],
+        // Regras da aba de PI Tracking. Viajam com o payload para que o front
+        // nao mantenha uma segunda copia delas, que sairia de sincronia.
+        quarterRules: this.quarterRules,
         sprints: Array.from(sprintCatalog.values()),
       },
     };

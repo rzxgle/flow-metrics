@@ -3,6 +3,7 @@
 const path = require('path');
 const { loadConfig } = require('../config');
 const classificationRules = require('../config/classification.rules');
+const quarterRules = require('../config/quarter.rules');
 const IssueClassifier = require('../domain/services/IssueClassifier');
 const FlowMetricsCalculator = require('../domain/services/FlowMetricsCalculator');
 const IssueEnricher = require('../domain/services/IssueEnricher');
@@ -33,12 +34,13 @@ function createDashboardRuntime(env = process.env) {
   const epicSummaryBuilder = new EpicSummaryBuilder();
   const epicHealthEvaluator = new EpicHealthEvaluator(classifier, referenceDate);
   const getDashboardDataUseCase = new GetDashboardDataUseCase({
-    issueRepository, enricher, epicSummaryBuilder, epicHealthEvaluator,
+    issueRepository, enricher, epicSummaryBuilder, epicHealthEvaluator, quarterRules,
   });
   const getProgressiveDashboardDataUseCase = new GetProgressiveDashboardDataUseCase({
     issueRepository,
     enricher,
     epicHealthEvaluator,
+    quarterRules,
     baseJql: config.jira.jql,
     maxPages: env.PROGRESSIVE_PAGES_PER_REQUEST || 5,
   });

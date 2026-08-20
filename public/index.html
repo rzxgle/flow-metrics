@@ -290,6 +290,58 @@
   .progressbar i{position:absolute;left:0;top:0;bottom:0;background:var(--teal);}
   .progressbar span{position:relative;z-index:2;font-size:10px;font-family:'JetBrains Mono',monospace;padding-left:8px;line-height:16px;color:var(--ink);font-weight:600;}
 
+  /* Na aba PI Tracking, os filtros que não se aplicam saem da tela em vez de
+     ficarem desabilitados: um controle cinza convida a pergunta "por que não
+     consigo clicar?", enquanto a ausência não levanta dúvida. Eles não afetam a
+     aba (o recorte usa só Programa, VS, Squad e PI), então deixá-los visíveis
+     sugeriria um efeito que não existe. */
+  #filterBar.pi-only #dd-AnoCriacao,
+  #filterBar.pi-only #dd-Mes,
+  #filterBar.pi-only #dd-Tipo_de_item,
+  #filterBar.pi-only #dd-Status,
+  #filterBar.pi-only .date-filter{display:none;}
+
+  /* ===== PI Tracking (épicos do quarter, agrupados por squad) ===== */
+  /* Legenda sempre presente: as três fases são três cores, então a identidade
+     nunca pode depender só da cor. Os números por fase aparecem em cada linha. */
+  .pi-legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:11.5px;color:var(--slate-soft);margin:14px 0 10px;}
+  .pi-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .pi-legend i{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+  /* Medidor segmentado concluído | em andamento | pendente.
+     O que separa os segmentos é um gap de 2px na cor da superfície — não uma
+     borda. Borda adicionaria tinta que não é dado. Os cantos externos saem
+     arredondados pelo overflow do container. */
+  .pi-meter{display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden;background:var(--card);}
+  .pi-meter i{display:block;height:100%;min-width:2px;}
+  .pi-meter.empty{background:#F0F0F0;}
+
+  .pi-squad{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);
+    box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;}
+  .pi-squad-head{display:grid;grid-template-columns:1fr 230px 118px;gap:16px;align-items:center;
+    padding:13px 16px;cursor:pointer;background:#FCFCFC;transition:background .12s ease;}
+  .pi-squad-head:hover{background:#F5F5F5;}
+  .pi-squad-name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;color:var(--ink);
+    display:flex;align-items:center;gap:9px;}
+  .pi-caret{font-size:10px;color:var(--slate-soft);transition:transform .15s ease;}
+  .pi-squad.collapsed .pi-caret{transform:rotate(-90deg);}
+  .pi-squad.collapsed .pi-squad-body{display:none;}
+  .pi-squad-body{border-top:1px solid var(--line);}
+  .pi-pct{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--ink);text-align:right;}
+  .pi-sub{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--slate-soft);font-weight:500;}
+  .pi-epic-key{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:600;}
+  .pi-epic-key a{color:var(--teal-d);text-decoration:none;}
+  .pi-epic-key a:hover{text-decoration:underline;}
+  .pi-resumo{max-width:520px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pi-kids{background:none;border:1px solid var(--line);color:var(--slate-soft);border-radius:6px;
+    padding:3px 8px;font-size:11px;font-family:'Inter',sans-serif;cursor:pointer;white-space:nowrap;}
+  .pi-kids:hover{border-color:var(--primary);color:var(--primary);}
+  .pi-empty-state{text-align:center;padding:40px 20px;}
+  @media (max-width:980px){
+    .pi-squad-head{grid-template-columns:1fr;gap:9px;}
+    .pi-pct{text-align:left;}
+  }
+
   footer{padding:30px 28px 60px;max-width:1520px;margin:0 auto;color:var(--slate-soft);font-size:12px;}
   footer h4{font-size:13px;margin-bottom:8px;}
   footer ul{margin:0;padding-left:18px;}
@@ -320,6 +372,7 @@
         <button class="tab-btn" data-tab="wip">Entregas, WIP &amp; Aging</button>
         <button class="tab-btn" data-tab="block">Bloqueios</button>
         <button class="tab-btn" data-tab="sprint">Sprint</button>
+        <button class="tab-btn" data-tab="pi">PI Tracking</button>
         <button class="tab-btn" data-tab="notas">Notas sobre os Dados</button>
       </nav>
       <div class="updated">
@@ -695,6 +748,25 @@
   </div>
 </section>
 
+<!-- ===================== TAB: PI TRACKING ===================== -->
+<section class="tabpanel" id="panel-pi">
+  <div class="section-head">
+    <h2>Acompanhamento do PI</h2>
+    <div class="note" id="pi-recorte"></div>
+  </div>
+
+  <div class="kpi-row" id="pi-kpis"></div>
+
+  <div class="pi-legend">
+    <span><i style="background:#CE0058;"></i> Concluído</span>
+    <span><i style="background:#0057B8;"></i> Em andamento</span>
+    <span><i style="background:#D98E3B;"></i> Pendente</span>
+    <span style="color:#9AA0A6;">Cancelados aparecem na contagem, fora da barra e do denominador.</span>
+  </div>
+
+  <div id="pi-squads"></div>
+</section>
+
 <!-- ===================== TAB: NOTAS SOBRE OS DADOS ===================== -->
 <section class="tabpanel" id="panel-notas">
   <div class="section-head"><h2>Notas Metodológicas e Limitações dos Dados</h2></div>
@@ -722,6 +794,12 @@
         <li><b>Hierarquia Épico → História → Sub-task incompleta</b>: 1.165 itens (36%) não têm um Épico identificável na cadeia de "parent" (podem ser itens órfãos, ou Bugs/Débitos Técnicos que não estão vinculados a um Épico formal). O rollup de progresso de Épicos considera apenas os 2.037 itens com vínculo identificado.</li>
         <li><b>Velocity / Capacidade por Sprint não calculável</b> — pela ausência do campo Sprint. Como proxy, este dashboard apresenta SP concluído por PI e por mês.</li>
         <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados) <b>e com Data de início real preenchida</b> — da Data de início real até hoje. Itens em aberto que nunca foram iniciados ficam fora do indicador (não há fallback para a Criação), pois tempo em fila não é envelhecimento em execução. O planejamento do quarter cria itens em lote, e um item só é considerado em andamento quando foi efetivamente puxado — ou seja, quando ganhou Data de início real. O valor é recalculado a cada abertura do dashboard, em dias corridos até a data de hoje, mesmo que os dados venham do cache local.</li>
+        <li><b>A aba PI Tracking usa outras regras — de propósito.</b> Ela replica o painel de quarter que o time já usa nas cerimônias de PI, para os dois números não divergirem. Três diferenças em relação às demais abas: (1) <b>sub-tarefas e o próprio épico ficam fora do denominador</b>, porque contá-los soma o mesmo trabalho duas vezes (a história e cada um dos seus subitens) e infla o progresso de quem quebra muito o trabalho; (2) <b>itens cancelados saem do denominador</b> em vez de contarem como não feitos; (3) a comparação de status é <b>normalizada</b> (maiúsculas/minúsculas não importam) e <span class="mono">Em Homologação</span>, <span class="mono">Pronto para Staging</span> e <span class="mono">Staging</span> contam como concluído. No dataset atual, essas diferenças valem 15 pontos percentuais nos épicos de PI3 - Afya One: 51,1% pela regra do PI (499 itens) contra 66,2% pela regra das outras abas (3.465 membros, dos quais 3.336 são sub-tarefas). As regras vivem em <span class="mono">src/config/quarter.rules.js</span> no servidor e viajam com os dados — não há uma segunda cópia no navegador.</li>
+        <li><b>Quais filtros valem na aba PI Tracking.</b> Ela usa <b>PI, Programa, Value Stream e Squad</b>. Os filtros de <b>Ano, Mês, Tipo, Status e o intervalo de conclusão saem da tela</b> nessa aba, porque não fazem sentido ali: mexeriam no <b>denominador</b> do progresso em vez de no recorte — filtrar por "Status = Done" faria todo épico aparecer com 100%. A seleção que você fez neles em outras abas continua guardada e volta a valer ao sair daqui. O <b>PI é o filtro do topo</b>, o mesmo de sempre: vazio significa todos. Como "quanto do quarter já passou" não tem resposta para dois quarters somados, os KPIs <b>Quarter percorrido</b>, <b>Gap plano × tempo</b> e <b>Squads abaixo do esperado</b> só aparecem com <b>um</b> PI selecionado; com mais de um, eles avisam em vez de somar quarters diferentes.</li>
+        <li><b>Os filhos não herdam o PI do épico.</b> As labels de PI ficam no épico; um item filho pode não ter nenhuma. Dos 3.465 filhos dos épicos de PI3 - Afya One, <b>1.430 têm PI "Não informado"</b>. Por isso a aba PI Tracking seleciona os <b>épicos</b> pela label e depois puxa <b>todos</b> os filhos pela cadeia de parent, ignorando o PI do filho — filtrar filhos por PI cortaria 40% da base sem avisar. Consequência: o progresso do PI mede o trabalho dos épicos daquele ciclo, não o conjunto de itens que carregam a label.</li>
+        <li><b>Labels de transbordo entram no PI de destino.</b> Um item com <span class="mono">TransbordoPI2AfyaOne</span> transbordou do PI2 e é cobrado no PI3, então é ali que ele aparece — mesmo mantendo a label <span class="mono">PI2AfyaOne</span>. O mesmo vale para <span class="mono">NOVOPI3AfyaOne</span>, <span class="mono">DESPRIORIZADOPI3AfyaOne</span>, <span class="mono">LegadoTransbordoP126</span> e <span class="mono">LegadoTransbordoP226</span>. <b>Isto muda o filtro de PI em todas as abas</b>, não só na nova: antes esses cinco labels não eram reconhecidos e caíam em "Não informado".</li>
+        <li><b>Épicos criados antes do ano corrente ficam fora.</b> A consulta ao Jira usa <span class="mono">created &gt;= startOfYear()</span>. Um épico criado no ano anterior mas planejado para um quarter deste ano não entra no dataset e, portanto, não aparece no PI Tracking. Risco baixo para o quarter atual; relevante para Q1 e para épicos de transbordo de virada de ano.</li>
+        <li><b>Progresso do épico e status do épico são dimensões independentes.</b> O KPI "Épicos entregues" usa o <b>status do próprio épico no Jira</b>; o "Progresso do PI" usa os <b>filhos</b>. Um épico pode estar 100% nos filhos e ainda não ter sido movido para um status de conclusão — e o contrário também acontece. Divergência entre os dois costuma ser sinal de status desatualizado, não de erro de cálculo.</li>
         <li><b>Velocity: o que entra e o que não entra</b>. Só <b>itens standard</b> (exclui Épico, cujo SP é agregado, e Sub-task, que somaria de novo o SP do pai) e não cancelados. <b>Comprometido</b> = era membro da sprint no instante em que ela começou; <b>adicionado</b> = entrou depois do início; <b>entregue</b> = a entrega é atribuída a <b>uma única</b> sprint, a primeira sprint do item que termina em ou depois da Data de conclusão. Na prática: se a conclusão cai dentro de uma janela, é aquela sprint; se o item já estava <b>pronto quando a sprint abriu</b> (trabalho puxado antes do início), conta na sprint que abriu com ele pronto. Item concluído <b>depois do fim de todas as suas sprints</b> não conta em sprint alguma — vai para o KPI "Entregue fora de sprint", clicável. As janelas são comparadas em <b>datas</b>, não em horários, para não descartar entregas do último dia da sprint. Sprint <b>em andamento</b> aparece em tom claro e fica fora das médias (está sempre sub-entregue); sprint <b>futura</b> não aparece. Sprint em que a squad não teve nenhum item não entra no gráfico nem na média — itens emprestados entre boards fariam aparecer sprints de outros times zeradas.</li>
         <li><b>Cerca de 4% dos itens standard não têm cronologia de sprint recuperável</b>: o campo Sprint preenchido na criação não gera changelog, e movimentações em massa entre sprints às vezes também não. Nesses casos sabemos o conjunto de sprints, não as datas, e o item é contado como presente desde a criação — o bloco de velocity mostra quantos itens estão nessa condição e permite abrir a lista. Subtarefas são o caso extremo (herdam a sprint do pai sem gerar histórico), mas não afetam o velocity porque não entram no cálculo.</li>
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
@@ -959,6 +1037,7 @@ function buildFilterBar(){
   bar.appendChild(clearAll);
 
   bindDropdownOutsideClick();
+  syncFilterBarForTab();
 }
 
 /* Fecha qualquer .dd-panel aberto ao clicar fora. Compartilhado pela barra de
@@ -1376,6 +1455,26 @@ document.addEventListener('click', (e)=>{
 });
 
 /* ===================== Tabs ===================== */
+let activeTab = 'exec';
+
+/**
+ * Esconde, na aba PI Tracking, os filtros que não têm efeito nela (Ano, Mês,
+ * Tipo, Status e o intervalo de conclusão).
+ *
+ * Eles continuam com a seleção que o usuário fez em outras abas — só não são
+ * exibidos aqui, porque o recorte desta aba usa apenas Programa, VS, Squad e PI.
+ * Mostrá-los sugeriria um efeito inexistente; desabilitá-los levantaria a
+ * pergunta de por que estão travados.
+ *
+ * A barra é reconstruída a cada lote da carga progressiva, então esta função é
+ * chamada também no fim de buildFilterBar() — senão o modo se perderia no meio
+ * do carregamento.
+ */
+function syncFilterBarForTab(){
+  const bar = document.getElementById('filterBar');
+  if(bar) bar.classList.toggle('pi-only', activeTab==='pi');
+}
+
 document.getElementById('tabNav').addEventListener('click', (e)=>{
   const btn = e.target.closest('.tab-btn');
   if(!btn) return;
@@ -1383,6 +1482,8 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
   btn.classList.add('active');
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  activeTab = btn.dataset.tab;
+  syncFilterBarForTab();
   // Gráficos criados enquanto o painel estava oculto (display:none) nascem com
   // tamanho 0; ao ficar visível, forçamos um resize para eles se redesenharem.
   requestAnimationFrame(()=>{
@@ -1408,6 +1509,7 @@ function renderAll(){
   renderWip(f, atual);
   renderBlock(getFiltered(SKIP_TIPO), getFilteredNoDate(SKIP_TIPO));
   renderSprint();
+  renderPiTracking();
 }
 
 /* Item 2 — mostra o intervalo de datas presente no recorte filtrado */
@@ -2776,6 +2878,405 @@ function renderBurndown(sprint, subs){
   });
 }
 
+/* ===================== TAB: PI TRACKING =====================
+   Acompanhamento dos épicos de um PI/quarter, agrupados por squad.
+
+   Esta aba NÃO usa as regras das outras abas. Ela replica, status por status e
+   tipo por tipo, o painel de quarter que o time já usa nas cerimônias de PI
+   (projeto afya-quarter). Se os dois números divergissem, a aba perderia a
+   função: ninguém confia em dois números para a mesma pergunta.
+
+   As regras chegam do backend em `meta.quarterRules` (config/quarter.rules.js).
+   Não existe cópia delas aqui de propósito — uma segunda cópia sairia de
+   sincronia com a primeira sem ninguém perceber.
+
+   Três diferenças que explicam quase toda a divergência com a aba Executiva:
+     - sub-tarefas e o próprio épico ficam FORA do denominador (senão o mesmo
+       trabalho é contado duas vezes: a história e cada um dos seus subitens);
+     - itens cancelados saem do denominador em vez de contarem como não feitos;
+     - a comparação de status é normalizada e "Em Homologação"/"Staging" contam
+       como concluído.
+
+   Detalhe que faz ou quebra os números: os filhos NÃO herdam o PI do épico. No
+   dataset real, 1.430 dos 3.465 filhos dos épicos de PI3 têm PI "Não informado"
+   porque as labels ficam no épico. Por isso a seleção é feita nos ÉPICOS pelo PI
+   e depois pega TODOS os filhos por EpicoChave — filtrar filhos por PI cortaria
+   40% da base silenciosamente. */
+
+const piCollapsedSquads = new Set(); // squads recolhidas pelo usuário
+
+/* O PI vem do filtro do topo — é a MESMA dimensão (label do Jira), então um
+   seletor próprio aqui seria uma segunda fonte de verdade para a mesma pergunta.
+   Vazio significa "todos", como em qualquer filtro da barra.
+
+   Consequência: os KPIs temporais (quarter percorrido, gap, squads atrasadas)
+   só existem com UM PI selecionado — "quanto do quarter já passou" não tem
+   resposta para Q1 e Q3 somados. Eles mostram "—" e dizem o que falta, em vez
+   de exibir um número que não significa nada. */
+function piSelectedPis(){
+  const escolhidos = Array.from(selections['PI'] || []);
+  return escolhidos.length ? escolhidos : piOptionsFromData();
+}
+
+/* Cores das fases. Validadas contra a superfície branca e para as três formas de
+   daltonismo (pior par adjacente ΔE 16.1 em protanopia). O âmbar fica abaixo de
+   3:1 de contraste, o que exige rótulos visíveis — que existem: a legenda no
+   topo e as contagens por fase em cada linha. */
+const PI_PHASE_COLORS = { done:'#CE0058', inprogress:'#0057B8', todo:'#D98E3B' };
+
+function piRules(){ return window.__QUARTER_RULES || null; }
+
+/** Comparação de status normalizada (trim + maiúsculas), como no afya-quarter. */
+function piNorm(s){ return String(s==null?'':s).trim().toUpperCase(); }
+function piInList(status, list){
+  const n = piNorm(status);
+  return (list||[]).some(s=>piNorm(s)===n);
+}
+function piIsDone(status){ return piInList(status, piRules()?.doneStatuses); }
+function piIsInProgress(status){ return piInList(status, piRules()?.inProgressStatuses); }
+function piIsIgnored(status){ return piInList(status, piRules()?.ignoredStatuses); }
+
+/** O item conta como "filho entregável" do épico? Exclui épicos e sub-tarefas. */
+function piIsCountableChild(item){
+  const r = piRules(); if(!r) return false;
+  const tipo = String(item['Tipo de item']||'');
+  if((r.excludedChildTypes||[]).includes(tipo)) return false;
+  return !(r.subtaskTypePrefixes||[]).some(p=>tipo.startsWith(p));
+}
+
+function piIsTransbordo(item){
+  const labels = item.Labels || [];
+  return (piRules()?.transbordoLabels || []).some(l=>labels.includes(l));
+}
+
+/** Filtros do topo que se aplicam aqui. Tipo/Status/período ficam de fora
+    porque mexeriam no denominador do progresso, não no recorte. */
+const PI_TAB_FILTER_KEYS = ['Programa','VS','Squad'];
+function matchesPiTabFilters(d){
+  for(const key of PI_TAB_FILTER_KEYS){
+    const sel = selections[key];
+    if(!sel || sel.size===0) continue;
+    let v = d[key];
+    if(v===null||v===undefined||v==='') v='(Não informado)';
+    if(!sel.has(String(v))) return false;
+  }
+  return true;
+}
+
+/** PIs presentes nos dados que têm janela de quarter conhecida, do mais recente
+    para o mais antigo (o PI atual é quase sempre o que se quer ver). */
+function piOptionsFromData(){
+  const periods = piRules()?.piPeriods || {};
+  const found = new Set();
+  DATA.forEach(d=>{ if(d['Tipo Agrupado']==='Épico' && periods[d.PI]) found.add(d.PI); });
+  return Array.from(found).sort((a,b)=>{
+    const pa = periods[a], pb = periods[b];
+    if(pa.year!==pb.year) return pb.year-pa.year;
+    if(pa.quarter!==pb.quarter) return pb.quarter.localeCompare(pa.quarter);
+    return String(a).localeCompare(String(b),'pt');
+  });
+}
+
+/** Janela de datas do quarter do PI ('YYYY-MM-DD'), ou null se desconhecida. */
+function piQuarterWindow(pi){
+  const r = piRules(); if(!r) return null;
+  const period = (r.piPeriods||{})[pi]; if(!period) return null;
+  const bounds = (r.quarterBounds||{})[period.quarter]; if(!bounds) return null;
+  const pad = n=>String(n).padStart(2,'0');
+  return {
+    quarter: period.quarter, year: period.year,
+    label: `${period.quarter}/${period.year}`,
+    start: `${period.year}-${pad(bounds.startMonth)}-${pad(bounds.startDay)}`,
+    end: `${period.year}-${pad(bounds.endMonth)}-${pad(bounds.endDay)}`,
+  };
+}
+
+/** Quanto do quarter já passou, em %. Mesma regra (dias inclusivos nas duas
+    pontas) de calculate_quarter_time_progress do afya-quarter. */
+function piTimeProgress(win){
+  if(!win) return null;
+  const startMs = Date.parse(win.start+'T00:00:00Z');
+  const endMs = Date.parse(win.end+'T00:00:00Z');
+  const todayMs = Date.parse(isoToday()+'T00:00:00Z');
+  if([startMs,endMs,todayMs].some(Number.isNaN)) return null;
+  const totalDays = Math.round((endMs-startMs)/86400000) + 1;
+  if(totalDays<=0) return 0;
+  if(todayMs>=endMs) return 100;
+  const elapsedDays = Math.round((todayMs-startMs)/86400000) + 1;
+  if(elapsedDays<0) return 0;
+  return elapsedDays/totalDays*100;
+}
+
+/**
+ * Monta a árvore squad -> épicos -> filhos do PI selecionado.
+ * Agregação por SOMA de itens (não média de percentuais): uma squad com um
+ * épico de 40 itens e outro de 2 não pode ter os dois pesando igual.
+ */
+function piBuildTracking(){
+  const pis = piSelectedPis();
+  const piSet = new Set(pis);
+  const epics = DATA.filter(d=>
+    d['Tipo Agrupado']==='Épico'
+    && piSet.has(d.PI)
+    && !piIsIgnored(d.Status)      // afya-quarter exclui épico cancelado na própria JQL
+    && matchesPiTabFilters(d));
+
+  // Índice de filhos por épico, montado uma vez (não por épico, que seria O(n²)).
+  const childrenByEpic = new Map();
+  DATA.forEach(d=>{
+    const key = d.EpicoChave;
+    if(!key || d.Chave===key) return;   // o próprio épico não é filho de si mesmo
+    if(!childrenByEpic.has(key)) childrenByEpic.set(key, []);
+    childrenByEpic.get(key).push(d);
+  });
+
+  const bySquad = new Map();
+  epics.forEach(epic=>{
+    const countable = (childrenByEpic.get(epic.Chave)||[]).filter(piIsCountableChild);
+    const cancelled = countable.filter(c=>piIsIgnored(c.Status));
+    const valid = countable.filter(c=>!piIsIgnored(c.Status));
+    const done = valid.filter(c=>piIsDone(c.Status));
+    const inProgress = valid.filter(c=>!piIsDone(c.Status) && piIsInProgress(c.Status));
+    const todo = valid.filter(c=>!piIsDone(c.Status) && !piIsInProgress(c.Status));
+
+    const row = {
+      epic,
+      total: valid.length,
+      done: done.length,
+      inProgress: inProgress.length,
+      todo: todo.length,
+      cancelled: cancelled.length,
+      pct: valid.length ? done.length/valid.length*100 : 0,
+      isEmpty: valid.length===0,
+      epicDone: piIsDone(epic.Status),
+      transbordo: piIsTransbordo(epic),
+      // ordenados para o drill-down: concluídos por último, pendências primeiro
+      children: [...todo, ...inProgress, ...done, ...cancelled],
+      validChildren: valid,
+    };
+
+    const squad = epic.Squad || 'Não informado';
+    if(!bySquad.has(squad)) bySquad.set(squad, {squad, epics:[], total:0, done:0, inProgress:0, todo:0});
+    const bucket = bySquad.get(squad);
+    bucket.epics.push(row);
+    bucket.total += row.total;
+    bucket.done += row.done;
+    bucket.inProgress += row.inProgress;
+    bucket.todo += row.todo;
+  });
+
+  const squads = Array.from(bySquad.values()).map(s=>({
+    ...s,
+    pct: s.total ? s.done/s.total*100 : 0,
+    // pior primeiro: a squad que precisa de atenção não deveria exigir rolagem
+    epics: s.epics.sort((a,b)=> a.pct-b.pct || String(a.epic.Chave).localeCompare(String(b.epic.Chave))),
+  })).sort((a,b)=> a.pct-b.pct || String(a.squad).localeCompare(String(b.squad),'pt'));
+
+  const totalItems = squads.reduce((sum,s)=>sum+s.total,0);
+  const doneItems = squads.reduce((sum,s)=>sum+s.done,0);
+  const allEpics = squads.flatMap(s=>s.epics);
+  // Janela do quarter só com um PI: a régua temporal não é somável.
+  const win = pis.length===1 ? piQuarterWindow(pis[0]) : null;
+  const timeProgress = piTimeProgress(win);
+  const clusterProgress = totalItems ? doneItems/totalItems*100 : 0;
+  const epicsDone = allEpics.filter(e=>e.epicDone);
+
+  return {
+    pis,
+    window: win,
+    squads,
+    epics: allEpics,
+    kpis: {
+      clusterProgress, totalItems, doneItems,
+      timeProgress,
+      gap: timeProgress===null ? null : clusterProgress-timeProgress,
+      totalEpics: allEpics.length,
+      epicsDone: epicsDone.length,
+      epicsDonePct: allEpics.length ? epicsDone.length/allEpics.length*100 : 0,
+      emptyEpics: allEpics.filter(e=>e.isEmpty).length,
+      squadsBehind: timeProgress===null ? null : squads.filter(s=>s.pct<timeProgress).length,
+    },
+    drills: {
+      items: squads.flatMap(s=>s.epics.flatMap(e=>e.validChildren)),
+      done: squads.flatMap(s=>s.epics.flatMap(e=>e.validChildren.filter(c=>piIsDone(c.Status)))),
+      epics: allEpics.map(e=>e.epic),
+      epicsDone: epicsDone.map(e=>e.epic),
+      empty: allEpics.filter(e=>e.isEmpty).map(e=>e.epic),
+    },
+  };
+}
+
+/** Barra segmentada. Só emite segmentos com valor, para os cantos externos
+    arredondados caírem sempre sobre uma fase que existe. */
+function piMeter(done, inProgress, todo){
+  const total = done+inProgress+todo;
+  if(!total) return '<div class="pi-meter empty" title="Épico sem itens"></div>';
+  const seg = (n,color,label)=> n>0
+    ? `<i style="flex:${n};background:${color};" title="${label}: ${n}"></i>` : '';
+  return `<div class="pi-meter">
+    ${seg(done, PI_PHASE_COLORS.done, 'Concluído')}
+    ${seg(inProgress, PI_PHASE_COLORS.inprogress, 'Em andamento')}
+    ${seg(todo, PI_PHASE_COLORS.todo, 'Pendente')}
+  </div>`;
+}
+
+const piFmtPct = v => (v===null||v===undefined) ? '—' : v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const piFmtBr = iso => { if(!iso) return ''; const [a,m,d]=iso.split('-'); return `${d}/${m}/${a}`; };
+
+function renderPiTracking(){
+  const kpiEl = document.getElementById('pi-kpis');
+  const squadsEl = document.getElementById('pi-squads');
+  const recorteEl = document.getElementById('pi-recorte');
+  if(!kpiEl || !squadsEl) return;
+
+  if(!piRules()){
+    kpiEl.replaceChildren();
+    squadsEl.innerHTML = `<div class="card pi-empty-state">
+      <div style="font-size:30px;line-height:1;margin-bottom:10px;">🔄</div>
+      <h3 style="margin-bottom:6px;">Regras de PI ainda não carregadas</h3>
+      <div class="cap" style="max-width:560px;margin:0 auto;">Os dados em cache são anteriores a esta aba.
+        Clique em <b>Atualizar dados</b> no topo para buscar as regras de acompanhamento de PI no servidor.</div></div>`;
+    return;
+  }
+
+  const t = piBuildTracking();
+  const k = t.kpis;
+  const win = t.window;
+  const umPi = t.pis.length===1;
+  const rotulo = umPi ? t.pis[0] : `${t.pis.length} PIs`;
+
+  // Diz de onde vem o recorte: sem isto, "3 PIs" some e o número dos KPIs fica
+  // sem contexto quando o filtro do topo está aberto.
+  if(recorteEl){
+    recorteEl.innerHTML = t.pis.length
+      ? (umPi
+          ? `<b>${escapeHtml(t.pis[0])}</b> · quarter ${win ? `${win.label}, ${piFmtBr(win.start)} a ${piFmtBr(win.end)}` : 'desconhecido'}`
+          : `${t.pis.length} PIs no recorte — selecione um só no filtro <b>PI</b> para ver o progresso no tempo`)
+      : 'Nenhum PI reconhecido nos dados';
+  }
+
+  __cardDrills['pi-items'] = {title:`Itens de ${rotulo} (denominador do progresso)`, issues:t.drills.items};
+  __cardDrills['pi-done'] = {title:`Itens concluídos de ${rotulo}`, issues:t.drills.done};
+  __cardDrills['pi-epics'] = {title:`Épicos de ${rotulo}`, issues:t.drills.epics};
+  __cardDrills['pi-epics-done'] = {title:`Épicos entregues de ${rotulo}`, issues:t.drills.epicsDone};
+  __cardDrills['pi-empty'] = {title:`Épicos sem nenhum item em ${rotulo}`, issues:t.drills.empty};
+
+  const gapCls = k.gap===null ? 'flat' : (k.gap>=0 ? 'up' : 'down');
+  // Um KPI temporal sem PI único não tem resposta. Dizer o que falta é melhor
+  // que um "—" mudo, e muito melhor que um número somado de dois quarters.
+  const semPi = {cls:'flat', text:'requer 1 PI selecionado'};
+  const gapTxt = k.gap===null ? 'requer 1 PI selecionado'
+    : `${k.gap>=0?'+':'−'}${piFmtPct(Math.abs(k.gap))} pp vs. tempo decorrido`;
+
+  kpiEl.innerHTML =
+    kpiCard('Progresso do PI', piFmtPct(k.clusterProgress), '%', '',
+      {cls:'flat', text:`${k.doneItems.toLocaleString('pt-BR')} de ${k.totalItems.toLocaleString('pt-BR')} itens`},
+      'Itens concluídos ÷ itens válidos (sem sub-tarefas, sem cancelados)', 'pi-done')
+    + kpiCard('Épicos entregues', piFmtPct(k.epicsDonePct), '%', 'slate',
+      {cls:'flat', text:`${k.epicsDone} de ${k.totalEpics} épicos`},
+      'Pelo status do próprio épico no Jira, não pelo progresso dos filhos', 'pi-epics-done')
+    + kpiCard('Quarter percorrido', piFmtPct(k.timeProgress), k.timeProgress===null?'':'%', 'slate',
+      win ? {cls:'flat', text:`${piFmtBr(win.start)} → ${piFmtBr(win.end)}`} : semPi,
+      'Dias decorridos do quarter — a régua contra a qual o progresso é lido')
+    + kpiCard('Gap plano × tempo', k.gap===null?'—':piFmtPct(Math.abs(k.gap)),
+      k.gap===null?'':'pp', k.gap!==null && k.gap<0 ? 'coral' : '',
+      {cls:gapCls, text:gapTxt},
+      'Progresso de entrega menos progresso no tempo. Negativo = entregando mais devagar que o calendário')
+    + kpiCard('Total de épicos', k.totalEpics.toLocaleString('pt-BR'), '', 'slate',
+      {cls:'flat', text:`${t.squads.length} squad(s)`},
+      'Épicos não cancelados no recorte', 'pi-epics')
+    + kpiCard('Épicos vazios', k.emptyEpics.toLocaleString('pt-BR'), '',
+      k.emptyEpics>0?'amber':'slate',
+      {cls:'flat', text:'sem nenhum item'},
+      'Épico cadastrado no PI sem nenhum filho entregável — planejamento incompleto', 'pi-empty')
+    + kpiCard('Squads abaixo do esperado', k.squadsBehind===null?'—':String(k.squadsBehind), '',
+      k.squadsBehind>0?'amber':'slate',
+      k.squadsBehind===null ? semPi : {cls:'flat', text:`de ${t.squads.length} squad(s)`},
+      'Squads cujo progresso está abaixo do percentual do quarter já decorrido');
+
+  if(!t.squads.length){
+    squadsEl.innerHTML = `<div class="card pi-empty-state">
+      <div style="font-size:30px;line-height:1;margin-bottom:10px;">🎯</div>
+      <h3 style="margin-bottom:6px;">Nenhum épico neste recorte</h3>
+      <div class="cap" style="max-width:560px;margin:0 auto;">
+        ${t.pis.length
+          ? `Não há épicos de <b>${escapeHtml(rotulo)}</b> nos filtros atuais de Programa, Value Stream e Squad.`
+          : 'Nenhum épico com label de PI reconhecida nos dados carregados.'}</div></div>`;
+    return;
+  }
+
+  squadsEl.innerHTML = t.squads.map(s=>{
+    const collapsed = piCollapsedSquads.has(s.squad) ? ' collapsed' : '';
+    const rows = s.epics.map(e=>{
+      const badges = [
+        e.epicDone ? '<span class="badge ok">entregue</span>' : '',
+        e.transbordo ? '<span class="badge warn">transbordo</span>' : '',
+        e.isEmpty ? '<span class="badge risk">sem itens</span>' : '',
+        e.cancelled ? `<span class="pi-sub">${e.cancelled} canc.</span>` : '',
+      ].filter(Boolean).join(' ');
+      return `<tr>
+        <td class="pi-epic-key"><a href="${JIRA_BROWSE}${e.epic.Chave}" target="_blank" rel="noopener">${e.epic.Chave}</a></td>
+        <td class="pi-resumo" title="${escapeHtml(String(e.epic.Resumo||''))}">${escapeHtml(String(e.epic.Resumo||''))}</td>
+        <td style="width:190px;">${piMeter(e.done, e.inProgress, e.todo)}</td>
+        <td class="pi-sub" style="white-space:nowrap;">${piFmtPct(e.pct)}% · ${e.done}/${e.total}</td>
+        <td class="pi-sub" style="white-space:nowrap;">${e.todo} pend · ${e.inProgress} and · ${e.done} concl</td>
+        <td>${escapeHtml(String(e.epic.Status||''))}</td>
+        <td>${badges}</td>
+        <td>${e.children.length
+          ? `<button class="pi-kids" data-pi-kids="${e.epic.Chave}">${e.children.length} filhos</button>`
+          : ''}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="pi-squad${collapsed}" data-pi-squad="${escapeHtml(s.squad)}">
+      <div class="pi-squad-head">
+        <div class="pi-squad-name">
+          <span class="pi-caret">▾</span>
+          <span>${escapeHtml(s.squad)}</span>
+          <span class="pi-sub">${s.epics.length} épico(s)</span>
+        </div>
+        <div>${piMeter(s.done, s.inProgress, s.todo)}
+          <div class="pi-sub" style="margin-top:4px;">${s.done}/${s.total} itens · ${s.todo} pendentes</div>
+        </div>
+        <div class="pi-pct">${piFmtPct(s.pct)}%</div>
+      </div>
+      <div class="pi-squad-body">
+        <div style="overflow-x:auto;"><table class="datatable">
+          <thead><tr>
+            <th>Épico</th><th>Resumo</th><th>Progresso</th><th>%</th>
+            <th>Fases</th><th>Status do épico</th><th>Sinais</th><th></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Guarda os filhos por épico para o drill-down (fora do HTML, sem serializar).
+  __piChildrenByEpic = new Map(t.epics.map(e=>[e.epic.Chave, e]));
+}
+
+let __piChildrenByEpic = new Map();
+
+/* Recolher/expandir squad e abrir os filhos de um épico. Um handler só, no
+   documento, porque o conteúdo é reconstruído a cada render. */
+document.addEventListener('click', (e)=>{
+  const kids = e.target.closest('[data-pi-kids]');
+  if(kids){
+    const row = __piChildrenByEpic.get(kids.getAttribute('data-pi-kids'));
+    if(row) openDrawer(`Filhos de ${row.epic.Chave} — ${row.epic.Resumo||''}`, row.children);
+    return;
+  }
+  const head = e.target.closest('.pi-squad-head');
+  if(head){
+    const card = head.closest('.pi-squad');
+    const squad = card.getAttribute('data-pi-squad');
+    card.classList.toggle('collapsed');
+    if(card.classList.contains('collapsed')) piCollapsedSquads.add(squad);
+    else piCollapsedSquads.delete(squad);
+  }
+});
+
 /* ===================== Init / Bootstrap ===================== */
 function showLoading(msg){
   let el = document.getElementById('__loading');
@@ -2840,7 +3341,7 @@ const DASHBOARD_STORE = 'snapshots';
 // versão anterior são descartados (senão o cache serviria métricas pela regra antiga).
 // 3 = Aging só para itens com Data de início real (sem fallback para a Criação).
 // 4 = payload passa a trazer SprintPeriodos/SprintHistoricoOk (velocity).
-const DASHBOARD_SCHEMA_VERSION = 4;
+const DASHBOARD_SCHEMA_VERSION = 5;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 
@@ -2880,7 +3381,7 @@ function setProgressiveStatus(text, loading){
 }
 function mergeProgressiveMeta(target, incoming){
   const result={...(target||{})};
-  ['pendingStatuses','inProgressStatuses','doneStatuses','cancelledStatuses'].forEach(k=>{
+  ['pendingStatuses','inProgressStatuses','doneStatuses','cancelledStatuses','quarterRules'].forEach(k=>{
     if(incoming&&incoming[k]) result[k]=incoming[k];
   });
   const sprints=new Map((result.sprints||[]).map(s=>[s.name,s]));
@@ -2946,6 +3447,7 @@ function renderProgressiveDataset(items, meta, generatedAt){
   window.__RULES_PENDING=meta.pendingStatuses||[];
   window.__RULES_INPROG=meta.inProgressStatuses||[];
   window.__SPRINTS=meta.sprints||[];
+  window.__QUARTER_RULES=meta.quarterRules||null;
   document.getElementById('exportDate').textContent=formatExportDate(generatedAt);
   normalizeData();
   if(!dashboardInitialized){setDefaultDateRange();dashboardInitialized=true;}

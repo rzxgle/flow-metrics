@@ -34,6 +34,10 @@ class IssueEnricher {
       VS: issue.projectName,
       Squad: issue.team || 'Não informado',
       PI: this.classifier.piOf(issue.labels),
+      // Labels cruas: o PI acima já é derivado delas, mas a aba de PI Tracking
+      // precisa distinguir POR QUAL label o item entrou no ciclo (transbordo,
+      // novo, despriorizado) — informação que colapsa ao virar um único PI.
+      Labels: issue.labels || [],
       Status: issue.status,
       Concluido: done,
       Cancelado: cancelled,
@@ -54,6 +58,10 @@ class IssueEnricher {
       SprintHistoricoOk: sprintHist.reconstructed,
       MotivoBloqueio: issue.blockReason,
       Criado: toIsoDate(issue.createdAt),
+      // Data limite planejada. Já era buscada no Jira e usada pela avaliação de
+      // saúde do épico, mas não chegava ao front — a aba de PI Tracking precisa
+      // dela para situar o épico na janela do quarter.
+      Prazo: toIsoDate(issue.dueDate),
       'Data Conclusao': toIsoDate(conclusao),
       'Data Inicio Real': toIsoDate(issue.actualStartDate),
       'Data Fim Real': toIsoDate(issue.actualEndDate),

@@ -13,7 +13,8 @@
     "test:velocity": "node test/velocity.spec.js",
     "test:amplify": "node test/amplify.spec.js",
     "test:progressive": "node test/progressive.spec.js",
-    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:amplify"
+    "test:pi": "node test/pi-tracking.spec.js",
+    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:amplify"
   },
   "engines": {
     "node": ">=18"
