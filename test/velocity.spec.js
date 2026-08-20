@@ -61,6 +61,10 @@ const epilogo = `
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   selections, normalizeData, serieVelocity, atribuirEntregas, sprintJanelaDatas,
   renderVelocity, initVelocityRange, sprintCatalogoOrdenado,
+  matchesSprintTabFilters, sprintNamesFromData, initSprintSelector, syncFilterBarForTab,
+  get sprintSelection(){ return sprintSelection; },
+  set sprintSelection(v){ sprintSelection=v; },
+  set activeTab(v){ activeTab=v; },
   set velocityRange(v){ velocityRange=v; },
 };`;
 vm.createContext(sandbox);
@@ -178,6 +182,81 @@ check('soma das entregas por sprint + fora de sprint = todo o SP concluído', ()
   const foraSp = foraDeSprint.reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
   const conclSp = todos.filter((d)=>d.Concluido).reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
   assert.strictEqual(porSprintSp + foraSp, conclSp, 'nenhum SP entregue pode se perder');
+});
+
+console.log('\nFiltros específicos da aba Sprint:');
+
+const sprintItem = (chave, squad, tipo, sprints, cancelado=false) => ({
+  Chave:chave, Squad:squad, 'Tipo de item':tipo, 'Tipo Agrupado':'História',
+  Sprints:sprints, SprintPeriodos:[], Cancelado:cancelado,
+});
+const sprintData = [
+  sprintItem('X-1', 'Squad X', 'Story', ['X Sprint 1']),
+  sprintItem('X-2', 'Squad X', 'Bug', ['X Sprint 2']),
+  sprintItem('Y-1', 'Squad Y', 'Story', ['Y Sprint 1']),
+  sprintItem('Y-2', 'Squad Y', 'Story', ['Y Cancelada'], true),
+];
+T.DATA = sprintData;
+T.selections.Squad.clear();
+T.selections['Tipo de item'].clear();
+
+check('sem Squad o seletor interno não oferece sprints', () => {
+  assert.strictEqual(T.sprintNamesFromData().length, 0);
+});
+
+check('uma Squad oferece somente as sprints daquele Team', () => {
+  T.selections.Squad.add('Squad X');
+  assert.strictEqual(T.sprintNamesFromData().join(','), 'X Sprint 2,X Sprint 1');
+});
+
+check('múltiplas Squads produzem a união das sprints, sem canceladas', () => {
+  T.selections.Squad.add('Squad Y');
+  const names = T.sprintNamesFromData();
+  assert.ok(names.includes('X Sprint 1') && names.includes('X Sprint 2') && names.includes('Y Sprint 1'));
+  assert.ok(!names.includes('Y Cancelada'));
+});
+
+check('filtros ocultos não afetam a aba, mas Tipo afeta', () => {
+  T.selections.Programa.add('Programa inexistente');
+  T.selections.Status.add('Status inexistente');
+  T.selections['Tipo de item'].add('Story');
+  assert.strictEqual(T.matchesSprintTabFilters(sprintData[0]), true);
+  assert.strictEqual(T.matchesSprintTabFilters(sprintData[1]), false);
+});
+
+check('troca de Squad substitui uma sprint que não pertence ao novo Team', () => {
+  T.selections.Squad.clear();
+  T.selections.Squad.add('Squad X');
+  T.sprintSelection = 'X Sprint 1';
+  T.initSprintSelector();
+  assert.strictEqual(T.sprintSelection, 'X Sprint 1', 'mantém uma sprint ainda válida');
+  T.selections.Squad.clear();
+  T.selections.Squad.add('Squad Y');
+  T.initSprintSelector();
+  assert.strictEqual(T.sprintSelection, 'Y Sprint 1', 'troca para a sprint disponível da nova Squad');
+});
+
+check('a barra recebe sprint-only apenas na aba Sprint', () => {
+  const states = {};
+  getEl('filterBar').classList = { toggle(cls,on){ states[cls]=on; } };
+  T.activeTab = 'sprint'; T.syncFilterBarForTab();
+  assert.strictEqual(states['sprint-only'], true);
+  assert.strictEqual(states['pi-only'], false);
+  T.activeTab = 'exec'; T.syncFilterBarForTab();
+  assert.strictEqual(states['sprint-only'], false);
+});
+
+const sprintHidden = ['#dd-Programa','#dd-VS','#dd-PI','#dd-AnoCriacao','#dd-Mes','#dd-Status','.date-filter'];
+for(const selector of sprintHidden){
+  const literal = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  check(`CSS da aba Sprint esconde ${selector}`, () => {
+    assert.ok(new RegExp(`#filterBar\\.sprint-only\\s+${literal}\\s*[,{]`).test(html));
+  });
+}
+
+check('Conclusão não força display inline sobre a regra da aba Sprint', () => {
+  assert.doesNotMatch(html, /wrap\.style\.cssText\s*=\s*['"]display:flex/);
+  assert.match(html, /#filterBar\s+\.date-filter\s*\{display:flex;\}/);
 });
 
 console.log(`\n✅ ${passed} verificações passaram.\n`);
