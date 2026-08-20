@@ -17,11 +17,12 @@ const EpicResolver = require('../../domain/services/EpicResolver');
  *   6. devolver { issues, epics, generatedAt }.
  */
 class GetDashboardDataUseCase {
-  constructor({ issueRepository, enricher, epicSummaryBuilder, epicHealthEvaluator }) {
+  constructor({ issueRepository, enricher, epicSummaryBuilder, epicHealthEvaluator, quarterRules }) {
     this.issueRepository = issueRepository;
     this.enricher = enricher;
     this.epicSummaryBuilder = epicSummaryBuilder;
     this.epicHealthEvaluator = epicHealthEvaluator;
+    this.quarterRules = quarterRules || null;
   }
 
   async execute() {
@@ -90,6 +91,8 @@ class GetDashboardDataUseCase {
         inProgressStatuses: this.enricher.classifier.rules.inProgressStatuses || [],
         doneStatuses: this.enricher.classifier.rules.doneStatuses || [],
         cancelledStatuses: this.enricher.classifier.rules.cancelledStatuses || [],
+        // Regras da aba de PI Tracking (ver config/quarter.rules.js).
+        quarterRules: this.quarterRules,
         sprints: Array.from(sprintCatalog.values()),
       },
     };

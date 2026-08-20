@@ -18,7 +18,8 @@ src/
 ├── main.js                     # Composition Root: instancia e injeta tudo
 ├── config/
 │   ├── index.js                # lê variáveis de ambiente (.env)
-│   └── classification.rules.js # REGRAS de negócio como dados (Open/Closed)
+│   ├── classification.rules.js # REGRAS de negócio como dados (Open/Closed)
+│   └── quarter.rules.js        # regras da aba PI Tracking (outras, de propósito)
 │
 ├── domain/                     # Regras de negócio puras (sem dependências)
 │   ├── entities/Issue.js
@@ -110,6 +111,56 @@ Cole os corretos no `.env`. Sem isso, Story Points/datas podem vir zerados/vazio
 | GET    | `/api/dashboard?refresh=1` | Força rebuscar no Jira, ignorando o cache             |
 | GET    | `/api/health`              | Healthcheck                                           |
 
+## A aba PI Tracking
+
+Acompanhamento dos épicos de um PI/quarter, agrupados por squad: progresso de
+cada épico, quantos itens estão pendentes / em andamento / concluídos, e o
+drill-down dos filhos com status e link para o Jira.
+
+**Ela usa outro conjunto de regras, de propósito.** `config/quarter.rules.js`
+replica status por status e tipo por tipo o painel de quarter que o time já usa
+nas cerimônias de PI (projeto `afya-quarter`), para os dois números não
+divergirem. Três diferenças em relação às outras abas:
+
+1. **sub-tarefas e o próprio épico ficam fora do denominador** — contá-los soma o
+   mesmo trabalho duas vezes (a história e cada um dos seus subitens);
+2. **itens cancelados saem do denominador** em vez de contarem como não feitos;
+3. a comparação de status é **normalizada** e `Em Homologação`, `Pronto para
+   Staging` e `Staging` contam como concluído.
+
+No dataset atual isso vale 15 pontos percentuais nos épicos de `PI3 - Afya One`:
+**51,1%** pela regra do PI (499 itens) contra **66,2%** pela regra das outras
+abas (3.465 membros, dos quais 3.336 são sub-tarefas).
+
+As regras vivem no servidor e **viajam com o payload** (`meta.quarterRules`) — o
+navegador não guarda uma segunda cópia que sairia de sincronia.
+
+Dois detalhes que valem saber:
+
+- **Os filhos não herdam o PI do épico.** As labels ficam no épico; 1.430 dos
+  3.465 filhos dos épicos de PI3 têm PI "Não informado". A aba seleciona os
+  **épicos** pela label e depois puxa **todos** os filhos pela cadeia de parent.
+- **Labels de transbordo entram no PI de destino.** `TransbordoPI2AfyaOne`,
+  `NOVOPI3AfyaOne`, `DESPRIORIZADOPI3AfyaOne`, `LegadoTransbordoP126` e
+  `LegadoTransbordoP226` passaram a ser reconhecidas em
+  `classification.rules.js` — antes caíam em "Não informado", **em todas as
+  abas**.
+
+KPIs: Progresso do PI, Épicos entregues, Quarter percorrido, Gap plano × tempo,
+Total de épicos, Épicos vazios e Squads abaixo do esperado — todos clicáveis,
+abrindo as issues por trás do número.
+
+**Filtros.** A aba usa **PI, Programa, Value Stream e Squad** da barra do topo.
+Ano, Mês, Tipo, Status e o intervalo de conclusão **saem da tela** aqui: eles
+mexeriam no *denominador* do progresso em vez do recorte (com "Status = Done",
+todo épico apareceria com 100%). A seleção feita neles em outras abas continua
+guardada. Como "quanto do quarter já passou" não tem resposta para dois quarters
+somados, os KPIs temporais só aparecem com **um** PI selecionado; com mais de um,
+avisam em vez de somar quarters.
+
+Rode `npm run test:pi` para validar as regras — o teste executa o script da
+própria página num `vm`, não uma cópia.
+
 ## Fidelidade da transformação
 
 As regras foram reconstruídas a partir do dataset original e **conferidas contra
@@ -124,6 +175,7 @@ processo antigo ainda não tratava PI4).
 
 - **Trocar/editar a JQL** → `JIRA_JQL` no `.env` (ou o padrão em `config/index.js`).
 - **Novo tipo de item, status ou PI** → `config/classification.rules.js`.
+- **Regras do acompanhamento de PI** → `config/quarter.rules.js`.
 - **Fórmula de Lead/Cycle/Aging** → `domain/services/FlowMetricsCalculator.js`.
 - **Regra de saúde do épico** → `domain/services/EpicHealthEvaluator.js`.
 - **Trocar Jira por outra fonte** → nova classe que estenda `IssueRepository` e

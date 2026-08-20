@@ -101,14 +101,27 @@ const broadlyDeliveredStatuses = doneStatuses;
  * Regras de PI a partir dos labels (campo "Categorias").
  * A ordem importa: o primeiro token encontrado (de cima para baixo) define o PI.
  * Assim, se um item tiver PI2 e PI3, prevalece o PI mais recente.
+ *
+ * Além do label "principal" de cada PI, entram aqui os labels de TRANSBORDO,
+ * de item NOVO e de item DESPRIORIZADO. Eles não são um PI à parte: marcam um
+ * item que passou a ser acompanhado DENTRO de um PI, e é assim que a ferramenta
+ * de quarter (afya-quarter, `label_options.py`) monta o conjunto de cada ciclo.
+ * Um item com `PI2AfyaOne` + `TransbordoPI2AfyaOne` transbordou para o PI3 e é
+ * cobrado lá — por isso o label de transbordo vem ANTES do label do PI de
+ * origem nesta lista.
  */
 const piRulesInPriorityOrder = [
   { label: 'PI4AfyaOne', pi: 'PI4 - Afya One' },
   { label: 'PI3AfyaOne', pi: 'PI3 - Afya One' },
+  { label: 'NOVOPI3AfyaOne', pi: 'PI3 - Afya One' },
+  { label: 'DESPRIORIZADOPI3AfyaOne', pi: 'PI3 - Afya One' },
+  { label: 'TransbordoPI2AfyaOne', pi: 'PI3 - Afya One' },
   { label: 'PI2AfyaOne', pi: 'PI2 - Afya One' },
   { label: 'PI1AfyaOne', pi: 'PI1 - Afya One' },
   { label: 'EpicoPI3Legado', pi: 'PI3 - Legado' },
+  { label: 'LegadoTransbordoP226', pi: 'PI3 - Legado' },
   { label: 'EpicoPI2Legado', pi: 'PI2 - Legado' },
+  { label: 'LegadoTransbordoP126', pi: 'PI2 - Legado' },
   { label: 'EpicoPI1Legado', pi: 'PI1 - Legado' },
 ];
 
