@@ -122,6 +122,8 @@ function build() {
     assert.strictEqual(byKey['AONE-5'].PI, 'PI4 - Afya One'));
   check('PI: EpicoPI2Legado -> "PI2 - Legado"', () =>
     assert.strictEqual(byKey['BRG-1'].PI, 'PI2 - Legado'));
+  check('PI: label despriorizada não entra mais no PI3', () =>
+    assert.strictEqual(new IssueClassifier(rules).piOf(['DESPRIORIZADOPI3AfyaOne']), 'Não informado'));
 
   check('Flags de status: Concluído', () => {
     assert.strictEqual(byKey['AONE-2'].Concluido, true);

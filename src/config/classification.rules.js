@@ -114,7 +114,6 @@ const piRulesInPriorityOrder = [
   { label: 'PI4AfyaOne', pi: 'PI4 - Afya One' },
   { label: 'PI3AfyaOne', pi: 'PI3 - Afya One' },
   { label: 'NOVOPI3AfyaOne', pi: 'PI3 - Afya One' },
-  { label: 'DESPRIORIZADOPI3AfyaOne', pi: 'PI3 - Afya One' },
   { label: 'TransbordoPI2AfyaOne', pi: 'PI3 - Afya One' },
   { label: 'PI2AfyaOne', pi: 'PI2 - Afya One' },
   { label: 'PI1AfyaOne', pi: 'PI1 - Afya One' },
