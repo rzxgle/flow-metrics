@@ -301,6 +301,21 @@
   #filterBar.pi-only #dd-Status,
   #filterBar.pi-only .date-filter{display:none;}
 
+  /* O display precisa ficar na folha de estilos, não inline no elemento; assim
+     os modos específicos das abas conseguem sobrescrevê-lo. */
+  #filterBar .date-filter{display:flex;}
+
+  /* Na aba Sprint, o recorte gerencial é somente Squad + Tipo. As seleções dos
+     demais filtros continuam guardadas para as outras abas, mas ficam ocultas
+     e não participam dos cálculos desta página. */
+  #filterBar.sprint-only #dd-Programa,
+  #filterBar.sprint-only #dd-VS,
+  #filterBar.sprint-only #dd-PI,
+  #filterBar.sprint-only #dd-AnoCriacao,
+  #filterBar.sprint-only #dd-Mes,
+  #filterBar.sprint-only #dd-Status,
+  #filterBar.sprint-only .date-filter{display:none;}
+
   /* ===== PI Tracking (épicos do quarter, agrupados por squad) ===== */
   /* Legenda sempre presente: as três fases são três cores, então a identidade
      nunca pode depender só da cor. Os números por fase aparecem em cada linha. */
@@ -709,7 +724,7 @@
   <div class="callout" style="margin:0 0 14px;">
     <span class="icon">ⓘ</span>
     <div>Este bloco <b>não segue o seletor de sprint acima</b> — ele percorre várias sprints e usa
-      os <b>filtros do topo</b> (Squad, Value Stream, Programa). A sprint escolhida no seletor aparece
+      os <b>filtros do topo</b> (Squad e Tipo). A sprint escolhida no seletor aparece
       <b>destacada</b> no gráfico. Só entram <b>itens standard</b> (exclui Épico e Sub-task, para não
       somar Story Points do pai e do filho) e não cancelados.
       <span id="velocity-ressalva"></span></div>
@@ -1055,7 +1070,7 @@ function bindDropdownOutsideClick(){
 function buildDateFilter(bar){
   const wrap = document.createElement('div');
   wrap.className = 'date-filter';
-  wrap.style.cssText = 'display:flex;align-items:center;gap:6px;padding:0 8px;font-size:12.5px;color:#5A5A5A;';
+  wrap.style.cssText = 'align-items:center;gap:6px;padding:0 8px;font-size:12.5px;color:#5A5A5A;';
   const inputStyle = 'background:#fff;border:1px solid #DCDCDC;'
     + 'color:#333333;border-radius:7px;padding:6px 8px;font-size:12.5px;'
     + "font-family:'Inter',sans-serif;color-scheme:light;";
@@ -1458,13 +1473,12 @@ document.addEventListener('click', (e)=>{
 let activeTab = 'exec';
 
 /**
- * Esconde, na aba PI Tracking, os filtros que não têm efeito nela (Ano, Mês,
- * Tipo, Status e o intervalo de conclusão).
+ * Ajusta os filtros visíveis para as abas com recorte próprio (PI Tracking e
+ * Sprint). As seleções ocultas continuam guardadas para as demais abas.
  *
- * Eles continuam com a seleção que o usuário fez em outras abas — só não são
- * exibidos aqui, porque o recorte desta aba usa apenas Programa, VS, Squad e PI.
- * Mostrá-los sugeriria um efeito inexistente; desabilitá-los levantaria a
- * pergunta de por que estão travados.
+ * No PI, o recorte usa Programa, VS, Squad e PI. Na Sprint, usa Squad e Tipo.
+ * Mostrar os demais controles sugeriria um efeito que eles não têm; suas
+ * seleções reaparecem intactas quando o usuário retorna às outras abas.
  *
  * A barra é reconstruída a cada lote da carga progressiva, então esta função é
  * chamada também no fim de buildFilterBar() — senão o modo se perderia no meio
@@ -1472,7 +1486,9 @@ let activeTab = 'exec';
  */
 function syncFilterBarForTab(){
   const bar = document.getElementById('filterBar');
-  if(bar) bar.classList.toggle('pi-only', activeTab==='pi');
+  if(!bar) return;
+  bar.classList.toggle('pi-only', activeTab==='pi');
+  bar.classList.toggle('sprint-only', activeTab==='sprint');
 }
 
 document.getElementById('tabNav').addEventListener('click', (e)=>{
@@ -1508,6 +1524,7 @@ function renderAll(){
   renderFlow(f);
   renderWip(f, atual);
   renderBlock(getFiltered(SKIP_TIPO), getFilteredNoDate(SKIP_TIPO));
+  initSprintSelector();
   renderSprint();
   renderPiTracking();
 }
@@ -2280,9 +2297,28 @@ function renderBlock(f, atual){
 }
 
 /* ===================== TAB: SPRINT (itens 10/11) ===================== */
+const SPRINT_TAB_FILTER_KEYS = ['Squad','Tipo de item'];
+
+function matchesSprintTabFilters(d, skip){
+  for(const key of SPRINT_TAB_FILTER_KEYS){
+    if(skip && skip.has(key)) continue;
+    const sel = selections[key];
+    if(!sel || sel.size===0) continue;
+    let v = d[key];
+    if(v===null || v===undefined || v==='') v='(Não informado)';
+    if(!sel.has(String(v))) return false;
+  }
+  return true;
+}
+
+/* O catálogo interno só existe depois que ao menos uma Squad foi escolhida.
+   Tipo não limita o catálogo: uma sprint pertence ao time mesmo que, no
+   momento, não contenha itens do tipo selecionado. */
 function sprintNamesFromData(){
+  if(selections['Squad'].size===0) return [];
   const set = new Set();
-  DATA.filter(d=>!d.Cancelado).forEach(d=> (d.Sprints||[]).forEach(s=> set.add(s)));
+  DATA.filter(d=>!d.Cancelado && matchesSprintTabFilters(d, SKIP_TIPO))
+    .forEach(d=> (d.Sprints||[]).forEach(s=> set.add(s)));
   return Array.from(set).sort((a,b)=> String(b).localeCompare(String(a),'pt',{numeric:true})); // mais recente primeiro
 }
 function sprintDates(name){
@@ -2398,12 +2434,16 @@ function initSprintSelector(){
   btn.style.minWidth = '260px';
   const val = document.createElement('span');
   val.className = 'dd-val';
-  val.textContent = sprintSelection || '(nenhuma sprint encontrada nos dados)';
+  const semSquad = selections['Squad'].size===0;
+  val.textContent = sprintSelection || (semSquad
+    ? 'Selecione uma Squad'
+    : 'Nenhuma sprint encontrada para a Squad');
   btn.appendChild(val);
   const caret = document.createElement('span');
   caret.textContent = '▾';
   caret.style.cssText = 'margin-left:auto;color:var(--slate-soft);font-size:11px;';
   btn.appendChild(caret);
+  btn.disabled = !names.length;
 
   const panel = document.createElement('div');
   panel.className = 'dd-panel';
@@ -2471,13 +2511,15 @@ const isSubitem  = d => d['Tipo Agrupado']==='Sub-task';
 function renderSprint(){
   // '' quando não há sprints nos dados — mantém o render com estado vazio.
   const sprint = sprintSelection || '';
-  // base: respeita filtros da barra, ignora o filtro de data (para não truncar a sprint)
-  const base = getFilteredNoDate(SKIP_TIPO).filter(d=>!d.Cancelado);
-  const subsByParent = groupBy(base.filter(isSubitem), d=>d.parentKey);
+  // Squad limita toda a base. Tipo é aplicado aos itens principais; subtarefas
+  // continuam disponíveis para calcular a completude dos pais selecionados.
+  const squadBase = DATA.filter(d=>!d.Cancelado && matchesSprintTabFilters(d, SKIP_TIPO));
+  const subsByParent = groupBy(squadBase.filter(isSubitem), d=>d.parentKey);
   const subsOf = p => subsByParent.get(p.Chave) || [];
 
   // itens standard que pertencem à sprint (array Sprints contém)
-  const standardNaSprint = base.filter(d=> isStandard(d) && (d.Sprints||[]).includes(sprint));
+  const standardNaSprint = squadBase.filter(d=> isStandard(d)
+    && matchesSprintTabFilters(d) && (d.Sprints||[]).includes(sprint));
 
   // por item: X de Y subitens; se Y=0 usa o próprio status
   const rows = standardNaSprint.map(p=>{
@@ -2651,10 +2693,9 @@ function renderVelocity(){
   if(vazio) vazio.style.display = temSquad ? 'none' : 'block';
   if(conteudo) conteudo.style.display = temSquad ? 'block' : 'none';
 
-  // Base: filtros do topo, sem o filtro de data (a janela da sprint é o período)
-  // e sem o filtro de Tipo (o recorte de tipos é próprio deste bloco: standard).
-  const base = getFilteredNoDate(SKIP_TIPO)
-    .filter(d=>!d.Cancelado && isStandard(d));
+  // Base própria da aba: somente Squad + Tipo. A janela da sprint substitui o
+  // período de conclusão e os demais filtros do topo não participam daqui.
+  const base = DATA.filter(d=>!d.Cancelado && isStandard(d) && matchesSprintTabFilters(d));
 
   // Ressalva de transparência: itens cuja cronologia de sprint não pôde ser
   // reconstruída (conjunto conhecido, datas não) — ver SprintHistoryResolver.
@@ -3451,7 +3492,7 @@ function renderProgressiveDataset(items, meta, generatedAt){
   document.getElementById('exportDate').textContent=formatExportDate(generatedAt);
   normalizeData();
   if(!dashboardInitialized){setDefaultDateRange();dashboardInitialized=true;}
-  buildFilterBar(); initSprintSelector(); renderAll(); hideLoading();
+  buildFilterBar(); renderAll(); hideLoading();
 }
 
 async function requestProgressiveBatch(phase,nextPageToken,since){
