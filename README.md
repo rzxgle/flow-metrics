@@ -141,7 +141,7 @@ Dois detalhes que valem saber:
   3.465 filhos dos épicos de PI3 têm PI "Não informado". A aba seleciona os
   **épicos** pela label e depois puxa **todos** os filhos pela cadeia de parent.
 - **Labels de transbordo entram no PI de destino.** `TransbordoPI2AfyaOne`,
-  `NOVOPI3AfyaOne`, `DESPRIORIZADOPI3AfyaOne`, `LegadoTransbordoP126` e
+  `NOVOPI3AfyaOne`, `LegadoTransbordoP126` e
   `LegadoTransbordoP226` passaram a ser reconhecidas em
   `classification.rules.js` — antes caíam em "Não informado", **em todas as
   abas**.
