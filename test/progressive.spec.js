@@ -15,8 +15,10 @@ function rawIssue(key, type, parentKey = null) {
 
 (async () => {
   let receivedJql = '';
+  let receivedInput = null;
   const issueRepository = {
     async findBatch(input) {
+      receivedInput = input;
       receivedJql = input.jql;
       return {
         issues: [rawIssue('EP-1', 'Epic'), rawIssue('ST-1', 'Story', 'EP-1')],
@@ -37,6 +39,8 @@ function rawIssue(key, type, parentKey = null) {
   const useCase = new GetProgressiveDashboardDataUseCase({
     issueRepository, enricher, epicHealthEvaluator: { evaluate: () => 'Saudável' },
     baseJql: 'project = TEST ORDER BY created DESC', maxPages: 9,
+    quarterRules: { ignoredStatuses: ['Cancelado', 'Inválido'] },
+    piLabelRules: [{ label: 'PI3AfyaOne', pi: 'PI3' }, { label: 'NOVOPI3AfyaOne', pi: 'PI3' }],
   });
   const recent = await useCase.execute({ phase: 'recent' });
   assert.match(receivedJql, /created >= -60d/);
@@ -53,6 +57,20 @@ function rawIssue(key, type, parentKey = null) {
   await assert.rejects(() => useCase.execute({ phase: 'delta', since: 'invalida' }), /Data incremental invalida/);
   await assert.rejects(() => useCase.execute({ phase: 'invalid' }), /Fase progressiva invalida/);
 
+  const piEpics = await useCase.execute({ phase: 'pi-epics' });
+  assert.match(receivedJql, /labels in \("PI3AfyaOne", "NOVOPI3AfyaOne"\)/);
+  assert.match(receivedJql, /issuetype in \(Epic, "Enabler Epic"\)/);
+  assert.match(receivedJql, /status not in \("Cancelado", "Inválido"\)/);
+  assert.doesNotMatch(receivedJql, /startOfYear|created\s*[<>]=?/i);
+  assert.equal(receivedInput.includeSprintHistory, false);
+  assert.equal(piEpics.issues, undefined);
+  assert.equal(piEpics.piIssues.length, 2);
+
+  await useCase.execute({ phase: 'pi-children', epicKeys: ['EP-1', 'EP-2'] });
+  assert.match(receivedJql, /parent in \(EP-1, EP-2\)/);
+  assert.equal(receivedInput.includeSprintHistory, false);
+  await assert.rejects(() => useCase.execute({ phase: 'pi-children', epicKeys: ['chave inválida'] }), /Chave de epico invalida/);
+
   const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
   const inlineScripts = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
     .map((match) => match[1]).filter(Boolean);
@@ -63,7 +81,9 @@ function rawIssue(key, type, parentKey = null) {
   assert.match(html, /bar\.replaceChildren\(\)/);
   assert.match(html, /filterDocumentHandlerBound/);
   assert.match(html, /if\(!filterDocumentHandlerBound\)/);
-  assert.match(html, /complete:isLast/);
+  assert.match(html, /loadPiTrackingDataset/);
+  assert.match(html, /piIssues/);
+  assert.match(html, /cached\.progress\.phase==='pi'\s*\?\s*phases\.length/);
   assert.match(html, /lastSyncAt/);
   assert.match(html, /mode:'delta'/);
   assert.match(html, /cacheComplete&&!forceRefresh/);

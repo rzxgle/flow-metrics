@@ -67,7 +67,7 @@ sandbox.globalThis = sandbox;
 // no mesmo escopo lexical e expõe só o que o teste precisa.
 const epilogo = `
 ;globalThis.__T = {
-  set DATA(v){ DATA.length=0; DATA.push(...v); },
+  set DATA(v){ DATA.length=0; DATA.push(...v); PI_DATA.length=0; PI_DATA.push(...v); },
   set activeTab(v){ activeTab = v; },
   selections, piBuildTracking, piOptionsFromData, piQuarterWindow, piTimeProgress, renderPiTracking,
   piSelectedPis, syncFilterBarForTab, buildFilterBar,
