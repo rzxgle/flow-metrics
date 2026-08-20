@@ -363,8 +363,9 @@ assert.ok(!/undefined|NaN/.test(squadsHtml), 'a lista de squads não pode conter
 // comunica se os três segmentos existirem.
 assert.ok(squadsHtml.includes('#CE0058') && squadsHtml.includes('#0057B8') && squadsHtml.includes('#D98E3B'),
   'a barra deve pintar concluído, em andamento e pendente');
-// Cada segmento leva o rótulo no title: cor sozinha não pode ser o único canal.
-assert.ok(squadsHtml.includes('title="Concluído:'), 'segmentos precisam de rótulo, não só cor');
+// Cada segmento leva rótulo acessível e ajuda contextual: cor sozinha não pode ser o único canal.
+assert.ok(squadsHtml.includes('aria-label="Concluído:') && squadsHtml.includes('data-help="Concluído:'),
+  'segmentos precisam de rótulo acessível e ajuda contextual, não só cor');
 
 // Os drills dos KPIs precisam apontar para issues de verdade.
 const drills = vm.runInContext('__cardDrills', sandbox);
