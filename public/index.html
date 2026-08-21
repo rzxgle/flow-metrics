@@ -3447,18 +3447,33 @@ function renderSprint(){
   const standardNaSprint = squadBase.filter(d=> isStandard(d)
     && matchesSprintTabFilters(d) && (d.Sprints||[]).includes(sprint));
 
+  // A entrega do bloco de progresso deve ser a MESMA do velocity. Calcular pelo
+  // estado atual dos subitens fazia um pai com 100% dos filhos aparecer como
+  // entregue nesta sprint mesmo quando sua entrega foi atribuída a outra.
+  const baseVelocity = DATA.filter(d=>!d.Cancelado && isStandard(d) && matchesSprintTabFilters(d));
+  const nomesNaBase = new Set();
+  baseVelocity.forEach(d=>{
+    (d.SprintPeriodos||[]).forEach(p=>nomesNaBase.add(p.sprint));
+    (d.Sprints||[]).forEach(s=>nomesNaBase.add(s));
+  });
+  const candidatasVelocity = sprintCatalogoOrdenado()
+    .filter(s=>nomesNaBase.has(s.name) && sprintComecou(s));
+  const entreguesNaSprint = atribuirEntregas(baseVelocity, candidatasVelocity)
+    .porSprint.get(sprint) || [];
+  const chavesEntregues = new Set(entreguesNaSprint.map(d=>d.Chave));
+
   // por item: X de Y subitens; se Y=0 usa o próprio status
   const rows = standardNaSprint.map(p=>{
     const subs = subsOf(p);
     const Y = subs.length;
     const X = subs.filter(s=>s.Concluido).length;
     const pct = Y>0 ? (X/Y*100) : (p.Concluido?100:0);
-    return {p, subs, X, Y, pct, concluido: Y>0 ? (X===Y) : p.Concluido};
+    return {p, subs, X, Y, pct, entregue: chavesEntregues.has(p.Chave)};
   }).sort((a,b)=> b.pct - a.pct);
 
   // KPIs
   const totalStd = rows.length;
-  const stdConcl = rows.filter(r=>r.concluido).length;
+  const stdEntregues = rows.filter(r=>r.entregue).map(r=>r.p);
   const totSub = rows.reduce((a,r)=>a+r.Y,0);
   const subConcl = rows.reduce((a,r)=>a+r.X,0);
   const compMedia = rows.length ? rows.reduce((a,r)=>a+r.pct,0)/rows.length : 0;
@@ -3466,6 +3481,7 @@ function renderSprint(){
 
   Object.assign(__cardDrills, {
     sprint_std: {title:`Itens standard · ${sprint}`, issues: standardNaSprint},
+    sprint_stdentregues: {title:`Itens standard entregues · ${sprint}`, issues: stdEntregues},
     sprint_sub: {title:`Subitens dos standard · ${sprint}`, issues: allSubs},
     sprint_subconcl: {title:`Subitens concluídos · ${sprint}`, issues: allSubs.filter(s=>s.Concluido)},
   });
@@ -3473,7 +3489,8 @@ function renderSprint(){
     kpiCard('Itens standard', fmt0(totalStd), 'itens', '', null, null, 'sprint_std'),
     kpiCard('Completude média', compMedia.toFixed(0), '%', compMedia>=70?'':'amber'),
     kpiCard('Subitens concluídos', `${fmt0(subConcl)}/${fmt0(totSub)}`, '', '', null, null, 'sprint_sub'),
-    kpiCard('Standard concluídos', `${fmt0(stdConcl)}/${fmt0(totalStd)}`, '', ''),
+    kpiCard('Standard entregues', `${fmt0(stdEntregues.length)}/${fmt0(totalStd)}`, '', '',
+      {cls:'flat', text:'mesma atribuição do velocity'}, null, 'sprint_stdentregues'),
   ].join('');
 
   // registro de drill por item (completude chart + tabela)

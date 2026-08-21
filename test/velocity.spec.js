@@ -26,7 +26,7 @@ function fakeEl(id){
     appendChild(c){ this.children.push(c); return c; }, replaceChildren(){ this.children=[]; },
     addEventListener(){}, removeEventListener(){},
     querySelector:()=>fakeEl('q'), querySelectorAll:()=>[],
-    getContext:()=>({canvas:{id}}),
+    getContext:()=>({canvas:{id}, createLinearGradient:()=>({addColorStop(){}})}),
     classList:{add(){}, remove(){}, toggle(){}, contains:()=>false},
     setAttribute(){}, getAttribute:()=>null, closest:()=>null, focus(){}, insertAdjacentHTML(){},
   };
@@ -61,7 +61,7 @@ const epilogo = `
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   selections, normalizeData, serieVelocity, atribuirEntregas, sprintJanelaDatas,
   sprintFimMs, dataEntregaSprint, TOLERANCIA_FECHAMENTO_DIAS,
-  renderVelocity, initVelocityRange, sprintCatalogoOrdenado,
+  renderSprint, renderVelocity, initVelocityRange, sprintCatalogoOrdenado,
   matchesSprintTabFilters, sprintNamesFromData, initSprintSelector, syncFilterBarForTab,
   get sprintSelection(){ return sprintSelection; },
   set sprintSelection(v){ sprintSelection=v; },
@@ -281,6 +281,26 @@ check('SP entregue + SP fora = SP concluído (nada se perde no lote novo)', () =
   const foraSp = r2.foraDeSprint.reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
   const total = lote.reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
   assert.strictEqual(dentroSp + foraSp, total);
+});
+
+check('progresso da sprint usa as mesmas entregas atribuídas pelo velocity', () => {
+  const entregueS1 = item({ chave:'P-1', sp:3, concl:true, entrega:'2026-07-10',
+    sprints:['S1'], periodos:[{sprint:'S1', enteredAt:'2026-07-01T14:00:00.000Z', leftAt:null}] });
+  const entregueS2 = item({ chave:'P-2', sp:5, concl:true, entrega:'2026-07-25',
+    sprints:['S1','S2'], periodos:[
+      {sprint:'S1', enteredAt:'2026-07-01T14:00:00.000Z', leftAt:'2026-07-17T10:00:00.000Z'},
+      {sprint:'S2', enteredAt:'2026-07-20T14:00:00.000Z', leftAt:null},
+    ] });
+  T.DATA = [entregueS1, entregueS2];
+  T.selections.Squad.clear(); T.selections.Squad.add('Squad X');
+  T.selections['Tipo de item'].clear(); T.selections['Tipo de item'].add('Story');
+  T.sprintSelection = 'S1';
+  sandbox.window.__SPRINTS = [S1, S2];
+  T.renderSprint();
+  const kpis = getEl('sprint-kpis').innerHTML;
+  assert.match(kpis, /Standard entregues/);
+  assert.match(kpis, /<div class="val">1\/2<\/div>/,
+    'P-2 pertenceu à S1, mas sua entrega foi atribuída somente à S2');
 });
 
 check('o resíduo é detalhado na tela, separado por motivo', () => {
