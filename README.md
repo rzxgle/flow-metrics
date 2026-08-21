@@ -97,17 +97,18 @@ Durante o desenvolvimento: `npm run dev` (reinicia ao salvar).
 
 ```bash
 npm test              # a suíte inteira (é o que o CI roda no PR)
-npm run test:filtros  # só os filtros da barra, no DOM
+npm run test:filtros  # uma suíte só; os nomes estão em "scripts", no package.json
 ```
 
 Os testes não tocam a rede: todos usam fixtures sintéticos. Vários deles
 extraem o `<script>` inline do `public/index.html` e o executam — testar uma
 cópia da lógica não pegaria os defeitos que já apareceram ali. Os de cálculo
-(`test:velocity`, por exemplo) rodam num `vm` do Node com um DOM falso; o
-`test:filtros` usa **jsdom**, porque o que ele verifica é apresentação: se o
-item some da tela pela cascata de CSS, inclusive quando a busca do dropdown
-escreve `display` inline no elemento. Um DOM falso não tem cascata e só
-conseguiria afirmar que a regra existe no texto do arquivo.
+(`test:velocity`, por exemplo) rodam num `vm` do Node com um DOM falso;
+`test:filtros` e `test:bloqueios` usam **jsdom**, porque o que eles verificam é
+apresentação — o que a tela de fato mostra: se um item some pela cascata de CSS
+(inclusive quando a busca do dropdown escreve `display` inline no elemento), o
+valor que cada KPI exibe, o HTML de uma linha de tabela. Um DOM falso não tem
+cascata, e não dá para ler dele o que foi renderizado.
 
 O jsdom é a única `devDependency` do projeto. O build do Amplify roda
 `npm ci --omit=dev`, então ele nunca chega ao bundle de produção.

@@ -16,7 +16,8 @@
     "test:pi": "node test/pi-tracking.spec.js",
     "test:delivery": "node test/sprint-delivery.spec.js",
     "test:filtros": "node test/filtros.spec.js",
-    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:delivery && npm run test:filtros && npm run test:amplify"
+    "test:bloqueios": "node test/bloqueios.spec.js",
+    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:delivery && npm run test:filtros && npm run test:bloqueios && npm run test:amplify"
   },
   "engines": {
     "node": ">=18"

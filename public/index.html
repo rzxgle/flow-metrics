@@ -1173,9 +1173,9 @@
   <div class="grid grid-2" style="margin-top:14px;">
     <div class="card">
       <h3>Bloqueios em aberto — mais antigos primeiro</h3>
-      <div class="cap">Sub-blocks ainda não resolvidos, por tempo em aberto — contado da <b>Criação</b> até hoje: um bloqueio nasce no momento em que é criado e deve ser tratado de imediato (regra própria, não usa o Aging).</div>
+      <div class="cap">Sub-blocks ainda não resolvidos, por tempo em aberto — contado da <b>Criação</b> até hoje: um bloqueio nasce no momento em que é criado e deve ser tratado de imediato (regra própria, não usa o Aging). A coluna <b>Bloqueio</b> traz o Sub-block; entre parênteses, o item que ele bloqueia.</div>
       <div style="overflow-x:auto;"><table class="datatable" id="block-open-table">
-        <thead><tr><th>Item pai</th><th>Squad</th><th>Motivo</th><th>Aberto há (dias)</th></tr></thead>
+        <thead><tr><th>Bloqueio</th><th>Squad</th><th>Motivo</th><th>Aberto há (dias)</th></tr></thead>
         <tbody></tbody>
       </table></div>
     </div>
@@ -3108,6 +3108,11 @@ function renderBlock(f, atual){
   const blocks = atual.filter(d=>d['Tipo de item']==='Sub-block');
   const abertos = blocks.filter(d=>!d.Concluido && !d.Cancelado);
   const resolvidos = f.filter(d=>d['Tipo de item']==='Sub-block' && d.Concluido);
+  // Bloqueio cancelado não é bloqueio resolvido: o impedimento não foi tratado,
+  // o item que ele travava é que saiu do caminho. Por isso fica num KPI próprio
+  // em vez de somar com os resolvidos (o que leria como entrega) ou de ficar
+  // invisível. Mesmo recorte de período dos resolvidos: os dois são desfechos.
+  const cancelados = f.filter(d=>d['Tipo de item']==='Sub-block' && d.Cancelado);
   // duração do bloqueio = Cycle Time (dias); só conta quando calculável
   const dur = d => (d.CycleTimeDias!=null ? d.CycleTimeDias : 0);
   // Tempo em aberto de um bloqueio — regra PRÓPRIA, não é o Aging.
@@ -3122,11 +3127,14 @@ function renderBlock(f, atual){
   Object.assign(__cardDrills, {
     block_abertos: {title:'Bloqueios em aberto', issues: abertos},
     block_resolvidos: {title:'Bloqueios resolvidos', issues: resolvidos},
+    block_cancelados: {title:'Bloqueios cancelados', issues: cancelados},
     block_todos: {title:'Todos os bloqueios (sub-blocks)', issues: blocks},
   });
   document.getElementById('block-kpis').innerHTML = [
     kpiCard('Bloqueios abertos', fmt0(abertos.length), 'itens', 'coral', {cls:'flat', text:'posição atual'}, null, 'block_abertos'),
     kpiCard('Bloqueios resolvidos', fmt0(resolvidos.length), 'itens', '', null, null, 'block_resolvidos'),
+    kpiCard('Bloqueios cancelados', fmt0(cancelados.length), 'itens', '',
+      {cls:'flat', text:'não entram nos resolvidos'}, null, 'block_cancelados'),
     kpiCard('Tempo médio bloqueado', tempoMedio==null?'—':fmt1(tempoMedio), 'dias', 'amber', {cls:'flat', text:'dos resolvidos'}),
     kpiCard('Itens impactados', fmt0(paisImpactados), 'itens', '', {cls:'flat', text:'com ≥1 bloqueio'}, null, 'block_todos'),
   ].join('');
@@ -3166,8 +3174,8 @@ function renderBlock(f, atual){
     .sort((a,b)=>(b.dias!=null?b.dias:-1)-(a.dias!=null?a.dias:-1));
   document.querySelector('#block-open-table tbody').innerHTML = abertosOrd.length ? abertosOrd.map(({d, dias})=>`
     <tr>
-      <td><a class="jira" href="${JIRA_BROWSE}${d.parentKey||d.chave}" target="_blank" rel="noopener">${d.parentKey||'—'}</a>
-          <span style="color:var(--slate-soft);font-size:11px;"> (${d.chave})</span></td>
+      <td><a class="jira" href="${JIRA_BROWSE}${d.chave}" target="_blank" rel="noopener">${d.chave}</a>
+          <span style="color:var(--slate-soft);font-size:11px;"> (${d.parentKey||'—'})</span></td>
       <td style="font-size:11.5px;">${d.Squad||'—'}</td>
       <td style="font-size:11.5px;">${d.MotivoBloqueio||'—'}</td>
       <td><b>${dias!=null?fmt0(dias):'—'}</b></td>
