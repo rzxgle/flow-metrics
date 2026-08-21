@@ -264,6 +264,21 @@ check('saiu de uma sprint futura e voltou à anterior: entrega fica onde termino
     'uma passagem encerrada antes do início de R2 não pode sequestrar a entrega');
 });
 
+check('entrega anterior à PI3_1 permanece na sprint em que o item estava (CONV-21)', () => {
+  const pi2 = {name:'PI2_5', state:'closed', startDate:'2026-06-16T11:59:00.301Z',
+    endDate:'2026-06-26T21:00:00.000Z', completeDate:'2026-06-26T21:16:33.207Z'};
+  const pi3 = {name:'PI3_1', state:'closed', startDate:'2026-07-13T17:40:11.547Z',
+    endDate:'2026-07-27T03:00:00.000Z', completeDate:'2026-07-25T02:58:48.974Z'};
+  const antiga = item({chave:'CONV-21', sp:5, concl:true, entrega:'2026-06-15',
+    sprints:['PI3_1','PI2_5'], periodos:[
+      {sprint:'PI2_5', enteredAt:'2026-06-11T15:38:00.027Z', leftAt:'2026-06-16T12:18:00.130Z'},
+    ]});
+  const calc = T.atribuirEntregas([antiga], [pi2, pi3]);
+  assert.strictEqual((calc.porSprint.get('PI2_5')||[]).map(d=>d.Chave).join(','), 'CONV-21');
+  assert.strictEqual((calc.porSprint.get('PI3_1')||[]).length, 0,
+    'uma entrega de junho não pode ser creditada a uma sprint iniciada em julho');
+});
+
 check('Done mais de 7 dias após o fim fica fora, com motivo "tardia"', () => {
   assert.ok(!em('S4').includes('B-2'));
   assert.strictEqual(motivoDe('B-2'), 'tardia');
