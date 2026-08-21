@@ -93,6 +93,25 @@ npm start
 
 Durante o desenvolvimento: `npm run dev` (reinicia ao salvar).
 
+## Testes
+
+```bash
+npm test              # a suíte inteira (é o que o CI roda no PR)
+npm run test:filtros  # só os filtros da barra, no DOM
+```
+
+Os testes não tocam a rede: todos usam fixtures sintéticos. Vários deles
+extraem o `<script>` inline do `public/index.html` e o executam — testar uma
+cópia da lógica não pegaria os defeitos que já apareceram ali. Os de cálculo
+(`test:velocity`, por exemplo) rodam num `vm` do Node com um DOM falso; o
+`test:filtros` usa **jsdom**, porque o que ele verifica é apresentação: se o
+item some da tela pela cascata de CSS, inclusive quando a busca do dropdown
+escreve `display` inline no elemento. Um DOM falso não tem cascata e só
+conseguiria afirmar que a regra existe no texto do arquivo.
+
+O jsdom é a única `devDependency` do projeto. O build do Amplify roda
+`npm ci --omit=dev`, então ele nunca chega ao bundle de produção.
+
 ## ⚠️ Custom fields — leia isto
 
 Campos padrão (summary, status, created, labels, parent...) têm nomes fixos na
