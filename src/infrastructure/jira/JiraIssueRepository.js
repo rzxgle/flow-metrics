@@ -22,7 +22,7 @@ class JiraIssueRepository extends IssueRepository {
   async findAll() {
     const raw = await this.httpClient.searchAll(this.jql, this.fieldMap.requestedFields());
     const issues = raw.map((r) => this._toIssue(r));
-    await this.attachSprintTransitions(issues);
+    await this.attachChangelogs(issues);
     return issues;
   }
 
@@ -32,36 +32,51 @@ class JiraIssueRepository extends IssueRepository {
       maxPages,
     });
     const issues = result.issues.map((raw) => this._toIssue(raw));
-    if (includeSprintHistory) await this.attachSprintTransitions(issues);
+    if (includeSprintHistory) await this.attachChangelogs(issues);
     return { ...result, issues };
   }
 
   /**
-   * Preenche `issue.sprintTransitions` com o changelog do campo Sprint.
+   * Preenche `issue.sprintTransitions` (campo Sprint) e `issue.statusTransitions`
+   * (campo Status) a partir do changelog.
    *
-   * Uma única chamada em lote para todas as issues recebidas. Falha aqui NÃO
-   * derruba o dashboard: sem o histórico, o resolver de sprint apenas marca os
-   * itens como não reconstruídos e a interface exibe a ressalva — degradar é
-   * melhor do que não abrir.
+   * Os dois campos vêm na MESMA chamada em lote — o endpoint aceita uma lista de
+   * fieldIds, então acrescentar o status não custa requisição extra.
+   *
+   * O status é o que permite datar a entrega pela entrada na categoria Done
+   * (ver SprintDeliveryResolver), em vez de depender do campo manual
+   * `Data de Fim Real`, preenchido só após a homologação integrada.
+   *
+   * Falha aqui NÃO derruba o dashboard: sem o histórico, o resolver de sprint
+   * apenas marca os itens como não reconstruídos, a entrega cai no fallback do
+   * campo manual e a interface exibe a ressalva — degradar é melhor do que não
+   * abrir.
    */
-  async attachSprintTransitions(issues) {
+  async attachChangelogs(issues) {
     if (!this.httpClient.fetchFieldChangelogs) return issues;
     const comId = issues.filter((i) => i.id);
     if (!comId.length) return issues;
     try {
       const logs = await this.httpClient.fetchFieldChangelogs(
         comId.map((i) => i.id),
-        [this.fieldMap.sprint],
+        [this.fieldMap.sprint, this.fieldMap.status],
       );
       const porId = new Map(logs.map((l) => [String(l.issueId), l]));
       for (const issue of comId) {
         const log = porId.get(issue.id);
-        if (log) issue.sprintTransitions = this._toSprintTransitions(log.changeHistories);
+        if (!log) continue;
+        issue.sprintTransitions = this._toSprintTransitions(log.changeHistories);
+        issue.statusTransitions = this._toStatusTransitions(log.changeHistories);
       }
     } catch (error) {
-      console.warn('[jira] changelog de sprint indisponivel:', error.message);
+      console.warn('[jira] changelog de sprint/status indisponivel:', error.message);
     }
     return issues;
+  }
+
+  /** Nome anterior, mantido para não quebrar chamadas externas. */
+  async attachSprintTransitions(issues) {
+    return this.attachChangelogs(issues);
   }
 
   /**
@@ -84,6 +99,26 @@ class JiraIssueRepository extends IssueRepository {
           at: this._toIsoInstant(h.created),
           from: this._splitSprintNames(item.fromString),
           to: this._splitSprintNames(item.toString),
+        });
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Normaliza o changelog de Status em [{at, from, to}] com os NOMES dos status
+   * (`fromString`/`toString`); os ids (`from`/`to`) não servem, porque as regras
+   * de classificação são escritas por nome.
+   */
+  _toStatusTransitions(changeHistories) {
+    const out = [];
+    for (const h of changeHistories || []) {
+      for (const item of h.items || []) {
+        if (String(item.field).toLowerCase() !== 'status') continue;
+        out.push({
+          at: this._toIsoInstant(h.created),
+          from: item.fromString || null,
+          to: item.toString || null,
         });
       }
     }

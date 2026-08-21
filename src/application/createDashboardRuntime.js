@@ -10,6 +10,7 @@ const IssueEnricher = require('../domain/services/IssueEnricher');
 const EpicSummaryBuilder = require('../domain/services/EpicSummaryBuilder');
 const EpicHealthEvaluator = require('../domain/services/EpicHealthEvaluator');
 const SprintHistoryResolver = require('../domain/services/SprintHistoryResolver');
+const SprintDeliveryResolver = require('../domain/services/SprintDeliveryResolver');
 const GetDashboardDataUseCase = require('./use-cases/GetDashboardDataUseCase');
 const GetProgressiveDashboardDataUseCase = require('./use-cases/GetProgressiveDashboardDataUseCase');
 const JiraFieldMap = require('../infrastructure/jira/JiraFieldMap');
@@ -30,7 +31,10 @@ function createDashboardRuntime(env = process.env) {
   const cache = new PersistentCache(config.cacheFilePath);
   const classifier = new IssueClassifier(classificationRules);
   const metricsCalculator = new FlowMetricsCalculator(referenceDate);
-  const enricher = new IssueEnricher(classifier, metricsCalculator, new SprintHistoryResolver());
+  const enricher = new IssueEnricher(
+    classifier, metricsCalculator,
+    new SprintHistoryResolver(), new SprintDeliveryResolver(classifier),
+  );
   const epicSummaryBuilder = new EpicSummaryBuilder();
   const epicHealthEvaluator = new EpicHealthEvaluator(classifier, referenceDate);
   const getDashboardDataUseCase = new GetDashboardDataUseCase({

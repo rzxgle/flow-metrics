@@ -30,6 +30,7 @@ class Issue {
     sprints,
     sprintMeta,
     sprintTransitions,
+    statusTransitions,
     bcp,
     blockReason,
   }) {
@@ -58,6 +59,9 @@ class Issue {
     // Changelog do campo Sprint, normalizado: [{at, from:[nomes], to:[nomes]}].
     // Preenchido pelo repositório em passo separado (uma chamada em lote).
     this.sprintTransitions = Array.isArray(sprintTransitions) ? sprintTransitions : [];
+    // Changelog do campo Status, normalizado: [{at, from, to}] com os nomes dos
+    // status. Base da data de entrega de sprint (ver SprintDeliveryResolver).
+    this.statusTransitions = Array.isArray(statusTransitions) ? statusTransitions : [];
     this.bcp = (bcp === 0 || bcp) ? Number(bcp) : null; // complexidade normalizada (numérico)
     this.blockReason = blockReason || null; // motivo de bloqueio
   }
