@@ -315,6 +315,11 @@
   #filterBar #dd-AnoCriacao,
   #filterBar #dd-Mes{display:none;}
 
+  /* Sprint é um recorte de esforço apenas na aba Story Points. */
+  #filterBar #dd-Sprint{display:none;}
+  #filterBar.sp-sprint-filter #dd-Sprint{display:block;}
+  #filterBar.sp-sprint-filter.sp-sprint-selected .date-filter{display:none;}
+
   /* Na aba Sprint, o recorte gerencial é somente Squad + Tipo. As seleções dos
      demais filtros continuam guardadas para as outras abas, mas ficam ocultas
      e não participam dos cálculos desta página. */
@@ -1369,6 +1374,7 @@ const FILTER_HELP = {
   'dd-VS':'Value Stream é mapeada a partir do projeto do Jira. Vazio significa todas.',
   'dd-Squad':'Squad vem do campo Team do Jira. Na aba Sprint, esse filtro também define quais sprints ficam disponíveis.',
   'dd-PI':'PI é identificado pelas labels configuradas. Quando há mais de uma label válida, prevalece o PI mais recente reconhecido.',
+  'dd-Sprint':'Na aba Story Points, planejado é o escopo standard da sprint e concluído usa a mesma atribuição do velocity.',
   'dd-AnoCriacao':'Filtra pelo ano de criação da issue, não pelo ano de conclusão.',
   'dd-Mes':'Filtra pelo mês de criação da issue, não pelo mês de conclusão.',
   'dd-Tipo_de_item':'Filtra pelo tipo bruto do Jira, como Story, Enabler, Bug ou Sub-task.',
@@ -1481,6 +1487,7 @@ const FILTER_DIMS = [
   {key:'VS', label:'Value Stream'},
   {key:'Squad', label:'Squad'},
   {key:'PI', label:'PI'},
+  {key:'Sprint', label:'Sprint'},
   {key:'AnoCriacao', label:'Ano'},
   {key:'Mes', label:'Mês (criação)'},
   {key:'Tipo de item', label:'Tipo'},
@@ -1529,11 +1536,15 @@ function setDefaultDateRange(){
 
 function uniqueVals(key){
   const set = new Set();
-  DATA.forEach(d=>{
-    let v = d[key];
-    if(v===null || v===undefined || v==='') v='(Não informado)';
-    set.add(v);
-  });
+  if(key==='Sprint'){
+    DATA.forEach(d=>(d.Sprints||[]).forEach(s=>set.add(s)));
+  } else {
+    DATA.forEach(d=>{
+      let v = d[key];
+      if(v===null || v===undefined || v==='') v='(Não informado)';
+      set.add(v);
+    });
+  }
   let arr = Array.from(set);
   if(key==='Mes' || key==='MesConclusao'){
     arr = arr.filter(x=>x!=='(Não informado)').sort();
@@ -1541,6 +1552,8 @@ function uniqueVals(key){
     arr = arr.sort((a,b)=>a-b);
   } else if(key==='PI'){
     arr = arr.sort();
+  } else if(key==='Sprint'){
+    arr = arr.sort((a,b)=>String(a).localeCompare(String(b),'pt',{numeric:true}));
   } else {
     arr = arr.sort((a,b)=>String(a).localeCompare(String(b),'pt'));
   }
@@ -1715,6 +1728,8 @@ function matchesBarFilters(d, skip){
     if(skip && skip.has(f.key)) continue;
     const sel = selections[f.key];
     if(sel.size===0) continue;
+    // Sprint tem semântica própria na aba Story Points e não é um filtro global.
+    if(f.key==='Sprint') continue;
     let v = d[f.key];
     if(v===null||v===undefined||v==='') v='(Não informado)';
     if(!sel.has(String(v))) return false;
@@ -2271,6 +2286,8 @@ function syncFilterBarForTab(){
   if(!bar) return;
   bar.classList.toggle('pi-only', activeTab==='pi');
   bar.classList.toggle('sprint-only', activeTab==='sprint');
+  bar.classList.toggle('sp-sprint-filter', activeTab==='sp');
+  bar.classList.toggle('sp-sprint-selected', activeTab==='sp' && selections.Sprint.size>0);
 }
 
 const sidebarCollapse = document.getElementById('sidebarCollapse');
@@ -2406,9 +2423,9 @@ function renderExec(f, atual){
   const cancel = atual.filter(d=>d.Cancelado).length;
   const ativos = total - cancel;
   const pct = ativos? (concl.length/ativos*100) : 0;
+  // Ainda alimenta o gráfico planejado × concluído por PI; apenas os dois KPIs
+  // de SP foram removidos da Visão Executiva.
   const naoCancel = atual.filter(d=>!d.Cancelado);
-  const spTotal = sum(naoCancel, d=>d['Story Points']);   // planejado: não tem data de conclusão
-  const spConcl = sum(concl, d=>d['Story Points']);       // entregue: dentro do período
   const leadVals = f.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
   const cycleVals = f.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
 
@@ -2422,15 +2439,11 @@ function renderExec(f, atual){
   const statusAnd  = (window.__RULES_INPROG||[]).join(', ');
 
   // Registro dos drills de cada KPI (issues por trás de cada número)
-  const spConclItems = concl.filter(d=>(d['Story Points']||0)>0);
-  const spPlanItems  = naoCancel.filter(d=>(d['Story Points']||0)>0);
   const hojeFmt = (()=>{ const [a,m,d]=isoToday().split('-'); return `${d}/${m}/${a}`; })();
   Object.assign(__cardDrills, {
     pendentes: {title:`Backlog atual · posição em ${hojeFmt}`, issues: atual.filter(d=>d.FaseFluxo==='Pendente')},
     andamento: {title:`Itens em andamento · posição em ${hojeFmt}`, issues: atual.filter(d=>d.FaseFluxo==='Em andamento')},
     concluidos: {title: temPeriodo?'Concluídos no período':'Concluídos', issues: concl},
-    sp_concl: {title:'Itens com SP concluídos', issues: spConclItems},
-    sp_plan: {title:'Itens com SP planejados (não cancelados)', issues: spPlanItems},
     lead: {title:'Itens com Lead Time (concluídos)', issues: f.filter(d=>d.LeadTimeDias!=null)},
     cycle: {title:'Itens com Cycle Time', issues: f.filter(d=>d.CycleTimeDias!=null)},
   });
@@ -2442,8 +2455,6 @@ function renderExec(f, atual){
       {cls:'flat', text:`posição em ${hojeFmt}`}, 'Status em andamento: '+statusAnd, 'andamento'),
     kpiCard('Concluídos', fmt0(concl.length), 'itens', '',
       {cls:'up', text: temPeriodo ? 'no período filtrado' : pct.toFixed(0)+'% dos itens ativos'}, null, 'concluidos'),
-    kpiCard('Story Points concluídos', fmt0(spConcl), 'sp', '', null, null, 'sp_concl'),
-    kpiCard('Story Points planejados', fmt0(spTotal), 'sp', '', null, null, 'sp_plan'),
     kpiCard('Lead Time (P85)', fmt1(percentile(leadVals, 85)), 'dias', 'amber', null, null, 'lead'),
     kpiCard('Cycle Time (P85)', fmt1(percentile(cycleVals, 85)), 'dias', 'amber', null, null, 'cycle'),
   ].join('');
@@ -2643,10 +2654,29 @@ function renderThroughput(f){
 
 /* ===================== TAB: STORY POINTS ===================== */
 function renderSP(f, atual){
-  // Planejado = recorte completo (item não concluído não tem data e nunca cabe
-  // numa janela de conclusão). Concluído = entregue dentro do período.
-  const concl = f.filter(d=>d.Concluido);
-  const naoCancel = atual.filter(d=>!d.Cancelado);
+  const sprintSelecionada = selections.Sprint.size>0;
+  let concl;
+  let naoCancel;
+  if(sprintSelecionada){
+    // Com Sprint, SP é capacidade de itens standard: subtarefas não carregam a
+    // sprint de forma confiável e somá-las duplicaria o esforço do pai.
+    const base = atual.filter(d=>!d.Cancelado && isStandard(d));
+    // Planejado segue a mesma base do Progresso por Sprint: associação atual
+    // no campo Sprints. `passouPelaSprint` incluiria itens retirados antes do
+    // início do ciclo, inflando APP_Aprender_PI3_3 de 31 para 60 SP.
+    naoCancel = base.filter(d=>Array.from(selections.Sprint)
+      .some(s=>(d.Sprints||[]).includes(s)));
+    const catalogo = sprintCatalogoOrdenado().filter(s=>sprintComecou(s));
+    const {porSprint} = atribuirEntregas(base, catalogo);
+    const entregues = new Map();
+    selections.Sprint.forEach(nome=>(porSprint.get(nome)||[]).forEach(d=>entregues.set(d.Chave,d)));
+    concl = Array.from(entregues.values());
+  } else {
+    // Sem Sprint, mantém a regra histórica da aba: planejamento no recorte
+    // completo e conclusão dentro do período selecionado.
+    concl = f.filter(d=>d.Concluido);
+    naoCancel = atual.filter(d=>!d.Cancelado);
+  }
   const spTotal = sum(naoCancel, d=>d['Story Points']);
   const spConcl = sum(concl, d=>d['Story Points']);
   const pct = spTotal? (spConcl/spTotal*100):0;
@@ -2658,8 +2688,8 @@ function renderSP(f, atual){
     sptab_nosp: {title:'Itens sem Story Points (exceto cancelados)', issues: naoCancel.filter(d=>!d['Story Points'])},
   });
   document.getElementById('sp-kpis').innerHTML = [
-    kpiCard('SP planejado', fmt0(spTotal), 'sp', '', null, null, 'sptab_plan'),
-    kpiCard('SP concluído', fmt0(spConcl), 'sp', '', null, null, 'sptab_concl'),
+    kpiCard('Story Points planejados', fmt0(spTotal), 'sp', '', null, null, 'sptab_plan'),
+    kpiCard('Story Points concluídos', fmt0(spConcl), 'sp', '', null, null, 'sptab_concl'),
     kpiCard('% entregue', pct.toFixed(0), '%', pct>=70?'':'amber', null, null, 'sptab_pct'),
     kpiCard('Itens sem SP', fmt0(naoCancel.filter(d=>!d['Story Points']).length), 'itens', 'coral', null, null, 'sptab_nosp'),
   ].join('');
@@ -3481,6 +3511,8 @@ function renderSprint(){
   // KPIs
   const totalStd = rows.length;
   const stdEntregues = rows.filter(r=>r.entregue).map(r=>r.p);
+  const spPlanejadosSprint = sum(standardNaSprint, d=>d['Story Points']);
+  const spConcluidosSprint = sum(stdEntregues, d=>d['Story Points']);
   const totSub = rows.reduce((a,r)=>a+r.Y,0);
   const subConcl = rows.reduce((a,r)=>a+r.X,0);
   const compMedia = rows.length ? rows.reduce((a,r)=>a+r.pct,0)/rows.length : 0;
@@ -3489,6 +3521,8 @@ function renderSprint(){
   Object.assign(__cardDrills, {
     sprint_std: {title:`Itens standard · ${sprint}`, issues: standardNaSprint},
     sprint_stdentregues: {title:`Itens standard entregues · ${sprint}`, issues: stdEntregues},
+    sprint_spplan: {title:`Story Points planejados · ${sprint}`, issues: standardNaSprint.filter(d=>spDe(d)>0)},
+    sprint_spconcl: {title:`Story Points concluídos · ${sprint}`, issues: stdEntregues.filter(d=>spDe(d)>0)},
     sprint_sub: {title:`Subitens dos standard · ${sprint}`, issues: allSubs},
     sprint_subconcl: {title:`Subitens concluídos · ${sprint}`, issues: allSubs.filter(s=>s.Concluido)},
   });
@@ -3498,6 +3532,8 @@ function renderSprint(){
     kpiCard('Subitens concluídos', `${fmt0(subConcl)}/${fmt0(totSub)}`, '', '', null, null, 'sprint_sub'),
     kpiCard('Standard entregues', `${fmt0(stdEntregues.length)}/${fmt0(totalStd)}`, '', '',
       {cls:'flat', text:'mesma atribuição do velocity'}, null, 'sprint_stdentregues'),
+    kpiCard('Story Points planejados', fmt0(spPlanejadosSprint), 'sp', '', null, null, 'sprint_spplan'),
+    kpiCard('Story Points concluídos', fmt0(spConcluidosSprint), 'sp', '', null, null, 'sprint_spconcl'),
   ].join('');
 
   // registro de drill por item (completude chart + tabela)
@@ -4379,8 +4415,8 @@ const DASHBOARD_STORE = 'snapshots';
 // versão anterior são descartados (senão o cache serviria métricas pela regra antiga).
 // 3 = Aging só para itens com Data de início real (sem fallback para a Criação).
 // 4 = payload passa a trazer SprintPeriodos/SprintHistoricoOk (velocity).
-// 8 = força reconstrução completa do histórico usado na atribuição única por sprint.
-const DASHBOARD_SCHEMA_VERSION = 8;
+// 9 = reconstrói períodos após normalizar o alias histórico APP_Aprenderr.
+const DASHBOARD_SCHEMA_VERSION = 9;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 

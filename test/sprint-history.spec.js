@@ -129,6 +129,65 @@ check('nomes com espaços sobrando são normalizados', () => {
   assert.strictEqual(r.consistent, true);
 });
 
+check('alias histórico APP_Aprenderr é normalizado sem alterar o sufixo da sprint', () => {
+  const r = resolver.resolve({
+    createdAt: '2026-06-18T10:00:00.000Z',
+    sprints: ['26_SQD_APP_Aprender_PI3_3'],
+    transitions: [{
+      at: '2026-07-20T17:40:02.226Z',
+      from: [],
+      to: ['26_SQD_APP_Aprenderr_PI3_3'],
+    }],
+  });
+  assert.deepStrictEqual(r.membership, [{
+    sprint: '26_SQD_APP_Aprender_PI3_3',
+    enteredAt: '2026-07-20T17:40:02.226Z',
+    leftAt: null,
+  }]);
+  assert.strictEqual(r.consistent, true);
+  assert.strictEqual(r.reconstructed, true);
+});
+
+check('alias APP_Aprenderr mantém PI3_3, PI3_4 e PI3_5 separados', () => {
+  const r = resolver.resolve({
+    createdAt: CRIADO,
+    sprints: [
+      '26_SQD_APP_Aprender_PI3_3',
+      '26_SQD_APP_Aprender_PI3_4',
+      '26_SQD_APP_Aprender_PI3_5',
+    ],
+    transitions: [{
+      at: '2026-07-20T17:40:02.226Z',
+      from: [],
+      to: [
+        '26_SQD_APP_Aprenderr_PI3_3',
+        '26_SQD_APP_Aprenderr_PI3_4',
+        '26_SQD_APP_Aprenderr_PI3_5',
+      ],
+    }],
+  });
+  assert.deepStrictEqual(r.membership.map((m) => m.sprint), [
+    '26_SQD_APP_Aprender_PI3_3',
+    '26_SQD_APP_Aprender_PI3_4',
+    '26_SQD_APP_Aprender_PI3_5',
+  ]);
+  assert.strictEqual(r.consistent, true);
+});
+
+check('nomes parecidos fora do alias explícito não são modificados', () => {
+  const r = resolver.resolve({
+    createdAt: CRIADO,
+    sprints: ['26_SQD_APP_Aprender_PI3_3'],
+    transitions: [{
+      at: '2026-07-20T17:40:02.226Z',
+      from: [],
+      to: ['26_SQD_APP_Aprendeer_PI3_3'],
+    }],
+  });
+  assert.strictEqual(r.consistent, false);
+  assert.ok(r.membership.some((m) => m.sprint === '26_SQD_APP_Aprendeer_PI3_3'));
+});
+
 console.log('\nNormalização do changelog cru (JiraIssueRepository):');
 
 const fieldMap = new JiraFieldMap({ JIRA_FIELD_SPRINT: 'customfield_10113' });

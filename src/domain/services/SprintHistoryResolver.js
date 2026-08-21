@@ -108,7 +108,19 @@ class SprintHistoryResolver {
   }
 
   _uniq(arr) {
-    return Array.from(new Set((arr || []).map((s) => String(s).trim()).filter(Boolean)));
+    return Array.from(new Set((arr || [])
+      .map((s) => this._canonicalSprintName(s))
+      .filter(Boolean)));
+  }
+
+  /**
+   * Alias explícito para um erro de digitação histórico já corrigido no Jira.
+   * O prefixo é deliberadamente exato: não fazemos comparação aproximada, e o
+   * sufixo (PI3_3, PI3_4, PI3_5...) permanece intacto para não unir sprints.
+   */
+  _canonicalSprintName(value) {
+    return String(value || '').trim()
+      .replace(/^26_SQD_APP_Aprenderr_/, '26_SQD_APP_Aprender_');
   }
 }
 
