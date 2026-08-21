@@ -329,6 +329,13 @@
   #filterBar.sprint-only #dd-Status,
   #filterBar.sprint-only .date-filter{display:none;}
 
+  /* O filtro de Tipo, nesta aba, só oferece o nível que a aba mede: o item
+     pai. Épicos e subtipos ficam fora do recorte por construção (ver
+     TIPOS_FORA_DA_ABA_SPRINT), então marcá-los aqui nunca mudou um número.
+     O !important é necessário: a busca do dropdown escreve display inline nos
+     itens, e sem ele digitar "sub" traria os escondidos de volta. */
+  #filterBar.sprint-only #dd-Tipo_de_item .dd-item[data-no-sprint]{display:none!important;}
+
   /* ===== PI Tracking (épicos do quarter, agrupados por squad) ===== */
   /* Legenda sempre presente: as três fases são três cores, então a identidade
      nunca pode depender só da cor. Os números por fase aparecem em cada linha. */
@@ -1501,6 +1508,21 @@ const DEFAULT_TIPO = ['Enabler','Melhoria','Story','Technical Debt'];
 DEFAULT_TIPO.forEach(t=> selections['Tipo de item'].add(t));
 // Abas que NÃO devem sofrer o filtro de Tipo (dependem de Sub-block/Sub-task).
 const SKIP_TIPO = new Set(['Tipo de item']);
+/* Tipos que somem do filtro de Tipo na aba Sprint (só de lá: nas outras abas a
+   lista segue inteira, e as seleções feitas fora continuam guardadas).
+   A aba mede o nível PAI — subitem ali é unidade de medida, não linha: o
+   'X de Y subitens' de cada linha vem dos filhos, que entram pelo pai e
+   ignoram este filtro (SKIP_TIPO em renderSprint). Épico é outro nível: 2 dos
+   257 épicos da base têm sprint preenchida, e os filhos de um épico são
+   Histórias, não subitens. Marcar qualquer um destes aqui nunca alterou um
+   número na tela — a lista é limpeza visual, não regra de cálculo.
+   Subtarefa e 'Correção Staging' não aparecem na base atual, mas estão em
+   classification.rules.js como Sub-task e cairiam no mesmo caso. */
+const TIPOS_FORA_DA_ABA_SPRINT = new Set([
+  'Epic', 'Enabler Epic',
+  'Sub-block', 'Sub-bug', 'Sub-design', 'Sub-imp', 'Sub-script', 'Sub-task',
+  'Sub-test', 'Subtarefa', 'Correção Staging',
+]);
 
 /* ===================== Item 6 — Filtro de calendário (por data de conclusão) =====================
    Opção A: itens COM data de conclusão são filtrados pelo intervalo;
@@ -1594,6 +1616,7 @@ function buildFilterBar(){
     opts.forEach(val=>{
       const item = document.createElement('label');
       item.className = 'dd-item';
+      if(f.key==='Tipo de item' && TIPOS_FORA_DA_ABA_SPRINT.has(String(val))) item.dataset.noSprint='';
       const displayVal = (f.key==='Mes') ? (MESES[parseInt(val,10)]||val) : val;
       item.innerHTML = `<input type="checkbox" value="${String(val).replace(/"/g,'&quot;')}" ${selections[f.key].has(String(val))?'checked':''}> <span>${displayVal}</span>`;
       list.appendChild(item);
@@ -1633,7 +1656,12 @@ function buildFilterBar(){
     });
     actions.querySelector('[data-act="all"]').addEventListener('click', (e)=>{
       e.stopPropagation();
-      list.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked=true; selections[f.key].add(cb.value); });
+      // 'Todos' age sobre o que está à vista: na aba Sprint os tipos ocultos
+      // ficam fora da seleção, senão o contador do botão anunciaria 15 tipos
+      // com 6 linhas na tela. O que foi marcado em outra aba fica intacto.
+      const soVisiveis = f.key==='Tipo de item' && bar.classList.contains('sprint-only');
+      const alvo = soVisiveis ? '.dd-item:not([data-no-sprint]) input[type=checkbox]' : 'input[type=checkbox]';
+      list.querySelectorAll(alvo).forEach(cb=>{ cb.checked=true; selections[f.key].add(cb.value); });
       updateFilterBtn(f.key, btn); renderAll();
     });
     actions.querySelector('[data-act="none"]').addEventListener('click', (e)=>{
