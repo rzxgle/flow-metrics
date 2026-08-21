@@ -61,7 +61,7 @@ const epilogo = `
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   selections, normalizeData, serieVelocity, atribuirEntregas, sprintJanelaDatas,
   sprintFimMs, dataEntregaSprint, TOLERANCIA_FECHAMENTO_DIAS,
-  renderSprint, renderVelocity, initVelocityRange, sprintCatalogoOrdenado,
+  renderExec, renderSprint, renderSP, renderVelocity, initVelocityRange, sprintCatalogoOrdenado,
   matchesSprintTabFilters, sprintNamesFromData, initSprintSelector, syncFilterBarForTab,
   get sprintSelection(){ return sprintSelection; },
   set sprintSelection(v){ sprintSelection=v; },
@@ -93,6 +93,16 @@ let passed = 0;
 const check = (desc, fn) => { fn(); passed += 1; console.log('  ✓', desc); };
 
 console.log('\nAtribuição de entregas (uma entrega -> uma sprint):');
+
+check('Visão Executiva renderiza sem os KPIs de SP e mantém o gráfico por PI', () => {
+  const execItem = item({chave:'EXEC-1', sp:5, concl:true, conclusao:'2026-07-10'});
+  execItem.PI = 'PI3'; execItem.FaseFluxo = 'Concluído'; execItem.AnoMesConclusao = '2026-07';
+  execItem.LeadTimeDias = 2; execItem.CycleTimeDias = 1;
+  assert.doesNotThrow(()=>T.renderExec([execItem], [execItem]));
+  const kpis = getEl('exec-kpis').innerHTML;
+  assert.doesNotMatch(kpis, /Story Points (planejados|concluídos)/);
+  assert.ok(charts['chart-exec-sp-pi'], 'o gráfico de SP por PI continua renderizado');
+});
 
 const dentro = item({ chave:'A-1', sp:5, concl:true, conclusao:'2026-07-10', sprints:['S1'],
   periodos:[{sprint:'S1', enteredAt:'2026-07-01T14:00:00.000Z', leftAt:null}] });
@@ -333,6 +343,23 @@ check('progresso da sprint usa as mesmas entregas atribuídas pelo velocity', ()
   assert.match(kpis, /Standard entregues/);
   assert.match(kpis, /<div class="val">1\/2<\/div>/,
     'P-2 pertenceu à S1, mas sua entrega foi atribuída somente à S2');
+  assert.match(kpis, /Story Points planejados[\s\S]*?<div class="val">8<span class="unit">sp<\/span>/);
+  assert.match(kpis, /Story Points concluídos[\s\S]*?<div class="val">3<span class="unit">sp<\/span>/);
+
+  T.selections.Sprint.clear(); T.selections.Sprint.add('S1');
+  const removidoAntes = item({chave:'P-3', sp:7, concl:false,
+    sprints:['S2'], periodos:[
+      {sprint:'S1', enteredAt:'2026-06-20T10:00:00.000Z', leftAt:'2026-06-25T10:00:00.000Z'},
+      {sprint:'S2', enteredAt:'2026-07-20T14:00:00.000Z', leftAt:null},
+    ]});
+  const dadosSp = [entregueS1, entregueS2, removidoAntes];
+  T.DATA = dadosSp;
+  T.renderSP(dadosSp, dadosSp);
+  const spKpis = getEl('sp-kpis').innerHTML;
+  assert.match(spKpis, /Story Points planejados[\s\S]*?<div class="val">8<span class="unit">sp<\/span>/);
+  assert.match(spKpis, /Story Points concluídos[\s\S]*?<div class="val">3<span class="unit">sp<\/span>/,
+    'a aba Story Points deve usar a mesma entrega atribuída pelo velocity');
+  T.selections.Sprint.clear();
 });
 
 check('o resíduo é detalhado na tela, separado por motivo', () => {
@@ -414,6 +441,15 @@ check('a barra recebe sprint-only apenas na aba Sprint', () => {
   assert.strictEqual(states['pi-only'], false);
   T.activeTab = 'exec'; T.syncFilterBarForTab();
   assert.strictEqual(states['sprint-only'], false);
+  T.activeTab = 'sp'; T.syncFilterBarForTab();
+  assert.strictEqual(states['sp-sprint-filter'], true);
+  T.activeTab = 'flow'; T.syncFilterBarForTab();
+  assert.strictEqual(states['sp-sprint-filter'], false);
+});
+
+check('filtro Sprint aparece apenas em Story Points', () => {
+  assert.match(html, /#filterBar #dd-Sprint\{display:none;\}/);
+  assert.match(html, /#filterBar\.sp-sprint-filter #dd-Sprint\{display:block;\}/);
 });
 
 check('Ano e Mês permanecem no modelo, mas não aparecem na interface', () => {
