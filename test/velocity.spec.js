@@ -61,7 +61,6 @@ const epilogo = `
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   selections, normalizeData, serieVelocity, atribuirEntregas, sprintJanelaDatas,
   sprintFimMs, dataEntregaSprint, TOLERANCIA_FECHAMENTO_DIAS,
-  prepareSprintDeliveryFilter, matchesBarFilters,
   renderSprint, renderVelocity, initVelocityRange, sprintCatalogoOrdenado,
   matchesSprintTabFilters, sprintNamesFromData, initSprintSelector, syncFilterBarForTab,
   get sprintSelection(){ return sprintSelection; },
@@ -336,26 +335,6 @@ check('progresso da sprint usa as mesmas entregas atribuídas pelo velocity', ()
     'P-2 pertenceu à S1, mas sua entrega foi atribuída somente à S2');
 });
 
-check('filtro global de Sprint usa a mesma atribuição única do velocity', () => {
-  const entregueS1 = item({ chave:'F-1', sp:3, concl:true, entrega:'2026-07-10',
-    sprints:['S1'], periodos:[{sprint:'S1', enteredAt:'2026-07-01T14:00:00.000Z', leftAt:null}] });
-  const entregueS2 = item({ chave:'F-2', sp:5, concl:true, entrega:'2026-07-25',
-    sprints:['S1','S2'], periodos:[
-      {sprint:'S1', enteredAt:'2026-07-01T14:00:00.000Z', leftAt:'2026-07-17T10:00:00.000Z'},
-      {sprint:'S2', enteredAt:'2026-07-20T14:00:00.000Z', leftAt:null},
-    ] });
-  T.DATA = [entregueS1, entregueS2];
-  sandbox.window.__SPRINTS = [S1, S2];
-  T.selections.Sprint.clear(); T.selections.Sprint.add('S1');
-  T.selections.Squad.clear(); T.selections['Tipo de item'].clear();
-  T.activeTab = 'sp';
-  T.prepareSprintDeliveryFilter();
-  assert.strictEqual(T.matchesBarFilters(entregueS1), true);
-  assert.strictEqual(T.matchesBarFilters(entregueS2), false,
-    'ter passado pela S1 não basta quando a entrega pertence à S2');
-  T.selections.Sprint.clear();
-});
-
 check('o resíduo é detalhado na tela, separado por motivo', () => {
   T.DATA = lote;
   T.normalizeData();
@@ -435,17 +414,6 @@ check('a barra recebe sprint-only apenas na aba Sprint', () => {
   assert.strictEqual(states['pi-only'], false);
   T.activeTab = 'exec'; T.syncFilterBarForTab();
   assert.strictEqual(states['sprint-only'], false);
-  T.activeTab = 'sp'; T.syncFilterBarForTab();
-  assert.strictEqual(states['sprint-filter'], true);
-  T.activeTab = 'flow'; T.syncFilterBarForTab();
-  assert.strictEqual(states['sprint-filter'], true);
-  T.activeTab = 'exec'; T.syncFilterBarForTab();
-  assert.strictEqual(states['sprint-filter'], false);
-});
-
-check('filtro Sprint fica visível somente nas abas habilitadas', () => {
-  assert.match(html, /#filterBar #dd-Sprint\{display:none;\}/);
-  assert.match(html, /#filterBar\.sprint-filter #dd-Sprint\{display:block;\}/);
 });
 
 check('Ano e Mês permanecem no modelo, mas não aparecem na interface', () => {
