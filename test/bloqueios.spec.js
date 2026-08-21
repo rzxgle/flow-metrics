@@ -45,7 +45,9 @@ window.HTMLCanvasElement.prototype.getContext = function getContext() {
   ctxStub.canvas = this;
   return ctxStub;
 };
+const charts = {};
 class ChartStub {
+  constructor(ctx, config) { charts[ctx.canvas && ctx.canvas.id] = config; }
   destroy() {} update() {} resize() {}
 }
 ChartStub.defaults = { font: {}, color: '', plugins: { legend: { labels: {} } } };
@@ -75,7 +77,11 @@ const base = (o) => ({
   'Data Entrega Sprint': o.conclusao || null, 'Data Inicio Real': o.inicio || null,
   'Data Fim Real': o.conclusao || null, AnoMesCriacao: '2026-07', AnoCriacao: 2026, Mes: 7,
   AnoMesConclusao: o.conclusao ? o.conclusao.slice(0, 7) : null,
-  CycleTimeDias: o.cycle != null ? o.cycle : null, LeadTimeDias: null,
+  // Os dois convivem de propósito na fixture: a aba precisa usar o LEAD
+  // (criação → conclusão), então dar valores diferentes aos dois faz o teste
+  // reprovar se alguém voltar a somar Cycle Time.
+  CycleTimeDias: o.cycle != null ? o.cycle : null,
+  LeadTimeDias: o.lead != null ? o.lead : null,
   parentKey: o.pai || null, parent: o.pai || null, EpicoChave: null,
 });
 const sub = (o) => base({ ...o, tipo: 'Sub-block' });
@@ -84,9 +90,16 @@ const pai = (o) => base({ ...o, tipo: 'Bug' });
 const DADOS = [
   pai({ chave: 'P-VIVO', status: 'Execução', criado: '2026-07-01' }),
   pai({ chave: 'P-CANCELADO', status: 'CANCELADO', canc: true, criado: '2026-07-01', conclusao: '2026-07-04' }),
-  // resolvido dentro do período: alimenta "resolvidos" e o tempo médio
+  // resolvido dentro do período: alimenta "resolvidos" e o tempo médio.
+  // 10 dias de bloqueio (06/07 -> 16/07); o cycle de 2 existe só para provar
+  // que a aba NÃO o usa.
   sub({ chave: 'SB-RESOLVIDO', status: 'Concluído', concl: true, criado: '2026-07-06',
-    conclusao: '2026-07-10', inicio: '2026-07-06', cycle: 4, motivo: 'Acessos', pai: 'P-VIVO' }),
+    conclusao: '2026-07-16', inicio: '2026-07-14', cycle: 2, lead: 10, motivo: 'Acessos', pai: 'P-VIVO' }),
+  // segundo resolvido do MESMO pai: com 10 e 4, a média é 7 — número que só sai
+  // se o divisor for os 2 episódios mensuráveis. Somando daria 14; dividindo
+  // pelos 5 episódios do item, 2,8.
+  sub({ chave: 'SB-RESOLVIDO-2', status: 'Concluído', concl: true, criado: '2026-07-12',
+    conclusao: '2026-07-16', inicio: '2026-07-15', cycle: 99, lead: 4, motivo: 'Infra', pai: 'P-VIVO' }),
   // aberto, pai vivo
   sub({ chave: 'SB-ABERTO', status: 'Execução', criado: '2026-07-05', motivo: 'Infra', pai: 'P-VIVO' }),
   // aberto, pai CANCELADO — o caso COREX-1760/COREX-1730; o mais antigo dos abertos
@@ -118,6 +131,13 @@ const primeiraColuna = (tr) => ({
 });
 const cabecalho = () => Array.from(document.querySelectorAll('#block-open-table thead th'))
   .map((th) => th.textContent);
+const itensBloqueados = () => Array.from(document.querySelectorAll('#block-parent-table tbody tr'))
+  .map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent.trim()));
+const cardDe = (idTabela) => document.getElementById(idTabela).closest('.card');
+const textos = (idTabela) => ({
+  titulo: cardDe(idTabela).querySelector('h3').textContent,
+  legenda: cardDe(idTabela).querySelector('.cap').textContent,
+});
 
 let passed = 0;
 const check = (desc, fn) => { fn(); passed += 1; console.log('  ✓', desc); };
@@ -137,9 +157,10 @@ check('ele conta os cancelados do período — e só eles', () => {
 });
 
 check('cancelado não vira resolvido nem mexe no tempo médio', () => {
-  assert.strictEqual(valor('Bloqueios resolvidos'), '1');
+  assert.strictEqual(valor('Bloqueios resolvidos'), '2');
   // Lido como número: o separador decimal depende do ICU do ambiente.
-  assert.strictEqual(numero(valor('Tempo médio bloqueado')), 4, 'só o SB-RESOLVIDO entra na média');
+  // (10 + 4) / 2 = 7 dias de bloqueio; por Cycle Time daria (2 + 99) / 2.
+  assert.strictEqual(numero(valor('Tempo médio bloqueado')), 7, 'só os resolvidos entram na média');
 });
 
 check('cancelado não aparece como bloqueio aberto', () => {
@@ -182,6 +203,47 @@ check('bloqueio aberto de pai cancelado PERMANECE na tabela', () => {
 check('bloqueio sem pai mostra "—" nos parênteses', () => {
   const semPai = linhas().map(primeiraColuna).find((c) => c.link === 'SB-SEM-PAI');
   assert.strictEqual(semPai.entreParenteses, '—');
+});
+
+check('o card de itens bloqueados tem o título e a legenda acordados', () => {
+  const { titulo, legenda } = textos('block-parent-table');
+  assert.strictEqual(titulo, 'Itens-pai por tempo médio de bloqueio');
+  assert.strictEqual(legenda, 'Duração média de cada bloqueio do item, da abertura até a'
+    + ' resolução. A coluna Nº bloqueios mostra quantos episódios o item teve; os que ainda'
+    + ' estão abertos ou foram cancelados não entram na média. Top 20 — clique para ver os'
+    + ' bloqueios.');
+  assert.deepStrictEqual(
+    Array.from(document.querySelectorAll('#block-parent-table thead th')).map((th) => th.textContent),
+    ['Item pai', 'Squad', 'Nº bloqueios', 'Média por bloqueio (dias)'],
+  );
+});
+
+check('a coluna é a MÉDIA por bloqueio, não a soma', () => {
+  const [primeira] = itensBloqueados();
+  assert.strictEqual(primeira[0], 'P-VIVO', 'quem tem a maior média vem primeiro');
+  // (10 + 4) / 2 = 7. Soma daria 14; Cycle Time, (2 + 99) / 2.
+  assert.strictEqual(numero(primeira[3]), 7);
+});
+
+check('o divisor são os episódios mensuráveis, não todos', () => {
+  const pVivo = itensBloqueados().find((c) => c[0] === 'P-VIVO');
+  // 2 resolvidos + 1 aberto + 2 cancelados = 5 episódios, 2 mensuráveis.
+  assert.strictEqual(pVivo[2], '5', 'Nº bloqueios conta todos os episódios');
+  assert.notStrictEqual(numero(pVivo[3]), 14 / 5, 'não divide pelos 5');
+  assert.strictEqual(numero(pVivo[3]), 7, 'divide pelos 2 que têm duração');
+});
+
+check('sem episódio mensurável a média é "—", não 0,0', () => {
+  // Zero dia de bloqueio e nenhuma medição possível são coisas diferentes.
+  const soAberto = itensBloqueados().find((c) => c[0] === 'P-CANCELADO');
+  assert.strictEqual(soAberto[2], '1');
+  assert.strictEqual(soAberto[3], '—');
+});
+
+check('o card por Squad ficou intocado — segue somando', () => {
+  // Array.from: o array nasce no realm do jsdom e não é reference-equal ao daqui.
+  // 10 + 4 = 14: lá a soma é proposital (itens diferentes bloqueados em paralelo).
+  assert.deepStrictEqual(Array.from(charts['chart-block-squad'].data.datasets[0].data), [14]);
 });
 
 check('a página não registrou erro em nenhuma dessas renderizações', () => {

@@ -1153,14 +1153,14 @@
     <h2>Bloqueios</h2>
     <button class="drill-btn" onclick="openDrawer('Bloqueios (sub-blocks) do recorte', getFilteredNoDate(SKIP_TIPO).filter(d=>d['Tipo de item']==='Sub-block'))">📋 Ver bloqueios</button>
   </div>
-  <div class="cap" style="margin:-6px 0 10px;">Cada <b>Sub-block</b> é um episódio de bloqueio. A <b>duração</b> = Cycle Time (início real → fim real) e é <b>atribuída ao item pai</b>. Bloqueios abertos contam da Criação até hoje. Depende do preenchimento de datas reais e do "Motivo de Bloqueio" no Jira.</div>
+  <div class="cap" style="margin:-6px 0 10px;">Cada <b>Sub-block</b> é um episódio de bloqueio. A <b>duração</b> vai da <b>criação</b> do bloqueio até sua <b>conclusão</b> e é <b>atribuída ao item pai</b>. Bloqueios abertos contam da Criação até hoje. Depende do preenchimento das datas e do "Motivo de Bloqueio" no Jira.</div>
 
   <div class="kpi-row" id="block-kpis"></div>
 
   <div class="grid grid-2" style="margin-top:14px;">
     <div class="card">
       <h3>Tempo total bloqueado por Squad (resolvidos)</h3>
-      <div class="cap">Soma dos dias bloqueados; contagem de bloqueios no tooltip.</div>
+      <div class="cap">Soma dos dias bloqueados — da criação de cada bloqueio até sua conclusão; contagem de bloqueios no tooltip.</div>
       <div class="chartwrap tall"><canvas id="chart-block-squad"></canvas></div>
     </div>
     <div class="card">
@@ -1180,10 +1180,10 @@
       </table></div>
     </div>
     <div class="card">
-      <h3>Itens mais bloqueados</h3>
-      <div class="cap">Itens-pai por tempo total bloqueado (clique para ver os bloqueios).</div>
+      <h3>Itens-pai por tempo médio de bloqueio</h3>
+      <div class="cap">Duração média de cada bloqueio do item, da abertura até a resolução. A coluna <b>Nº bloqueios</b> mostra quantos episódios o item teve; os que ainda estão abertos ou foram cancelados não entram na média. Top 20 — clique para ver os bloqueios.</div>
       <div style="overflow-x:auto;"><table class="datatable" id="block-parent-table">
-        <thead><tr><th>Item pai</th><th>Squad</th><th>Nº bloqueios</th><th>Tempo total (dias)</th></tr></thead>
+        <thead><tr><th>Item pai</th><th>Squad</th><th>Nº bloqueios</th><th>Média por bloqueio (dias)</th></tr></thead>
         <tbody></tbody>
       </table></div>
     </div>
@@ -3113,15 +3113,23 @@ function renderBlock(f, atual){
   // em vez de somar com os resolvidos (o que leria como entrega) ou de ficar
   // invisível. Mesmo recorte de período dos resolvidos: os dois são desfechos.
   const cancelados = f.filter(d=>d['Tipo de item']==='Sub-block' && d.Cancelado);
-  // duração do bloqueio = Cycle Time (dias); só conta quando calculável
-  const dur = d => (d.CycleTimeDias!=null ? d.CycleTimeDias : 0);
+  // Duração de um episódio de bloqueio = LEAD TIME do Sub-block: da criação até
+  // a conclusão. Não é o Cycle Time (início real → fim real): ninguém "começa a
+  // trabalhar" num bloqueio, ele nasce ativo, e 247 dos 445 Sub-blocks da base
+  // não têm início real preenchido — por Cycle Time somavam 0 dia e deixavam 207
+  // dos 290 itens zerados na tabela. É a mesma régua da tabela de abertos, que
+  // conta da Criação. LeadTimeDias é null para quem não concluiu, então bloqueio
+  // aberto ou cancelado conta como episódio sem somar dias.
+  const dur = d => (d.LeadTimeDias!=null ? d.LeadTimeDias : 0);
   // Tempo em aberto de um bloqueio — regra PRÓPRIA, não é o Aging.
   // Um Sub-block nasce bloqueado no instante em que é criado e precisa ser tratado
   // de imediato, então a contagem parte da Criação. O Aging exige início real porque
   // lá o planejamento cria itens em lote no começo do quarter sem que sejam puxados —
   // premissa que não vale para bloqueio.
   const abertoHaDias = d => diasCorridosAteHoje(d.Criado);
-  const tempoMedio = (()=>{ const v=resolvidos.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; })();
+  // Média pela MESMA régua das somas acima (criação -> conclusão); medir a média
+  // por Cycle Time e as somas por Lead Time faria a aba se contradizer.
+  const tempoMedio = (()=>{ const v=resolvidos.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; })();
   const paisImpactados = new Set(blocks.map(d=>d.parentKey).filter(Boolean)).size;
 
   Object.assign(__cardDrills, {
@@ -3181,21 +3189,30 @@ function renderBlock(f, atual){
       <td><b>${dias!=null?fmt0(dias):'—'}</b></td>
     </tr>`).join('') : '<tr><td colspan="4" style="color:var(--slate-soft);">Nenhum bloqueio em aberto no recorte atual.</td></tr>';
 
-  // Tabela: itens-pai mais bloqueados (soma de tempo), clicável
+  // Tabela: itens-pai por tempo MÉDIO de bloqueio, clicável.
+  // Média e não soma porque os bloqueios de um mesmo item se sobrepõem no tempo:
+  // somar contava o mesmo dia de calendário várias vezes e o DESC-143 aparecia
+  // com 194 dias bloqueado tendo vivido 100 (17 episódios, 31 dias distintos).
+  // O divisor é só o dos episódios MENSURÁVEIS: dividir pelo total faria um item
+  // com um bloqueio resolvido e três abertos exibir um quarto da duração real.
+  // `Nº bloqueios` continua contando todos, para casar com a lista do clique.
   const porPai = new Map();
   blocks.forEach(d=>{
     const key = d.parentKey || d.chave;
-    if(!porPai.has(key)) porPai.set(key, {key, squad:d.Squad, total:0, n:0});
-    const o = porPai.get(key); o.total += dur(d); o.n += 1;
+    if(!porPai.has(key)) porPai.set(key, {key, squad:d.Squad, soma:0, n:0, nMedidos:0});
+    const o = porPai.get(key); o.n += 1;
+    if(d.LeadTimeDias!=null){ o.soma += d.LeadTimeDias; o.nMedidos += 1; }
   });
-  const paisArr = Array.from(porPai.values()).sort((a,b)=>b.total-a.total).slice(0,20);
+  porPai.forEach(o=>{ o.media = o.nMedidos ? o.soma/o.nMedidos : null; });
+  const paisArr = Array.from(porPai.values())
+    .sort((a,b)=>(b.media==null?-1:b.media)-(a.media==null?-1:a.media)).slice(0,20);
   paisArr.forEach(p=>{ __cardDrills['blockpai_'+p.key] = {title:`Bloqueios do item ${p.key}`, issues: blocks.filter(d=>(d.parentKey||d.chave)===p.key)}; });
   document.querySelector('#block-parent-table tbody').innerHTML = paisArr.length ? paisArr.map(p=>`
     <tr data-drill="blockpai_${p.key}" style="cursor:pointer;" data-help="Clique para abrir os bloqueios vinculados a este item.">
       <td><a class="jira" href="${JIRA_BROWSE}${p.key}" target="_blank" rel="noopener">${p.key}</a></td>
       <td style="font-size:11.5px;">${p.squad||'—'}</td>
       <td>${p.n}</td>
-      <td><b>${fmt1(p.total)}</b></td>
+      <td><b>${p.media==null?'—':fmt1(p.media)}</b></td>
     </tr>`).join('') : '<tr><td colspan="4" style="color:var(--slate-soft);">Nenhum bloqueio no recorte atual.</td></tr>';
 }
 
