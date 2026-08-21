@@ -4431,8 +4431,8 @@ const DASHBOARD_STORE = 'snapshots';
 // versão anterior são descartados (senão o cache serviria métricas pela regra antiga).
 // 3 = Aging só para itens com Data de início real (sem fallback para a Criação).
 // 4 = payload passa a trazer SprintPeriodos/SprintHistoricoOk (velocity).
-// 7 = invalida snapshots anteriores à correção da atribuição de entregas da sprint.
-const DASHBOARD_SCHEMA_VERSION = 7;
+// 8 = força reconstrução completa do histórico usado na atribuição única por sprint.
+const DASHBOARD_SCHEMA_VERSION = 8;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 
