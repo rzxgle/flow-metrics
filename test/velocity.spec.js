@@ -61,6 +61,7 @@ const epilogo = `
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   selections, normalizeData, serieVelocity, atribuirEntregas, sprintJanelaDatas,
   sprintFimMs, dataEntregaSprint, TOLERANCIA_FECHAMENTO_DIAS,
+  prepareSprintDeliveryFilter, matchesBarFilters,
   renderSprint, renderVelocity, initVelocityRange, sprintCatalogoOrdenado,
   matchesSprintTabFilters, sprintNamesFromData, initSprintSelector, syncFilterBarForTab,
   get sprintSelection(){ return sprintSelection; },
@@ -246,6 +247,23 @@ check('entrou em Done 1 dia após o fim e ficou na sprint até fechar -> conta n
     'o Jira só move para a próxima sprint os itens incompletos; ficar é sinal de pronto');
 });
 
+check('saiu de uma sprint futura e voltou à anterior: entrega fica onde terminou (CONV-1121)', () => {
+  const anterior = {name:'R1', state:'closed', startDate:'2026-07-13T17:40:11.547Z',
+    endDate:'2026-07-27T03:00:00.000Z', completeDate:'2026-07-25T02:58:48.974Z'};
+  const futura = {name:'R2', state:'closed', startDate:'2026-07-27T16:29:12.273Z',
+    endDate:'2026-08-10T03:00:00.000Z', completeDate:'2026-08-07T21:12:40.856Z'};
+  const retornou = item({chave:'CONV-1121', sp:5, concl:true, entrega:'2026-07-28',
+    sprints:['R1'], periodos:[
+      {sprint:'R1', enteredAt:'2026-07-08T13:26:01.915Z', leftAt:'2026-07-09T22:16:25.534Z'},
+      {sprint:'R2', enteredAt:'2026-07-09T22:16:25.534Z', leftAt:'2026-07-16T15:32:20.045Z'},
+      {sprint:'R1', enteredAt:'2026-07-16T15:32:20.045Z', leftAt:null},
+    ]});
+  const calc = T.atribuirEntregas([retornou], [anterior, futura]);
+  assert.strictEqual((calc.porSprint.get('R1')||[]).map(d=>d.Chave).join(','), 'CONV-1121');
+  assert.strictEqual((calc.porSprint.get('R2')||[]).length, 0,
+    'uma passagem encerrada antes do início de R2 não pode sequestrar a entrega');
+});
+
 check('Done mais de 7 dias após o fim fica fora, com motivo "tardia"', () => {
   assert.ok(!em('S4').includes('B-2'));
   assert.strictEqual(motivoDe('B-2'), 'tardia');
@@ -301,6 +319,26 @@ check('progresso da sprint usa as mesmas entregas atribuídas pelo velocity', ()
   assert.match(kpis, /Standard entregues/);
   assert.match(kpis, /<div class="val">1\/2<\/div>/,
     'P-2 pertenceu à S1, mas sua entrega foi atribuída somente à S2');
+});
+
+check('filtro global de Sprint usa a mesma atribuição única do velocity', () => {
+  const entregueS1 = item({ chave:'F-1', sp:3, concl:true, entrega:'2026-07-10',
+    sprints:['S1'], periodos:[{sprint:'S1', enteredAt:'2026-07-01T14:00:00.000Z', leftAt:null}] });
+  const entregueS2 = item({ chave:'F-2', sp:5, concl:true, entrega:'2026-07-25',
+    sprints:['S1','S2'], periodos:[
+      {sprint:'S1', enteredAt:'2026-07-01T14:00:00.000Z', leftAt:'2026-07-17T10:00:00.000Z'},
+      {sprint:'S2', enteredAt:'2026-07-20T14:00:00.000Z', leftAt:null},
+    ] });
+  T.DATA = [entregueS1, entregueS2];
+  sandbox.window.__SPRINTS = [S1, S2];
+  T.selections.Sprint.clear(); T.selections.Sprint.add('S1');
+  T.selections.Squad.clear(); T.selections['Tipo de item'].clear();
+  T.activeTab = 'sp';
+  T.prepareSprintDeliveryFilter();
+  assert.strictEqual(T.matchesBarFilters(entregueS1), true);
+  assert.strictEqual(T.matchesBarFilters(entregueS2), false,
+    'ter passado pela S1 não basta quando a entrega pertence à S2');
+  T.selections.Sprint.clear();
 });
 
 check('o resíduo é detalhado na tela, separado por motivo', () => {
@@ -382,9 +420,26 @@ check('a barra recebe sprint-only apenas na aba Sprint', () => {
   assert.strictEqual(states['pi-only'], false);
   T.activeTab = 'exec'; T.syncFilterBarForTab();
   assert.strictEqual(states['sprint-only'], false);
+  T.activeTab = 'sp'; T.syncFilterBarForTab();
+  assert.strictEqual(states['sprint-filter'], true);
+  T.activeTab = 'flow'; T.syncFilterBarForTab();
+  assert.strictEqual(states['sprint-filter'], true);
+  T.activeTab = 'exec'; T.syncFilterBarForTab();
+  assert.strictEqual(states['sprint-filter'], false);
 });
 
-const sprintHidden = ['#dd-Programa','#dd-VS','#dd-PI','#dd-AnoCriacao','#dd-Mes','#dd-Status','.date-filter'];
+check('filtro Sprint fica visível somente nas abas habilitadas', () => {
+  assert.match(html, /#filterBar #dd-Sprint\{display:none;\}/);
+  assert.match(html, /#filterBar\.sprint-filter #dd-Sprint\{display:block;\}/);
+});
+
+check('Ano e Mês permanecem no modelo, mas não aparecem na interface', () => {
+  assert.equal(typeof T.selections.AnoCriacao?.add, 'function');
+  assert.equal(typeof T.selections.Mes?.add, 'function');
+  assert.match(html, /#filterBar #dd-AnoCriacao,\s*#filterBar #dd-Mes\{display:none;\}/);
+});
+
+const sprintHidden = ['#dd-Programa','#dd-VS','#dd-PI','#dd-Status','.date-filter'];
 for(const selector of sprintHidden){
   const literal = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   check(`CSS da aba Sprint esconde ${selector}`, () => {

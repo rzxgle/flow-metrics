@@ -440,7 +440,7 @@ const escondeNaAbaPi = (seletor) => {
   const literal = seletor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`#filterBar\\.pi-only\\s+${literal}\\s*[,{]`).test(html);
 };
-for (const key of ['AnoCriacao', 'Mes', 'Tipo de item', 'Status']) {
+for (const key of ['Tipo de item', 'Status']) {
   const id = `#dd-${key.replace(/\s/g, '_')}`;
   assert.ok(escondeNaAbaPi(id), `o CSS deve esconder ${id} na aba PI`);
 }

@@ -303,8 +303,6 @@
      consigo clicar?", enquanto a ausência não levanta dúvida. Eles não afetam a
      aba (o recorte usa só Programa, VS, Squad e PI), então deixá-los visíveis
      sugeriria um efeito que não existe. */
-  #filterBar.pi-only #dd-AnoCriacao,
-  #filterBar.pi-only #dd-Mes,
   #filterBar.pi-only #dd-Tipo_de_item,
   #filterBar.pi-only #dd-Status,
   #filterBar.pi-only .date-filter{display:none;}
@@ -313,14 +311,21 @@
      os modos específicos das abas conseguem sobrescrevê-lo. */
   #filterBar .date-filter{display:flex;}
 
+  /* Mantidos no modelo de filtros para compatibilidade, mas removidos da UI. */
+  #filterBar #dd-AnoCriacao,
+  #filterBar #dd-Mes{display:none;}
+
+  /* Sprint é dimensão de entrega somente em Story Points e Lead/Cycle. */
+  #filterBar #dd-Sprint{display:none;}
+  #filterBar.sprint-filter #dd-Sprint{display:block;}
+  #filterBar.sprint-filter.sprint-selected .date-filter{display:none;}
+
   /* Na aba Sprint, o recorte gerencial é somente Squad + Tipo. As seleções dos
      demais filtros continuam guardadas para as outras abas, mas ficam ocultas
      e não participam dos cálculos desta página. */
   #filterBar.sprint-only #dd-Programa,
   #filterBar.sprint-only #dd-VS,
   #filterBar.sprint-only #dd-PI,
-  #filterBar.sprint-only #dd-AnoCriacao,
-  #filterBar.sprint-only #dd-Mes,
   #filterBar.sprint-only #dd-Status,
   #filterBar.sprint-only .date-filter{display:none;}
 
@@ -1307,7 +1312,7 @@
         <li><b>Velocity / Capacidade por Sprint não calculável</b> — pela ausência do campo Sprint. Como proxy, este dashboard apresenta SP concluído por PI e por mês.</li>
         <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados) <b>e com Data de início real preenchida</b> — da Data de início real até hoje. Itens em aberto que nunca foram iniciados ficam fora do indicador (não há fallback para a Criação), pois tempo em fila não é envelhecimento em execução. O planejamento do quarter cria itens em lote, e um item só é considerado em andamento quando foi efetivamente puxado — ou seja, quando ganhou Data de início real. O valor é recalculado a cada abertura do dashboard, em dias corridos até a data de hoje, mesmo que os dados venham do cache local.</li>
         <li><b>A aba PI Tracking usa outras regras — de propósito.</b> Ela replica o painel de quarter que o time já usa nas cerimônias de PI, para os dois números não divergirem. Três diferenças em relação às demais abas: (1) <b>sub-tarefas e o próprio épico ficam fora do denominador</b>, porque contá-los soma o mesmo trabalho duas vezes (a história e cada um dos seus subitens) e infla o progresso de quem quebra muito o trabalho; (2) <b>itens cancelados saem do denominador</b> em vez de contarem como não feitos; (3) a comparação de status é <b>normalizada</b> (maiúsculas/minúsculas não importam) e <span class="mono">Em Homologação</span>, <span class="mono">Pronto para Staging</span> e <span class="mono">Staging</span> contam como concluído. No dataset atual, essas diferenças valem 15 pontos percentuais nos épicos de PI3 - Afya One: 51,1% pela regra do PI (499 itens) contra 66,2% pela regra das outras abas (3.465 membros, dos quais 3.336 são sub-tarefas). As regras vivem em <span class="mono">src/config/quarter.rules.js</span> no servidor e viajam com os dados — não há uma segunda cópia no navegador.</li>
-        <li><b>Quais filtros valem na aba PI Tracking.</b> Ela usa <b>PI, Programa, Value Stream e Squad</b>. Os filtros de <b>Ano, Mês, Tipo, Status e o intervalo de conclusão saem da tela</b> nessa aba, porque não fazem sentido ali: mexeriam no <b>denominador</b> do progresso em vez de no recorte — filtrar por "Status = Done" faria todo épico aparecer com 100%. A seleção que você fez neles em outras abas continua guardada e volta a valer ao sair daqui. O <b>PI é o filtro do topo</b>, o mesmo de sempre: vazio significa todos. Como "quanto do quarter já passou" não tem resposta para dois quarters somados, os KPIs <b>Quarter percorrido</b>, <b>Gap plano × tempo</b> e <b>Squads abaixo do esperado</b> só aparecem com <b>um</b> PI selecionado; com mais de um, eles avisam em vez de somar quarters diferentes.</li>
+        <li><b>Quais filtros valem na aba PI Tracking.</b> Ela usa <b>PI, Programa, Value Stream e Squad</b>. Os filtros de <b>Tipo, Status e o intervalo de conclusão saem da tela</b> nessa aba, porque não fazem sentido ali: mexeriam no <b>denominador</b> do progresso em vez de no recorte — filtrar por "Status = Done" faria todo épico aparecer com 100%. A seleção que você fez neles em outras abas continua guardada e volta a valer ao sair daqui. O <b>PI é o filtro do topo</b>, o mesmo de sempre: vazio significa todos. Como "quanto do quarter já passou" não tem resposta para dois quarters somados, os KPIs <b>Quarter percorrido</b>, <b>Gap plano × tempo</b> e <b>Squads abaixo do esperado</b> só aparecem com <b>um</b> PI selecionado; com mais de um, eles avisam em vez de somar quarters diferentes.</li>
         <li><b>Os filhos não herdam o PI do épico.</b> As labels de PI ficam no épico; um item filho pode não ter nenhuma. Dos 3.465 filhos dos épicos de PI3 - Afya One, <b>1.430 têm PI "Não informado"</b>. Por isso a aba PI Tracking seleciona os <b>épicos</b> pela label e depois puxa <b>todos</b> os filhos pela cadeia de parent, ignorando o PI do filho — filtrar filhos por PI cortaria 40% da base sem avisar. Consequência: o progresso do PI mede o trabalho dos épicos daquele ciclo, não o conjunto de itens que carregam a label.</li>
         <li><b>Labels de transbordo entram no PI de destino.</b> Um item com <span class="mono">TransbordoPI2AfyaOne</span> transbordou do PI2 e é cobrado no PI3, então é ali que ele aparece — mesmo mantendo a label <span class="mono">PI2AfyaOne</span>. O mesmo vale para <span class="mono">NOVOPI3AfyaOne</span>, <span class="mono">LegadoTransbordoP126</span> e <span class="mono">LegadoTransbordoP226</span>. A label <span class="mono">DESPRIORIZADOPI3AfyaOne</span> não classifica mais o item como parte do PI3.</li>
         <li><b>O PI Tracking tem uma coleta própria.</b> A consulta geral continua usando <span class="mono">created &gt;= startOfYear()</span>, mas esta aba busca os épicos diretamente pelas labels configuradas, sem corte por data de criação, e depois busca seus filhos. Assim, épicos antigos planejados para o quarter entram no PI sem alterar as métricas das outras abas.</li>
@@ -1333,7 +1338,7 @@
   <h4>Sobre este dashboard</h4>
   <ul>
     <li>Construído a partir de uma exportação pontual do Jira (snapshot), sem histórico de mudança de status — por isso métricas que dependem de série temporal de status (CFD, burndown clássico) são aproximadas. Veja a aba <b>Notas sobre os Dados</b> para detalhes completos.</li>
-    <li>Todos os gráficos respondem aos filtros globais no topo da página. Combine Programa, VS, Squad, PI, Ano, Mês, Tipo de item e Status livremente.</li>
+    <li>Todos os gráficos respondem aos filtros globais aplicáveis no topo da página. Combine Programa, VS, Squad, PI, Sprint, Tipo de item e Status conforme a aba.</li>
   </ul>
 </footer>
 
@@ -1369,6 +1374,7 @@ const FILTER_HELP = {
   'dd-VS':'Value Stream é mapeada a partir do projeto do Jira. Vazio significa todas.',
   'dd-Squad':'Squad vem do campo Team do Jira. Na aba Sprint, esse filtro também define quais sprints ficam disponíveis.',
   'dd-PI':'PI é identificado pelas labels configuradas. Quando há mais de uma label válida, prevalece o PI mais recente reconhecido.',
+  'dd-Sprint':'Nas abas Story Points e Lead & Cycle Time, inclui somente issues cuja entrega foi atribuída à sprint pela mesma regra do velocity.',
   'dd-AnoCriacao':'Filtra pelo ano de criação da issue, não pelo ano de conclusão.',
   'dd-Mes':'Filtra pelo mês de criação da issue, não pelo mês de conclusão.',
   'dd-Tipo_de_item':'Filtra pelo tipo bruto do Jira, como Story, Enabler, Bug ou Sub-task.',
@@ -1481,6 +1487,7 @@ const FILTER_DIMS = [
   {key:'VS', label:'Value Stream'},
   {key:'Squad', label:'Squad'},
   {key:'PI', label:'PI'},
+  {key:'Sprint', label:'Sprint'},
   {key:'AnoCriacao', label:'Ano'},
   {key:'Mes', label:'Mês (criação)'},
   {key:'Tipo de item', label:'Tipo'},
@@ -1488,6 +1495,8 @@ const FILTER_DIMS = [
 ];
 const selections = {};
 FILTER_DIMS.forEach(f=> selections[f.key] = new Set());
+// null = filtro inativo; Set = chaves atribuídas às sprints escolhidas.
+let sprintDeliveryFilterKeys = null;
 let filterDocumentHandlerBound = false;
 // Filtro padrão de Tipo de item (recorte inicial): tipos crus de produção.
 const DEFAULT_TIPO = ['Enabler','Melhoria','Story','Technical Debt'];
@@ -1533,8 +1542,7 @@ function uniqueVals(key){
     // lista TODAS as sprints do histórico (array Sprints), não só a última ativa
     DATA.forEach(d=>{
       const arr = (d.Sprints && d.Sprints.length) ? d.Sprints : [];
-      if(!arr.length) set.add('(Não informado)');
-      else arr.forEach(s=> set.add(s));
+      arr.forEach(s=> set.add(s));
     });
   } else {
     DATA.forEach(d=>{
@@ -1731,9 +1739,9 @@ function matchesBarFilters(d, skip){
     const sel = selections[f.key];
     if(sel.size===0) continue;
     if(f.key==='Sprint'){
-      // Nível A: item pertence à sprint se seu histórico (Sprints) CONTÉM a sprint
-      const arr = (d.Sprints && d.Sprints.length) ? d.Sprints : ['(Não informado)'];
-      if(!arr.some(s=>sel.has(String(s)))) return false;
+      // Usa a atribuição ÚNICA de entrega do velocity, não a mera passagem pelo
+      // histórico: um item que atravessou duas sprints pertence a só uma entrega.
+      if(sprintDeliveryFilterKeys && !sprintDeliveryFilterKeys.has(d.Chave)) return false;
       continue;
     }
     let v = d[f.key];
@@ -1766,7 +1774,9 @@ function getFilteredNoDate(skip){
 function getFiltered(skip){
   return DATA.filter(d=>{
     if(!matchesBarFilters(d, skip)) return false;
-    if(dateRange.from || dateRange.to){
+    // Sprint já define sua própria janela pela entrada em Done. Aplicar também
+    // a data de conclusão do release cortaria entregas válidas do velocity.
+    if(!sprintDeliveryFilterKeys && (dateRange.from || dateRange.to)){
       const dc = d['Data Conclusao'];
       if(!dc) return false; // exige Fim real ou Conclusão preenchidos
       if(dateRange.from && dc < dateRange.from) return false;
@@ -2292,6 +2302,9 @@ function syncFilterBarForTab(){
   if(!bar) return;
   bar.classList.toggle('pi-only', activeTab==='pi');
   bar.classList.toggle('sprint-only', activeTab==='sprint');
+  const habilitaSprint = activeTab==='sp' || activeTab==='flow';
+  bar.classList.toggle('sprint-filter', habilitaSprint);
+  bar.classList.toggle('sprint-selected', habilitaSprint && selections.Sprint.size>0);
 }
 
 const sidebarCollapse = document.getElementById('sidebarCollapse');
@@ -2334,6 +2347,7 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
   document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
   activeTab = btn.dataset.tab;
   syncFilterBarForTab();
+  renderAll();
   closeMobileSidebar();
   // Gráficos criados enquanto o painel estava oculto (display:none) nascem com
   // tamanho 0; ao ficar visível, forçamos um resize para eles se redesenharem.
@@ -2350,6 +2364,8 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
  * Cada render recebe os dois e escolhe a base correta por métrica.
  */
 function renderAll(){
+  prepareSprintDeliveryFilter();
+  syncFilterBarForTab();
   const f = getFiltered();
   const atual = getFilteredNoDate();
   renderPeriodo(f, atual);
@@ -3251,6 +3267,13 @@ function sprintJanelaDatas(s){
 function diasEntreDatas(de, ate){
   return Math.round((Date.parse(ate+'T00:00:00Z') - Date.parse(de+'T00:00:00Z')) / 86400000);
 }
+/* A issue era membro da sprint nesta DATA de calendário? A entrega não possui
+   horário, por isso a comparação é inclusiva nas duas pontas do dia. */
+function membroNaData(d, sprint, data){
+  return (d.SprintPeriodos||[]).some(p=>p.sprint===sprint && p.enteredAt
+    && isoLocalDate(new Date(p.enteredAt)) <= data
+    && (!p.leftAt || isoLocalDate(new Date(p.leftAt)) >= data));
+}
 /**
  * Data que fecha o COMPROMISSO DA SPRINT.
  *
@@ -3311,23 +3334,42 @@ function atribuirEntregas(itens, sprints){
     if(!d.Concluido || !dc) return;
     const suas = sprints.filter(s=>passouPelaSprint(d, s.name)); // já cronológicas
     if(!suas.length) return; // não participou de nenhuma sprint do recorte
-    // (1) e (2) colapsam em "a primeira que termina em/depois da entrega":
-    // se ela também começou antes, é o caso 1; se começou depois, é o caso 2.
-    let alvo = suas.find(s=>dc <= janelas.get(s.name).ate);
+    // (1) entrega dentro da janela: a issue precisa ainda pertencer à sprint na
+    // data. (2) entrega anterior ao início: precisa abrir a sprint como membro.
+    // Sem essa validação, uma passagem antiga por uma sprint futura sequestrava
+    // a entrega mesmo após a issue ter saído dela (caso CONV-1121).
+    let alvo = suas.find(s=>{
+      const janela = janelas.get(s.name);
+      if(dc > janela.ate) return false;
+      const semCronologia = !(d.SprintPeriodos||[]).some(p=>p.sprint===s.name)
+        && (d.Sprints||[]).includes(s.name);
+      if(semCronologia) return true;
+      return dc < janela.de
+        ? membroNoInstante(d, s.name, Date.parse(s.startDate))
+        : membroNaData(d, s.name, dc);
+    });
     if(!alvo){
-      // (3) o Jira fechou a sprint com o item ainda dentro.
-      const ultima = suas[suas.length-1];
-      const fimMs = sprintFimMs(ultima);
-      // Item sem cronologia reconstruída não tem SprintPeriodos: se a sprint
-      // consta do campo Sprints, ele nunca foi movido para fora dela.
-      const semCronologia = !(d.SprintPeriodos||[]).some(p=>p.sprint===ultima.name)
-        && (d.Sprints||[]).includes(ultima.name);
-      const ficouAteOFim = semCronologia
-        || (fimMs!=null && membroNoInstante(d, ultima.name, fimMs));
-      const atraso = diasEntreDatas(janelas.get(ultima.name).ate, dc);
-      if(sprintFechada(ultima) && ficouAteOFim && atraso <= TOLERANCIA_FECHAMENTO_DIAS){
-        alvo = ultima;
+      // (3) procura, da mais recente para a mais antiga, a sprint que realmente
+      // fechou com o item dentro. A última passagem cronológica pode ter acabado
+      // antes mesmo do início da sprint, como ocorreu com a CONV-1121.
+      const fechamento = suas.slice().reverse().find(s=>{
+        const fimMs = sprintFimMs(s);
+        const semCronologia = !(d.SprintPeriodos||[]).some(p=>p.sprint===s.name)
+          && (d.Sprints||[]).includes(s.name);
+        const ficouAteOFim = semCronologia || (fimMs!=null && membroNoInstante(d, s.name, fimMs));
+        const atraso = diasEntreDatas(janelas.get(s.name).ate, dc);
+        return sprintFechada(s) && ficouAteOFim && atraso>=0
+          && atraso<=TOLERANCIA_FECHAMENTO_DIAS;
+      });
+      if(fechamento){
+        alvo = fechamento;
       } else {
+        const ultima = suas[suas.length-1];
+        const fimMs = sprintFimMs(ultima);
+        const semCronologia = !(d.SprintPeriodos||[]).some(p=>p.sprint===ultima.name)
+          && (d.Sprints||[]).includes(ultima.name);
+        const ficouAteOFim = semCronologia || (fimMs!=null && membroNoInstante(d, ultima.name, fimMs));
+        const atraso = diasEntreDatas(janelas.get(ultima.name).ate, dc);
         foraDetalhe.push({
           item: d, sprint: ultima.name, atraso,
           motivo: ficouAteOFim ? 'tardia' : 'saiu',
@@ -3339,6 +3381,23 @@ function atribuirEntregas(itens, sprints){
     porSprint.get(alvo.name).push(d);
   });
   return {porSprint, foraDeSprint: foraDetalhe.map(x=>x.item), foraDetalhe};
+}
+
+/** Prepara o filtro global de Sprint para Story Points e Lead/Cycle Time.
+ *  A união é feita depois da atribuição única: selecionar duas sprints inclui
+ *  as entregas das duas, mas nenhuma issue pode aparecer duplicada. */
+function prepareSprintDeliveryFilter(){
+  const habilitado = (activeTab==='sp' || activeTab==='flow') && selections.Sprint.size>0;
+  sprintDeliveryFilterKeys = null;
+  if(!habilitado) return;
+  const base = DATA.filter(d=>!d.Cancelado && isStandard(d));
+  const catalogo = sprintCatalogoOrdenado().filter(s=>sprintComecou(s));
+  const {porSprint} = atribuirEntregas(base, catalogo);
+  const keys = new Set();
+  selections.Sprint.forEach(nome=>{
+    (porSprint.get(nome)||[]).forEach(d=>keys.add(d.Chave));
+  });
+  sprintDeliveryFilterKeys = keys;
 }
 const spDe = d => Number(d['Story Points']) || 0;
 /* Sprint selecionada na aba Sprint (seleção única). */
