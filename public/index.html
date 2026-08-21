@@ -315,11 +315,6 @@
   #filterBar #dd-AnoCriacao,
   #filterBar #dd-Mes{display:none;}
 
-  /* Sprint é dimensão de entrega somente em Story Points e Lead/Cycle. */
-  #filterBar #dd-Sprint{display:none;}
-  #filterBar.sprint-filter #dd-Sprint{display:block;}
-  #filterBar.sprint-filter.sprint-selected .date-filter{display:none;}
-
   /* Na aba Sprint, o recorte gerencial é somente Squad + Tipo. As seleções dos
      demais filtros continuam guardadas para as outras abas, mas ficam ocultas
      e não participam dos cálculos desta página. */
@@ -1338,7 +1333,7 @@
   <h4>Sobre este dashboard</h4>
   <ul>
     <li>Construído a partir de uma exportação pontual do Jira (snapshot), sem histórico de mudança de status — por isso métricas que dependem de série temporal de status (CFD, burndown clássico) são aproximadas. Veja a aba <b>Notas sobre os Dados</b> para detalhes completos.</li>
-    <li>Todos os gráficos respondem aos filtros globais aplicáveis no topo da página. Combine Programa, VS, Squad, PI, Sprint, Tipo de item e Status conforme a aba.</li>
+    <li>Todos os gráficos respondem aos filtros globais aplicáveis no topo da página. Combine Programa, VS, Squad, PI, Tipo de item e Status conforme a aba.</li>
   </ul>
 </footer>
 
@@ -1374,7 +1369,6 @@ const FILTER_HELP = {
   'dd-VS':'Value Stream é mapeada a partir do projeto do Jira. Vazio significa todas.',
   'dd-Squad':'Squad vem do campo Team do Jira. Na aba Sprint, esse filtro também define quais sprints ficam disponíveis.',
   'dd-PI':'PI é identificado pelas labels configuradas. Quando há mais de uma label válida, prevalece o PI mais recente reconhecido.',
-  'dd-Sprint':'Nas abas Story Points e Lead & Cycle Time, inclui somente issues cuja entrega foi atribuída à sprint pela mesma regra do velocity.',
   'dd-AnoCriacao':'Filtra pelo ano de criação da issue, não pelo ano de conclusão.',
   'dd-Mes':'Filtra pelo mês de criação da issue, não pelo mês de conclusão.',
   'dd-Tipo_de_item':'Filtra pelo tipo bruto do Jira, como Story, Enabler, Bug ou Sub-task.',
@@ -1487,7 +1481,6 @@ const FILTER_DIMS = [
   {key:'VS', label:'Value Stream'},
   {key:'Squad', label:'Squad'},
   {key:'PI', label:'PI'},
-  {key:'Sprint', label:'Sprint'},
   {key:'AnoCriacao', label:'Ano'},
   {key:'Mes', label:'Mês (criação)'},
   {key:'Tipo de item', label:'Tipo'},
@@ -1495,8 +1488,6 @@ const FILTER_DIMS = [
 ];
 const selections = {};
 FILTER_DIMS.forEach(f=> selections[f.key] = new Set());
-// null = filtro inativo; Set = chaves atribuídas às sprints escolhidas.
-let sprintDeliveryFilterKeys = null;
 let filterDocumentHandlerBound = false;
 // Filtro padrão de Tipo de item (recorte inicial): tipos crus de produção.
 const DEFAULT_TIPO = ['Enabler','Melhoria','Story','Technical Debt'];
@@ -1538,19 +1529,11 @@ function setDefaultDateRange(){
 
 function uniqueVals(key){
   const set = new Set();
-  if(key==='Sprint'){
-    // lista TODAS as sprints do histórico (array Sprints), não só a última ativa
-    DATA.forEach(d=>{
-      const arr = (d.Sprints && d.Sprints.length) ? d.Sprints : [];
-      arr.forEach(s=> set.add(s));
-    });
-  } else {
-    DATA.forEach(d=>{
-      let v = d[key];
-      if(v===null || v===undefined || v==='') v='(Não informado)';
-      set.add(v);
-    });
-  }
+  DATA.forEach(d=>{
+    let v = d[key];
+    if(v===null || v===undefined || v==='') v='(Não informado)';
+    set.add(v);
+  });
   let arr = Array.from(set);
   if(key==='Mes' || key==='MesConclusao'){
     arr = arr.filter(x=>x!=='(Não informado)').sort();
@@ -1558,12 +1541,6 @@ function uniqueVals(key){
     arr = arr.sort((a,b)=>a-b);
   } else if(key==='PI'){
     arr = arr.sort();
-  } else if(key==='Sprint'){
-    arr = arr.sort((a,b)=>{
-      if(a==='(Não informado)') return 1;
-      if(b==='(Não informado)') return -1;
-      return String(a).localeCompare(String(b),'pt',{numeric:true});
-    });
   } else {
     arr = arr.sort((a,b)=>String(a).localeCompare(String(b),'pt'));
   }
@@ -1738,12 +1715,6 @@ function matchesBarFilters(d, skip){
     if(skip && skip.has(f.key)) continue;
     const sel = selections[f.key];
     if(sel.size===0) continue;
-    if(f.key==='Sprint'){
-      // Usa a atribuição ÚNICA de entrega do velocity, não a mera passagem pelo
-      // histórico: um item que atravessou duas sprints pertence a só uma entrega.
-      if(sprintDeliveryFilterKeys && !sprintDeliveryFilterKeys.has(d.Chave)) return false;
-      continue;
-    }
     let v = d[f.key];
     if(v===null||v===undefined||v==='') v='(Não informado)';
     if(!sel.has(String(v))) return false;
@@ -1774,9 +1745,7 @@ function getFilteredNoDate(skip){
 function getFiltered(skip){
   return DATA.filter(d=>{
     if(!matchesBarFilters(d, skip)) return false;
-    // Sprint já define sua própria janela pela entrada em Done. Aplicar também
-    // a data de conclusão do release cortaria entregas válidas do velocity.
-    if(!sprintDeliveryFilterKeys && (dateRange.from || dateRange.to)){
+    if(dateRange.from || dateRange.to){
       const dc = d['Data Conclusao'];
       if(!dc) return false; // exige Fim real ou Conclusão preenchidos
       if(dateRange.from && dc < dateRange.from) return false;
@@ -2302,9 +2271,6 @@ function syncFilterBarForTab(){
   if(!bar) return;
   bar.classList.toggle('pi-only', activeTab==='pi');
   bar.classList.toggle('sprint-only', activeTab==='sprint');
-  const habilitaSprint = activeTab==='sp' || activeTab==='flow';
-  bar.classList.toggle('sprint-filter', habilitaSprint);
-  bar.classList.toggle('sprint-selected', habilitaSprint && selections.Sprint.size>0);
 }
 
 const sidebarCollapse = document.getElementById('sidebarCollapse');
@@ -2347,7 +2313,6 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
   document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
   activeTab = btn.dataset.tab;
   syncFilterBarForTab();
-  renderAll();
   closeMobileSidebar();
   // Gráficos criados enquanto o painel estava oculto (display:none) nascem com
   // tamanho 0; ao ficar visível, forçamos um resize para eles se redesenharem.
@@ -2364,7 +2329,6 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
  * Cada render recebe os dois e escolhe a base correta por métrica.
  */
 function renderAll(){
-  prepareSprintDeliveryFilter();
   syncFilterBarForTab();
   const f = getFiltered();
   const atual = getFilteredNoDate();
@@ -3383,22 +3347,6 @@ function atribuirEntregas(itens, sprints){
   return {porSprint, foraDeSprint: foraDetalhe.map(x=>x.item), foraDetalhe};
 }
 
-/** Prepara o filtro global de Sprint para Story Points e Lead/Cycle Time.
- *  A união é feita depois da atribuição única: selecionar duas sprints inclui
- *  as entregas das duas, mas nenhuma issue pode aparecer duplicada. */
-function prepareSprintDeliveryFilter(){
-  const habilitado = (activeTab==='sp' || activeTab==='flow') && selections.Sprint.size>0;
-  sprintDeliveryFilterKeys = null;
-  if(!habilitado) return;
-  const base = DATA.filter(d=>!d.Cancelado && isStandard(d));
-  const catalogo = sprintCatalogoOrdenado().filter(s=>sprintComecou(s));
-  const {porSprint} = atribuirEntregas(base, catalogo);
-  const keys = new Set();
-  selections.Sprint.forEach(nome=>{
-    (porSprint.get(nome)||[]).forEach(d=>keys.add(d.Chave));
-  });
-  sprintDeliveryFilterKeys = keys;
-}
 const spDe = d => Number(d['Story Points']) || 0;
 /* Sprint selecionada na aba Sprint (seleção única). */
 let sprintSelection = null;
