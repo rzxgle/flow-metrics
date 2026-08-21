@@ -1245,6 +1245,7 @@
 
   <div id="velocity-conteudo">
     <div class="kpi-row" id="velocity-kpis" style="margin-top:12px;"></div>
+    <div class="cap" id="velocity-fora-detalhe" style="margin-top:8px;"></div>
     <div class="card" style="margin-top:14px;">
       <h3>Story Points: comprometido × adicionado × entregue, por sprint</h3>
       <div class="cap" id="cap-velocity">Story Points por sprint. Sprint em andamento em tom claro e fora das médias.</div>
@@ -1297,7 +1298,7 @@
     <div class="card">
       <h3>Limitações identificadas</h3>
       <ul style="font-size:12.5px;line-height:1.7;padding-left:18px;margin:0;">
-        <li><b>Histórico de sprint: reconstruído. Histórico de status: ainda não coletado.</b> O dashboard busca no changelog do Jira as transições do campo <b>Sprint</b>, o que permite saber quando cada item entrou e saiu de cada sprint — é o que sustenta o "comprometido no início" do velocity. O changelog de <b>status</b> está disponível na mesma API, mas ainda não é coletado; enquanto não for, seguem <b>indisponíveis o CFD (Cumulative Flow Diagram), o Burndown por status e o Burnup clássicos</b>, que exigem série temporal de status por dia. A aproximação atual é a evolução de itens concluídos por mês (throughput) e o burndown de subitens por data de conclusão.</li>
+        <li><b>Histórico de sprint e histórico de status: reconstruídos.</b> O dashboard busca no changelog do Jira as transições dos campos <b>Sprint</b> e <b>Status</b>, na mesma chamada em lote. O de Sprint permite saber quando cada item entrou e saiu de cada sprint — é o que sustenta o "comprometido no início" do velocity. O de Status dá a data em que o item entrou na categoria Done, que é a <b>data de entrega da sprint</b> (ver adiante). Com a série de status disponível, <b>CFD (Cumulative Flow Diagram), Burndown por status e Burnup clássicos passam a ser viáveis</b> e estão no roadmap; hoje a tela ainda mostra a aproximação por throughput mensal e o burndown de subitens.</li>
         <li><b>Cycle Time com cobertura parcial</b>: apenas 437 dos 1.684 itens Concluídos (26%) têm tanto "Data de início real" quanto "Data de fim real" preenchidas. Os demais 74% não permitem calcular Cycle Time e foram excluídos dessa métrica especificamente (mas continuam contando em Throughput e Story Points).</li>
         <li><b>Lead Time com cobertura maior, mas não total</b>: 1.382 dos 1.684 Concluídos (82%) têm "Data de fim real" preenchida, permitindo Lead Time = Data de fim real − Criado. A coluna "Resolvido" quase não é usada neste projeto (apenas 204 registros no total), por isso não foi a base do cálculo.</li>
         <li><b>Story Points ausentes em 715 itens (22%)</b> — tratados como 0 nos totais, o que pode subestimar levemente o volume de esforço, especialmente em Sub-tasks menores.</li>
@@ -1311,7 +1312,8 @@
         <li><b>Labels de transbordo entram no PI de destino.</b> Um item com <span class="mono">TransbordoPI2AfyaOne</span> transbordou do PI2 e é cobrado no PI3, então é ali que ele aparece — mesmo mantendo a label <span class="mono">PI2AfyaOne</span>. O mesmo vale para <span class="mono">NOVOPI3AfyaOne</span>, <span class="mono">LegadoTransbordoP126</span> e <span class="mono">LegadoTransbordoP226</span>. A label <span class="mono">DESPRIORIZADOPI3AfyaOne</span> não classifica mais o item como parte do PI3.</li>
         <li><b>O PI Tracking tem uma coleta própria.</b> A consulta geral continua usando <span class="mono">created &gt;= startOfYear()</span>, mas esta aba busca os épicos diretamente pelas labels configuradas, sem corte por data de criação, e depois busca seus filhos. Assim, épicos antigos planejados para o quarter entram no PI sem alterar as métricas das outras abas.</li>
         <li><b>Progresso do épico e status do épico são dimensões independentes.</b> O KPI "Épicos entregues" usa o <b>status do próprio épico no Jira</b>; o "Progresso do PI" usa os <b>filhos</b>. Um épico pode estar 100% nos filhos e ainda não ter sido movido para um status de conclusão — e o contrário também acontece. Divergência entre os dois costuma ser sinal de status desatualizado, não de erro de cálculo.</li>
-        <li><b>Velocity: o que entra e o que não entra</b>. Só <b>itens standard</b> (exclui Épico, cujo SP é agregado, e Sub-task, que somaria de novo o SP do pai) e não cancelados. <b>Comprometido</b> = era membro da sprint no instante em que ela começou; <b>adicionado</b> = entrou depois do início; <b>entregue</b> = a entrega é atribuída a <b>uma única</b> sprint, a primeira sprint do item que termina em ou depois da Data de conclusão. Na prática: se a conclusão cai dentro de uma janela, é aquela sprint; se o item já estava <b>pronto quando a sprint abriu</b> (trabalho puxado antes do início), conta na sprint que abriu com ele pronto. Item concluído <b>depois do fim de todas as suas sprints</b> não conta em sprint alguma — vai para o KPI "Entregue fora de sprint", clicável. As janelas são comparadas em <b>datas</b>, não em horários, para não descartar entregas do último dia da sprint. Sprint <b>em andamento</b> aparece em tom claro e fica fora das médias (está sempre sub-entregue); sprint <b>futura</b> não aparece. Sprint em que a squad não teve nenhum item não entra no gráfico nem na média — itens emprestados entre boards fariam aparecer sprints de outros times zeradas.</li>
+        <li><b>Data de entrega da sprint ≠ data de conclusão.</b> Neste processo a <b>homologação integrada acontece depois da sprint</b>, então os status finais (<span class="mono">Homologação integrada</span>, <span class="mono">PRONTO PARA PROD</span>, <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span>) e o campo manual <span class="mono">Data de Fim Real</span> refletem o <b>release</b>, não o trabalho do time. Por acordo com as squads, o compromisso da sprint está entregue quando o item <b>entra no primeiro status da categoria Done</b> — hoje <span class="mono">Pronto p/ Deploy STG</span>. Essa data vem do <b>changelog de status</b> do Jira e é a que alimenta velocity, say-do e o burndown da sprint. Quando o changelog não está disponível para um item, cai-se na Data de conclusão (comportamento antigo) e o item é contado na ressalva acima. Lead time, cycle time e as abas de Entregas seguem usando a Data de conclusão, que é a entrega de valor ponta a ponta.</li>
+        <li><b>Velocity: o que entra e o que não entra</b>. Só <b>itens standard</b> (exclui Épico, cujo SP é agregado, e Sub-task, que somaria de novo o SP do pai) e não cancelados. <b>Comprometido</b> = era membro da sprint no instante em que ela começou; <b>adicionado</b> = entrou depois do início; <b>entregue</b> = a entrega é atribuída a <b>uma única</b> sprint, por três regras em ordem: (1) a sprint cuja janela contém a data de entrega; (2) senão, a primeira sprint do item que termina em ou depois dela — cobre o item já <b>pronto quando a sprint abriu</b> (trabalho puxado antes do início); (3) senão, a <b>última sprint do item, se ela fechou com o item ainda dentro</b> e a entrega veio em até <b>7 dias</b>. A regra 3 existe porque, ao encerrar uma sprint, o Jira move para a próxima apenas os itens <b>incompletos</b> — quem permanece é quem o board já dava por pronto; é a mesma semântica do Sprint Report nativo, e sem ela um item que entrou em Done um dia após o fim ficava comprometido numa sprint e entregue em nenhuma. O que sobra vai para o KPI <b>"Entregue fora de sprint"</b>, detalhado logo abaixo por motivo (entrou em Done tarde demais × saiu da sprint antes de concluir), tudo clicável. A janela da sprint vai do início até o <b>maior</b> entre o fim planejado e o fechamento real — a maioria das sprints da base foi encerrada depois do <span class="mono">endDate</span>, e ignorar isso descartava as entregas desses dias. As janelas são comparadas em <b>datas</b>, não em horários, para não descartar entregas do último dia da sprint. Sprint <b>em andamento</b> aparece em tom claro e fica fora das médias (está sempre sub-entregue); sprint <b>futura</b> não aparece. Sprint em que a squad não teve nenhum item não entra no gráfico nem na média — itens emprestados entre boards fariam aparecer sprints de outros times zeradas.</li>
         <li><b>Cerca de 4% dos itens standard não têm cronologia de sprint recuperável</b>: o campo Sprint preenchido na criação não gera changelog, e movimentações em massa entre sprints às vezes também não. Nesses casos sabemos o conjunto de sprints, não as datas, e o item é contado como presente desde a criação — o bloco de velocity mostra quantos itens estão nessa condição e permite abrir a lista. Subtarefas são o caso extremo (herdam a sprint do pai sem gerar histórico), mas não afetam o velocity porque não entram no cálculo.</li>
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Apenas Sub-tasks são consistentemente marcadas como Concluído. Por isso, além do Throughput estrito (Status = Concluído), a aba de Entregas mostra também "Entregue (amplo)", que considera todos os status pós-desenvolvimento. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
@@ -3191,10 +3193,15 @@ function sprintCatalogoOrdenado(){
     .slice()
     .sort((a,b)=> Date.parse(a.startDate) - Date.parse(b.startDate));
 }
-/* Fim da sprint: endDate; se faltar, completeDate. */
+/* Fim da sprint: o MAIOR entre endDate (planejado) e completeDate (fechamento
+   real). 153 das 195 sprints fechadas da base foram encerradas DEPOIS do
+   endDate — o time seguiu trabalhando até o fechamento, e usar só o endDate
+   jogava essas entregas para fora de qualquer janela. */
 function sprintFimMs(s){
-  const fim = s.endDate || s.completeDate;
-  return fim ? Date.parse(fim) : null;
+  const planejado = s.endDate ? Date.parse(s.endDate) : null;
+  const real = s.completeDate ? Date.parse(s.completeDate) : null;
+  if(planejado==null && real==null) return null;
+  return Math.max(planejado==null?-Infinity:planejado, real==null?-Infinity:real);
 }
 /* Fechada = o Jira diz 'closed'. Sem `state`, cai para "já passou do fim". */
 function sprintFechada(s){
@@ -3229,45 +3236,109 @@ function passouPelaSprint(d, sprint){
   return (d.SprintPeriodos||[]).some(p=>p.sprint===sprint) || (d.Sprints||[]).includes(sprint);
 }
 /* Janela da sprint em DATAS locais ('YYYY-MM-DD'), inclusive nas duas pontas.
-   `Data Conclusao` é uma data sem hora; comparar com o timestamp da sprint (que
+   A data de entrega é uma data sem hora; comparar com o timestamp da sprint (que
    costuma terminar às 03:00 UTC = meia-noite no Brasil) descartava as entregas
    do próprio último dia da sprint. */
 function sprintJanelaDatas(s){
-  const fim = s.endDate || s.completeDate || s.startDate;
-  return { de: isoLocalDate(new Date(s.startDate)), ate: isoLocalDate(new Date(fim)) };
+  const fim = sprintFimMs(s);
+  return {
+    de: isoLocalDate(new Date(s.startDate)),
+    ate: isoLocalDate(new Date(fim==null ? Date.parse(s.startDate) : fim)),
+  };
 }
+/* Diferença em dias de calendário entre duas datas 'YYYY-MM-DD'. As duas pontas
+   são lidas como meia-noite UTC, então não há deslocamento de fuso. */
+function diasEntreDatas(de, ate){
+  return Math.round((Date.parse(ate+'T00:00:00Z') - Date.parse(de+'T00:00:00Z')) / 86400000);
+}
+/**
+ * Data que fecha o COMPROMISSO DA SPRINT.
+ *
+ * `Data Entrega Sprint` é a entrada na categoria Done (o primeiro status de
+ * Done, hoje "Pronto p/ Deploy STG"), lida do changelog de status. É ela que
+ * marca o fim do trabalho do time: neste processo a homologação integrada roda
+ * DEPOIS da sprint, então `Data Conclusao` — o campo manual "Data de Fim Real"
+ * ou, na falta dele, a resolução do item — reflete o release, não a sprint.
+ *
+ * Fallback para `Data Conclusao` quando o changelog não veio: o gráfico segue
+ * funcionando com a precisão antiga, em vez de perder o item.
+ */
+function dataEntregaSprint(d){
+  return d['Data Entrega Sprint'] || d['Data Conclusao'] || null;
+}
+/* Tolerância, em dias, da regra 3 de atribuição (ver abaixo). 7 dias cobrem o
+   ruído de fronteira — o item que o Jira fechou junto com a sprint e cuja
+   entrada em Done caiu poucos dias depois — sem creditar entrega a uma sprint
+   encerrada há semanas. Medido na base: 7d recupera 49 itens/242 SP; 30d
+   recuperaria 64, ao custo de inflar retroativamente sprints antigas. */
+const TOLERANCIA_FECHAMENTO_DIAS = 7;
+
 /**
  * Atribui a entrega de cada item concluído a UMA sprint — atribuição única, para
  * a mesma entrega nunca contar duas vezes.
  *
+ * A data usada é a de `dataEntregaSprint` (entrada no Done), não a conclusão do
+ * release.
+ *
  * Ordem de prioridade:
- *   1) a sprint cuja janela CONTÉM a Data Conclusao;
- *   2) senão, a primeira sprint (cronológica) que termina em/depois da conclusão.
+ *   1) a sprint cuja janela CONTÉM a data de entrega;
+ *   2) senão, a primeira sprint (cronológica) que termina em/depois dela.
  *      Cobre o item que já estava PRONTO quando a sprint abriu — acontece quando
  *      o time puxa o trabalho antes do início (ex.: LEG-2049, concluído em 16/07
  *      numa sprint que só começou em 20/07). Sem esta regra o item contava em
  *      "comprometido" e em entregue nenhum, abrindo um buraco permanente no say-do;
- *   3) senão, nenhuma: foi concluído DEPOIS do fim de todas as suas sprints, então
- *      não é velocity de sprint alguma. Vai para o contador "entregue fora de
- *      sprint", visível na tela em vez de desaparecer.
+ *   3) senão, a ÚLTIMA sprint do item — desde que ela estivesse fechada, o item
+ *      ainda fosse membro dela no instante do fechamento e a entrega tenha vindo
+ *      em até TOLERANCIA_FECHAMENTO_DIAS dias. Ao fechar uma sprint o Jira move
+ *      para a próxima os itens INCOMPLETOS; quem fica é quem o board já dava por
+ *      pronto. Permanecer na sprint até o fechamento é, portanto, o sinal de que
+ *      a entrega foi daquela sprint — mesma semântica do Sprint Report nativo.
+ *      Sem esta regra, um item concluído um dia depois do fim (ex.: CONV-462)
+ *      ficava comprometido numa sprint e entregue em nenhuma;
+ *   4) senão, nenhuma: vai para o contador "entregue fora de sprint", com o
+ *      motivo registrado, visível na tela em vez de desaparecer.
+ *
+ * @returns {{porSprint: Map, foraDeSprint: object[], foraDetalhe: object[]}}
+ *          `foraDetalhe` traz {item, motivo, sprint, atraso} para o detalhamento
+ *          por motivo; `foraDeSprint` é a mesma lista, só com os itens.
  */
 function atribuirEntregas(itens, sprints){
   const janelas = new Map(sprints.map(s=>[s.name, sprintJanelaDatas(s)]));
   const porSprint = new Map();
-  const foraDeSprint = [];
+  const foraDetalhe = [];
   itens.forEach(d=>{
-    if(!d.Concluido || !d['Data Conclusao']) return;
-    const dc = String(d['Data Conclusao']).slice(0,10);
+    const dc = String(dataEntregaSprint(d) || '').slice(0,10);
+    if(!d.Concluido || !dc) return;
     const suas = sprints.filter(s=>passouPelaSprint(d, s.name)); // já cronológicas
     if(!suas.length) return; // não participou de nenhuma sprint do recorte
-    // (1) e (2) colapsam em "a primeira que termina em/depois da conclusão":
+    // (1) e (2) colapsam em "a primeira que termina em/depois da entrega":
     // se ela também começou antes, é o caso 1; se começou depois, é o caso 2.
-    const alvo = suas.find(s=>dc <= janelas.get(s.name).ate);
-    if(!alvo){ foraDeSprint.push(d); return; }
+    let alvo = suas.find(s=>dc <= janelas.get(s.name).ate);
+    if(!alvo){
+      // (3) o Jira fechou a sprint com o item ainda dentro.
+      const ultima = suas[suas.length-1];
+      const fimMs = sprintFimMs(ultima);
+      // Item sem cronologia reconstruída não tem SprintPeriodos: se a sprint
+      // consta do campo Sprints, ele nunca foi movido para fora dela.
+      const semCronologia = !(d.SprintPeriodos||[]).some(p=>p.sprint===ultima.name)
+        && (d.Sprints||[]).includes(ultima.name);
+      const ficouAteOFim = semCronologia
+        || (fimMs!=null && membroNoInstante(d, ultima.name, fimMs));
+      const atraso = diasEntreDatas(janelas.get(ultima.name).ate, dc);
+      if(sprintFechada(ultima) && ficouAteOFim && atraso <= TOLERANCIA_FECHAMENTO_DIAS){
+        alvo = ultima;
+      } else {
+        foraDetalhe.push({
+          item: d, sprint: ultima.name, atraso,
+          motivo: ficouAteOFim ? 'tardia' : 'saiu',
+        });
+        return;
+      }
+    }
     if(!porSprint.has(alvo.name)) porSprint.set(alvo.name, []);
     porSprint.get(alvo.name).push(d);
   });
-  return {porSprint, foraDeSprint};
+  return {porSprint, foraDeSprint: foraDetalhe.map(x=>x.item), foraDetalhe};
 }
 const spDe = d => Number(d['Story Points']) || 0;
 /* Sprint selecionada na aba Sprint (seleção única). */
@@ -3503,7 +3574,7 @@ function initVelocityRange(){
 function serieVelocity(itens, sprints){
   // A atribuição de entregas é feita UMA vez, olhando todas as sprints juntas —
   // é o que garante que a mesma entrega não caia em duas sprints.
-  const {porSprint, foraDeSprint} = atribuirEntregas(itens, sprints);
+  const {porSprint, foraDeSprint, foraDetalhe} = atribuirEntregas(itens, sprints);
   const serie = sprints.map(s=>{
     const ini = Date.parse(s.startDate);
     const fim = sprintFimMs(s);
@@ -3526,7 +3597,7 @@ function serieVelocity(itens, sprints){
       itens: {comprometidos, adicionados, entregues, removidos},
     };
   });
-  return {serie, foraDeSprint};
+  return {serie, foraDeSprint, foraDetalhe};
 }
 
 /**
@@ -3611,13 +3682,29 @@ function renderVelocityPorSprint(base, candidatas){
       issues: Array.from(new Set(fechadas.flatMap(r=>[...r.itens.comprometidos, ...r.itens.adicionados])))},
     velocity_adicionado: {title:'Itens adicionados depois do início da sprint',
       issues: Array.from(new Set(fechadas.flatMap(r=>r.itens.adicionados)))},
-    velocity_fora: {title:'Entregues depois do fim de todas as suas sprints (fora do velocity)',
+    velocity_fora: {title:'Entregues fora da janela de todas as suas sprints (fora do velocity)',
       issues: calc.foraDeSprint},
   });
-  // Entregas que não pertencem a sprint alguma: concluídas depois do fim da última
-  // sprint do item. Não entram em velocity nenhuma — mas ficam à vista, senão o
-  // say-do parece quebrado sem explicação.
+  // Entregas que não pertencem a sprint alguma. Não entram em velocity nenhuma —
+  // mas ficam à vista, senão o say-do parece quebrado sem explicação. Separadas
+  // por motivo, porque as duas causas pedem ações diferentes:
+  //   'tardia' — ficou na sprint até o fechamento, mas só entrou em Done mais de
+  //              TOLERANCIA_FECHAMENTO_DIAS depois: sinal de status atualizado
+  //              tarde, não de trabalho fora de sprint;
+  //   'saiu'   — foi retirado da sprint e concluído depois: item que atravessou o
+  //              backlog, sinal de higiene de planejamento.
+  const foraTardia = calc.foraDetalhe.filter(x=>x.motivo==='tardia');
+  const foraSaiu = calc.foraDetalhe.filter(x=>x.motivo==='saiu');
+  Object.assign(__cardDrills, {
+    velocity_fora_tardia: {
+      title:`Ficaram na sprint até o fechamento, mas entraram em Done +${TOLERANCIA_FECHAMENTO_DIAS}d depois`,
+      issues: foraTardia.map(x=>x.item)},
+    velocity_fora_saiu: {title:'Saíram da sprint e foram concluídos depois',
+      issues: foraSaiu.map(x=>x.item)},
+  });
   const spFora = calc.foraDeSprint.reduce((a,d)=>a+spDe(d), 0);
+  const spTardia = foraTardia.reduce((a,x)=>a+spDe(x.item), 0);
+  const spSaiu = foraSaiu.reduce((a,x)=>a+spDe(x.item), 0);
   document.getElementById('velocity-kpis').innerHTML = [
     kpiCard('Velocity média', mediaEntregue==null?'—':fmt1(mediaEntregue), 'sp',
       '', {cls:'flat', text:`${fmt0(fechadas.length)} sprint(s) fechada(s)`}, null, 'velocity_entregue'),
@@ -3628,9 +3715,27 @@ function renderVelocityPorSprint(base, candidatas){
     kpiCard('Sprints no gráfico', fmt0(serie.length), '', '', {cls:'flat',
       text: serie.length>fechadas.length ? `${serie.length-fechadas.length} em aberto` : 'todas fechadas'}),
     kpiCard('Entregue fora de sprint', spFora ? fmt1(spFora) : '0', 'sp',
-      spFora?'amber':'', {cls:'flat', text:`${fmt0(calc.foraDeSprint.length)} item(ns) concluído(s) após o fim`},
+      spFora?'amber':'', {cls:'flat', text:`${fmt0(calc.foraDeSprint.length)} item(ns) fora de qualquer janela`},
       null, 'velocity_fora'),
   ].join('');
+
+  // Detalhamento do resíduo: sem ele o KPI acima é um número sem ação possível.
+  const detFora = document.getElementById('velocity-fora-detalhe');
+  if(detFora){
+    const linha = (n, sp, texto, drill) => n
+      ? `<span data-drill="${drill}" style="cursor:pointer;text-decoration:underline;">`
+        + `<b>${fmt0(n)}</b> ${n===1?'item':'itens'} (${fmt1(sp)} sp) ${texto}</span>`
+      : '';
+    const partes = [
+      linha(foraTardia.length, spTardia,
+        `ficaram na sprint até o fechamento, mas só entraram em Done mais de ${TOLERANCIA_FECHAMENTO_DIAS} dias depois`,
+        'velocity_fora_tardia'),
+      linha(foraSaiu.length, spSaiu, 'saíram da sprint e foram concluídos depois', 'velocity_fora_saiu'),
+    ].filter(Boolean);
+    detFora.innerHTML = partes.length
+      ? `Fora de sprint, por motivo: ${partes.join(' · ')}.`
+      : '';
+  }
 
   // A sprint escolhida no seletor do topo ganha borda — amarra as duas metades.
   const destaque = serie.map(r=> r.sprint.name===sprintSelection ? '#333333' : 'transparent');
@@ -3755,9 +3860,14 @@ function renderBurndown(sprint, subs){
   const dEnd=new Date(end); dEnd.setHours(0,0,0,0);
   for(let d=new Date(d0); d<=dEnd; d.setDate(d.getDate()+1)) days.push(new Date(d));
   const iso = dt => dt.toISOString().slice(0,10);
-  // restante por dia = total - subitens concluídos (por Data Conclusao) até aquele dia
+  // restante por dia = total - subitens que entraram em Done até aquele dia.
+  // Mesma definição de entrega do velocity (ver dataEntregaSprint): usar a data
+  // de conclusão do release deixaria o burndown plano até depois da sprint.
   const remaining = days.map(day=>{
-    const done = subs.filter(s=> s.Concluido && s['Data Conclusao'] && s['Data Conclusao'] <= iso(day)).length;
+    const done = subs.filter(s=>{
+      const dt = dataEntregaSprint(s);
+      return s.Concluido && dt && String(dt).slice(0,10) <= iso(day);
+    }).length;
     return total - done;
   });
   // ideal: linear de total a 0
@@ -4204,10 +4314,10 @@ function showLoading(msg){
   if(detail) detail.textContent = msg || 'Consultando o Jira...';
   el.style.display = 'flex';
 }
-function updateLoadingProgress(count, detail){
+function updateLoadingProgress(count, detail, label='issues buscadas'){
   const countEl=document.getElementById('__loading_count');
   const detailEl=document.getElementById('__loading_detail');
-  if(countEl) countEl.textContent=`${Number(count||0).toLocaleString('pt-BR')} issues buscadas`;
+  if(countEl) countEl.textContent=`${Number(count||0).toLocaleString('pt-BR')} ${label}`;
   if(detailEl&&detail) detailEl.textContent=detail;
 }
 function hideLoading(){
@@ -4371,12 +4481,14 @@ async function requestProgressiveBatch(phase,nextPageToken,since,epicKeys){
    grupos de 50 chaves para manter a JQL curta e previsível. */
 async function loadPiTrackingDataset(generation){
   const piMap=new Map();
+  updateLoadingProgress(0,'Buscando épicos associados aos PIs...','itens do PI buscados');
   let nextPageToken=null, isLast=false;
   while(!isLast){
     if(generation!==progressiveGeneration)return null;
     setProgressiveStatus(`PI Tracking: buscando épicos (${piMap.size.toLocaleString('pt-BR')})`,true);
     const payload=await requestProgressiveBatch('pi-epics',nextPageToken);
     (payload.piIssues||[]).forEach(item=>piMap.set(item.Chave,item));
+    updateLoadingProgress(piMap.size,'Buscando épicos associados aos PIs...','itens do PI buscados');
     nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true;
   }
   const epicKeys=Array.from(piMap.values())
@@ -4389,6 +4501,9 @@ async function loadPiTrackingDataset(generation){
       setProgressiveStatus(`PI Tracking: buscando filhos (${Math.min(offset+chunk.length,epicKeys.length)}/${epicKeys.length} épicos)`,true);
       const payload=await requestProgressiveBatch('pi-children',nextPageToken,null,chunk);
       (payload.piIssues||[]).forEach(item=>piMap.set(item.Chave,item));
+      updateLoadingProgress(piMap.size,
+        `Buscando filhos dos épicos (${Math.min(offset+chunk.length,epicKeys.length)}/${epicKeys.length})...`,
+        'itens do PI buscados');
       nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true;
     }
   }
@@ -4398,7 +4513,7 @@ async function loadPiTrackingDataset(generation){
 function isLocalDashboardRuntime(){
   return ['localhost','127.0.0.1','::1'].includes(window.location.hostname);
 }
-async function loadLocalDashboard(forceRefresh){
+async function loadLocalDashboard(forceRefresh,generation){
   setProgressiveStatus(forceRefresh?'Atualizando dataset completo no Jira...':'Carregando dataset completo local...',true);
   updateLoadingProgress(0,forceRefresh?'Atualizando o cache local pelo Jira...':'Carregando todas as issues do cache local...');
   const res=await fetch(`/api/dashboard${forceRefresh?'?refresh=1':''}`,{cache:'no-store'});
@@ -4406,11 +4521,17 @@ async function loadLocalDashboard(forceRefresh){
   const payload=await res.json();
   const issues=Array.isArray(payload.issues)?payload.issues:[];
   if(!issues.length) throw new Error('O cache local não retornou issues.');
+  updateLoadingProgress(issues.length,'Dataset geral carregado; buscando dados do PI Tracking...');
   const generatedAt=payload.generatedAt||payload.coletadoEm||new Date().toISOString();
   const meta=payload.meta||{};
-  renderProgressiveDataset(issues,issues,meta,generatedAt);
+  // O endpoint local completo mantém o corte created >= startOfYear(). O PI
+  // Tracking precisa da mesma coleta dedicada usada no Amplify para incluir
+  // épicos antigos associados ao quarter e seus filhos.
+  const piIssues=await loadPiTrackingDataset(generation);
+  if(!piIssues)return null;
+  renderProgressiveDataset(issues,piIssues,meta,generatedAt);
   await persistDashboardSnapshot({
-    schemaVersion:DASHBOARD_SCHEMA_VERSION,issues,piIssues:issues,meta,generatedAt,complete:true,
+    schemaVersion:DASHBOARD_SCHEMA_VERSION,issues,piIssues,meta,generatedAt,complete:true,
     syncStartedAt:generatedAt,lastSyncAt:payload.coletadoEm||generatedAt,progress:null
   });
   setProgressiveStatus(`${issues.length.toLocaleString('pt-BR')} issues completas`,false);
@@ -4443,6 +4564,7 @@ async function loadFullProgressively(cached,generation){
     : 0;
   let firstToken=resume?cached.progress.nextPageToken||null:null;
   let allowPersistedTokenRestart=!!firstToken;
+  if(freshMap.size) updateLoadingProgress(freshMap.size,'Retomando a carga salva...');
 
   for(let index=phaseIndex;index<phases.length;index+=1){
     const phase=phases[index]; let nextPageToken=index===phaseIndex?firstToken:null, isLast=false;
@@ -4459,6 +4581,9 @@ async function loadFullProgressively(cached,generation){
       }
       allowPersistedTokenRestart=false;
       (payload.issues||[]).forEach(item=>freshMap.set(item.Chave,item));
+      // Atualiza antes de serializar o snapshot no IndexedDB: em bases grandes,
+      // essa gravação pode levar tempo e não deve congelar o número anterior.
+      updateLoadingProgress(freshMap.size,rotuloEtapaCarga(phase));
       meta=mergeProgressiveMeta(meta,payload.meta||{}); generatedAt=payload.generatedAt||generatedAt;
       nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true;
       const nextPhase=isLast?phases[index+1]||null:phase;
@@ -4487,6 +4612,7 @@ async function loadIncremental(cached,generation){
   const syncStartedAt=resume&&cached.syncStartedAt?cached.syncStartedAt:new Date().toISOString();
   let nextPageToken=resume?cached.progress.nextPageToken||null:null, isLast=false;
   let allowPersistedTokenRestart=!!nextPageToken; const changedKeys=new Set();
+  if(resume&&issueMap.size) updateLoadingProgress(issueMap.size,'Retomando atualização salva...','issues em cache');
   while(!isLast){
     if(generation!==progressiveGeneration)return null;
     setProgressiveStatus(`Buscando novas alterações — ${issueMap.size.toLocaleString('pt-BR')} issues em cache`,true);
@@ -4499,6 +4625,7 @@ async function loadIncremental(cached,generation){
     }
     allowPersistedTokenRestart=false;
     (payload.issues||[]).forEach(item=>{issueMap.set(item.Chave,item);changedKeys.add(item.Chave);});
+    updateLoadingProgress(changedKeys.size,'Buscando novas alterações no Jira...','issues atualizadas');
     meta=mergeProgressiveMeta(meta,payload.meta||{}); generatedAt=payload.generatedAt||generatedAt;
     nextPageToken=payload.nextPageToken||null; isLast=payload.isLast===true;
     const issues=Array.from(issueMap.values());
@@ -4524,7 +4651,7 @@ async function bootstrap(forceRefresh){
   try{
     if(isLocalDashboardRuntime()){
       try{
-        await loadLocalDashboard(forceRefresh);
+        await loadLocalDashboard(forceRefresh,generation);
         return;
       }catch(localError){
         console.warn('dataset completo local indisponível; usando carga progressiva',localError);

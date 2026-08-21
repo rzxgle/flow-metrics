@@ -83,6 +83,9 @@ function rawIssue(key, type, parentKey = null) {
   assert.match(html, /if\(!filterDocumentHandlerBound\)/);
   assert.match(html, /loadPiTrackingDataset/);
   assert.match(html, /piIssues/);
+  assert.match(html, /loadLocalDashboard\(forceRefresh,generation\)/);
+  assert.match(html, /const piIssues=await loadPiTrackingDataset\(generation\)/);
+  assert.doesNotMatch(html, /renderProgressiveDataset\(issues,issues,/);
   assert.match(html, /cached\.progress\.phase==='pi'\s*\?\s*phases\.length/);
   assert.match(html, /lastSyncAt/);
   assert.match(html, /mode:'delta'/);
@@ -91,6 +94,10 @@ function rawIssue(key, type, parentKey = null) {
   assert.match(html, /dashboard-loading/);
   assert.match(html, /CARREGANDO DADOS/);
   assert.match(html, /updateLoadingProgress/);
+  assert.match(html, /label='issues buscadas'/);
+  assert.match(html, /'itens do PI buscados'/);
+  assert.match(html, /updateLoadingProgress\(freshMap\.size,rotuloEtapaCarga\(phase\)\)/);
+  assert.match(html, /updateLoadingProgress\(changedKeys\.size,'Buscando novas alterações no Jira\.\.\.','issues atualizadas'\)/);
   assert.match(html, /matchesSprintTabFilters\(d, SKIP_TIPO\)/);
   assert.match(html, /initSprintSelector\(\);\s*renderSprint\(\)/);
   assert.doesNotMatch(html, /batchNumber%2===0/);

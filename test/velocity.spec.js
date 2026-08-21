@@ -60,6 +60,7 @@ const epilogo = `
 ;globalThis.__T = {
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   selections, normalizeData, serieVelocity, atribuirEntregas, sprintJanelaDatas,
+  sprintFimMs, dataEntregaSprint, TOLERANCIA_FECHAMENTO_DIAS,
   renderVelocity, initVelocityRange, sprintCatalogoOrdenado,
   matchesSprintTabFilters, sprintNamesFromData, initSprintSelector, syncFilterBarForTab,
   get sprintSelection(){ return sprintSelection; },
@@ -81,7 +82,10 @@ sandbox.window.__SPRINTS = [S1, S2];
 const item = (o) => ({
   Chave:o.chave, 'Tipo Agrupado':'História', 'Tipo de item':'Story', Squad:'Squad X',
   'Story Points':o.sp, Concluido:!!o.concl, Cancelado:false, WIP:!o.concl,
-  'Data Conclusao':o.conclusao || null, Sprints:o.sprints || [],
+  'Data Conclusao':o.conclusao || null,
+  // Ausente = cai no fallback para 'Data Conclusao'; os casos antigos exercitam
+  // justamente esse caminho.
+  'Data Entrega Sprint':o.entrega || null, Sprints:o.sprints || [],
   SprintPeriodos:o.periodos || [], SprintHistoricoOk:true,
 });
 
@@ -182,6 +186,120 @@ check('soma das entregas por sprint + fora de sprint = todo o SP concluído', ()
   const foraSp = foraDeSprint.reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
   const conclSp = todos.filter((d)=>d.Concluido).reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
   assert.strictEqual(porSprintSp + foraSp, conclSp, 'nenhum SP entregue pode se perder');
+});
+
+console.log('\nJanela real da sprint e regra do fechamento:');
+
+/* S3 fecha DEPOIS do endDate planejado — é o padrão na base real (153 de 195
+   sprints fechadas). S4 fecha ANTES, como a 26_SQD_ExperiênciaCompra_PI3_1
+   (endDate 27/07, completeDate 25/07), que originou o caso CONV-462. */
+const S3 = { name:'S3', state:'closed', startDate:'2026-09-01T13:00:00.000Z',
+  endDate:'2026-09-14T03:00:00.000Z', completeDate:'2026-09-17T18:00:00.000Z' };
+const S4 = { name:'S4', state:'closed', startDate:'2026-09-18T13:00:00.000Z',
+  endDate:'2026-10-02T03:00:00.000Z', completeDate:'2026-09-30T02:58:00.000Z' };
+const S5 = { name:'S5', state:'active', startDate:'2026-10-05T13:00:00.000Z',
+  endDate:'2026-10-19T03:00:00.000Z', completeDate:null };
+
+check('janela vai até o fechamento REAL quando a sprint fecha depois do previsto', () => {
+  assert.strictEqual(T.sprintJanelaDatas(S3).ate, '2026-09-17');
+});
+
+check('fechamento antecipado NÃO encurta a janela planejada', () => {
+  assert.strictEqual(T.sprintJanelaDatas(S4).ate, '2026-10-02');
+});
+
+/* Caso CONV-462: entrou em Done 1 dia após o fim, e o Jira fechou a sprint com o
+   item ainda dentro (não houve carry-over para a sprint seguinte). */
+const fechouJunto = item({ chave:'B-1', sp:5, concl:true, conclusao:'2026-11-20',
+  entrega:'2026-10-03', sprints:['S4'],
+  periodos:[{sprint:'S4', enteredAt:'2026-09-18T14:00:00.000Z', leftAt:null}] });
+/* Mesma situação, mas o Done veio 20 dias depois: status atualizado tarde, não
+   entrega da sprint. */
+const doneTardio = item({ chave:'B-2', sp:3, concl:true, conclusao:'2026-10-22',
+  entrega:'2026-10-22', sprints:['S4'],
+  periodos:[{sprint:'S4', enteredAt:'2026-09-18T14:00:00.000Z', leftAt:null}] });
+/* Saiu da sprint antes do fim e só depois concluiu. */
+const saiuAntes = item({ chave:'B-3', sp:2, concl:true, conclusao:'2026-10-05',
+  entrega:'2026-10-05', sprints:['S4'],
+  periodos:[{sprint:'S4', enteredAt:'2026-09-18T14:00:00.000Z', leftAt:'2026-09-25T10:00:00.000Z'}] });
+/* Data de entrega dentro da janela, conclusão (release) muito depois: a
+   homologação integrada roda fora da sprint e não pode empurrar a entrega. */
+const releaseDepois = item({ chave:'B-4', sp:8, concl:true, conclusao:'2026-12-15',
+  entrega:'2026-09-25', sprints:['S4'],
+  periodos:[{sprint:'S4', enteredAt:'2026-09-18T14:00:00.000Z', leftAt:null}] });
+/* Sem changelog de status: cai no fallback da data de conclusão. */
+const semChangelog = item({ chave:'B-5', sp:1, concl:true, conclusao:'2026-09-22',
+  sprints:['S4'],
+  periodos:[{sprint:'S4', enteredAt:'2026-09-18T14:00:00.000Z', leftAt:null}] });
+/* Sprint ainda aberta: a regra do fechamento não se aplica. */
+const emSprintAberta = item({ chave:'B-6', sp:4, concl:true, conclusao:'2026-10-25',
+  entrega:'2026-10-25', sprints:['S5'],
+  periodos:[{sprint:'S5', enteredAt:'2026-10-05T14:00:00.000Z', leftAt:null}] });
+
+const lote = [fechouJunto, doneTardio, saiuAntes, releaseDepois, semChangelog, emSprintAberta];
+const r2 = T.atribuirEntregas(lote, [S3, S4, S5]);
+const em = (nome) => (r2.porSprint.get(nome) || []).map((d)=>d.Chave).sort();
+const motivoDe = (chave) => (r2.foraDetalhe.find((x)=>x.item.Chave===chave) || {}).motivo;
+
+check('entrou em Done 1 dia após o fim e ficou na sprint até fechar -> conta nela (CONV-462)', () => {
+  assert.ok(em('S4').includes('B-1'),
+    'o Jira só move para a próxima sprint os itens incompletos; ficar é sinal de pronto');
+});
+
+check('Done mais de 7 dias após o fim fica fora, com motivo "tardia"', () => {
+  assert.ok(!em('S4').includes('B-2'));
+  assert.strictEqual(motivoDe('B-2'), 'tardia');
+});
+
+check('item que saiu da sprint antes do fim fica fora, com motivo "saiu"', () => {
+  assert.ok(!em('S4').includes('B-3'));
+  assert.strictEqual(motivoDe('B-3'), 'saiu');
+});
+
+check('a data de entrega manda sobre a de conclusão (release pós-homologação)', () => {
+  assert.ok(em('S4').includes('B-4'),
+    'entrega 25/09 dentro da S4; a conclusão em 15/12 é release, não sprint');
+});
+
+check('sem data de entrega, o fallback é a data de conclusão', () => {
+  assert.strictEqual(T.dataEntregaSprint(semChangelog), '2026-09-22');
+  assert.ok(em('S4').includes('B-5'));
+});
+
+check('a regra do fechamento não vale para sprint ainda aberta', () => {
+  assert.ok(!em('S5').includes('B-6'), 'S5 está ativa: nada de crédito por fechamento');
+  assert.strictEqual(motivoDe('B-6'), 'tardia');
+});
+
+check('nenhuma entrega é contada em duas sprints', () => {
+  const todasAtribuidas = [...em('S3'), ...em('S4'), ...em('S5')];
+  assert.strictEqual(new Set(todasAtribuidas).size, todasAtribuidas.length);
+});
+
+check('SP entregue + SP fora = SP concluído (nada se perde no lote novo)', () => {
+  const dentroSp = [...r2.porSprint.values()].flat().reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
+  const foraSp = r2.foraDeSprint.reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
+  const total = lote.reduce((a,d)=>a+(Number(d['Story Points'])||0), 0);
+  assert.strictEqual(dentroSp + foraSp, total);
+});
+
+check('o resíduo é detalhado na tela, separado por motivo', () => {
+  T.DATA = lote;
+  T.normalizeData();
+  sandbox.window.__SPRINTS = [S3, S4, S5];
+  T.selections.Squad.clear();
+  T.selections.Squad.add('Squad X');
+  T.velocityRange = 0;
+  T.renderVelocity();
+  const txt = getEl('velocity-fora-detalhe').innerHTML;
+  assert.match(txt, /velocity_fora_tardia/, 'os itens com Done tardio precisam ser clicáveis');
+  assert.match(txt, /velocity_fora_saiu/, 'os que saíram da sprint também');
+  T.selections.Squad.clear();
+});
+
+check('a tolerância documentada no glossário é a do código', () => {
+  assert.strictEqual(T.TOLERANCIA_FECHAMENTO_DIAS, 7);
+  assert.ok(/em até <b>7 dias<\/b>/.test(html), 'o glossário precisa citar a mesma tolerância');
 });
 
 console.log('\nFiltros específicos da aba Sprint:');

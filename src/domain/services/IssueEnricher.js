@@ -11,10 +11,12 @@ const { toIsoDate, toYearMonth, toYear } = require('../../shared/date.utils');
  * issues) — fica a cargo do caso de uso, após montar o índice.
  */
 class IssueEnricher {
-  constructor(classifier, metricsCalculator, sprintHistoryResolver = null) {
+  constructor(classifier, metricsCalculator, sprintHistoryResolver = null,
+    sprintDeliveryResolver = null) {
     this.classifier = classifier;
     this.metrics = metricsCalculator;
     this.sprintHistory = sprintHistoryResolver;
+    this.sprintDelivery = sprintDeliveryResolver;
   }
 
   /** @param {import('../entities/Issue')} issue */
@@ -24,6 +26,7 @@ class IssueEnricher {
     const done = this.classifier.isDone(issue.status);
     const cancelled = this.classifier.isCancelled(issue.status);
     const conclusao = issue.actualEndDate || issue.resolvedAt || null;
+    const entregaSprint = this._resolveSprintDelivery(issue, conclusao);
 
     return {
       Chave: issue.key,
@@ -63,6 +66,14 @@ class IssueEnricher {
       // dela para situar o épico na janela do quarter.
       Prazo: toIsoDate(issue.dueDate),
       'Data Conclusao': toIsoDate(conclusao),
+      // Data em que o item ENTROU na categoria Done (primeiro status de Done,
+      // hoje "Pronto p/ Deploy STG"). É o fim do trabalho da sprint: a
+      // homologação integrada e o deploy acontecem depois dela, então
+      // 'Data Conclusao' cai sistematicamente fora da janela da sprint.
+      'Data Entrega Sprint': toIsoDate(entregaSprint.at),
+      // 'changelog' | 'fallback' (campo manual) | 'none'. O dashboard usa isso
+      // para dizer quantos itens ainda dependem do preenchimento manual.
+      OrigemEntregaSprint: entregaSprint.source,
       'Data Inicio Real': toIsoDate(issue.actualStartDate),
       'Data Fim Real': toIsoDate(issue.actualEndDate),
       AnoMesCriacao: toYearMonth(issue.createdAt),
@@ -81,6 +92,22 @@ class IssueEnricher {
       grupo,
       chave: issue.key,
     };
+  }
+
+  /**
+   * Sem resolver injetado, mantém o comportamento anterior: a entrega de sprint
+   * é a própria data de conclusão. Assim o dashboard continua funcionando
+   * (com a precisão antiga) se o changelog de status não puder ser coletado.
+   */
+  _resolveSprintDelivery(issue, conclusao) {
+    if (!this.sprintDelivery) {
+      return { at: conclusao, source: conclusao ? 'fallback' : 'none' };
+    }
+    return this.sprintDelivery.resolve({
+      statusTransitions: issue.statusTransitions,
+      status: issue.status,
+      fallback: conclusao,
+    });
   }
 
   /**
