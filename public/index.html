@@ -350,6 +350,11 @@
   .pi-meter{display:flex;gap:2px;height:14px;border-radius:4px;overflow:hidden;background:var(--card);}
   .pi-meter i{display:block;height:100%;min-width:2px;}
   .pi-meter.empty{background:#F0F0F0;}
+  /* Segmento clicável (só nas linhas de épico). O foco usa box-shadow interno,
+     e não outline, porque o overflow:hidden do medidor cortaria o contorno. */
+  .pi-meter i[role="button"]{cursor:pointer;transition:filter .12s ease;}
+  .pi-meter i[role="button"]:hover{filter:brightness(1.15);}
+  .pi-meter i[role="button"]:focus-visible{outline:none;box-shadow:inset 0 0 0 2px #FFF;filter:brightness(1.15);}
 
   .pi-squad{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);
     box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;}
@@ -2142,6 +2147,7 @@ function ensureDrawer(){
     #__drawer .drawer-badge.type{background:#F4F4F5;color:#52525B;}
     #__drawer .drawer-badge.status{background:#F4F4F5;color:#52525B;}
     #__drawer .drawer-badge.status.ok{background:#DCFCE7;color:#166534;}
+    #__drawer .drawer-badge.status.pending{background:#F4F4F5;color:#52525B;}
     #__drawer .drawer-badge.status.progress{background:#DBEAFE;color:#1D4ED8;}
     #__drawer .drawer-badge.status.risk{background:#FFE4E6;color:#BE123C;}
     #__drawer .empty{padding:64px 24px;text-align:center;color:#71717A;font-size:13px;}
@@ -2186,12 +2192,30 @@ function ensureDrawer(){
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
 }
 
-function drawerStatusTone(status){
-  const value=String(status||'').toLocaleLowerCase('pt-BR');
-  if(value.includes('cancel')) return 'risk';
-  if(value.includes('conclu')||value.includes('deploy em prod')||value.includes('ativação')||value.includes('measure')) return 'ok';
-  if(value.includes('desenvolv')||value.includes('andamento')||value.includes('homologa')||value.includes('staging')) return 'progress';
-  return '';
+/* Cor do badge de status. A fase de fluxo já vem calculada do backend em cada
+   item (`FaseFluxo`, de IssueClassifier.phaseOf), então o drawer só traduz fase
+   -> cor: as listas de status vivem em config/classification.rules.js e não se
+   repetem aqui. Antes esta função adivinhava por pedaço de texto do status, e
+   errava — "Deploy em Staging" (concluído) saía azul por casar com "staging", e
+   "PRONTO PARA PROD" saía cinza por não casar com nada. */
+const DRAWER_TONE_BY_PHASE = {
+  'Concluído': 'ok',
+  'Pendente': 'pending',
+  'Em andamento': 'progress',
+  'Cancelado': 'risk',
+};
+
+/* Item sem FaseFluxo (dataset antigo em cache, por exemplo) cai nas mesmas
+   listas, que chegam no `meta` do dataset. O default é "em andamento", igual ao
+   backend: status fora de todas as listas nunca fica sem cor de aberto. */
+function drawerStatusTone(item, status){
+  if(!String(status??'').trim()) return '';
+  const fase = item && item.FaseFluxo;
+  if(fase) return DRAWER_TONE_BY_PHASE[fase] || 'progress';
+  if(piInList(status, window.__RULES_CANCELLED)) return 'risk';
+  if(piInList(status, window.__RULES_DONE)) return 'ok';
+  if(piInList(status, window.__RULES_PENDING)) return 'pending';
+  return 'progress';
 }
 
 function filterDrawerIssues(query){
@@ -2223,7 +2247,7 @@ function renderDrawerTable(issues){
       if(c.link) return `<td><a class="jira" href="${JIRA_BROWSE}${safe}" target="_blank" rel="noopener">${safe}</a></td>`;
       if(c.k==='Resumo') return `<td class="resumo">${safe}</td>`;
       if(c.k==='Tipo de item') return `<td><span class="drawer-badge type">${safe||'Não informado'}</span></td>`;
-      if(c.k==='Status') return `<td><span class="drawer-badge status ${drawerStatusTone(v)}">${safe||'Não informado'}</span></td>`;
+      if(c.k==='Status') return `<td><span class="drawer-badge status ${drawerStatusTone(d,v)}">${safe||'Não informado'}</span></td>`;
       if(c.k==='Squad') return `<td class="team">${safe||'—'}</td>`;
       if(c.k==='Sprints') return `<td class="sprints">${safe||'—'}</td>`;
       return `<td>${safe||'—'}</td>`;
@@ -4180,6 +4204,10 @@ function piBuildTracking(){
       // ordenados para o drill-down: concluídos por último, pendências primeiro
       children: [...todo, ...inProgress, ...done, ...cancelled],
       validChildren: valid,
+      // As três listas por trás dos números da barra. Guardadas porque cada
+      // segmento do medidor é clicável e abre exatamente estes itens — o mesmo
+      // recorte que o tooltip anuncia, sem recalcular no clique.
+      byPhase: { done, inProgress, todo },
     };
 
     const squad = epic.Squad || 'Não informado';
@@ -4233,17 +4261,33 @@ function piBuildTracking(){
   };
 }
 
+/** Rótulo de cada fase da barra, usado no título do drawer. */
+const PI_PHASE_LABELS = { done:'Concluído', inProgress:'Em andamento', todo:'Pendente' };
+
 /** Barra segmentada. Só emite segmentos com valor, para os cantos externos
-    arredondados caírem sempre sobre uma fase que existe. */
-function piMeter(done, inProgress, todo){
+    arredondados caírem sempre sobre uma fase que existe.
+
+    Com `epicKey`, cada segmento vira um alvo clicável que abre no drawer os
+    itens daquela fase — o mesmo recorte que o tooltip de hover já anuncia. Só a
+    linha do épico passa a chave: na barra da squad o segmento consolida vários
+    épicos e o cabeçalho já tem o clique de recolher/expandir. */
+function piMeter(done, inProgress, todo, epicKey){
   const total = done+inProgress+todo;
   if(!total) return '<div class="pi-meter empty" data-help="Este épico não possui itens elegíveis para o cálculo de progresso." aria-label="Épico sem itens elegíveis"></div>';
-  const seg = (n,color,label)=> n>0
-    ? `<i style="flex:${n};background:${color};" data-help="${label}: ${n} itens" aria-label="${label}: ${n} itens"></i>` : '';
+  const clicavel = !!epicKey;
+  const seg = (n,color,phase)=>{
+    if(!(n>0)) return '';
+    const label = PI_PHASE_LABELS[phase];
+    const texto = `${label}: ${n} itens${clicavel?' · clique para ver a lista':''}`;
+    const extra = clicavel
+      ? ` role="button" tabindex="0" data-pi-phase="${phase}" data-pi-epic="${escapeHtml(String(epicKey))}"`
+      : '';
+    return `<i style="flex:${n};background:${color};" data-help="${texto}" aria-label="${texto}"${extra}></i>`;
+  };
   return `<div class="pi-meter">
-    ${seg(done, PI_PHASE_COLORS.done, 'Concluído')}
-    ${seg(inProgress, PI_PHASE_COLORS.inprogress, 'Em andamento')}
-    ${seg(todo, PI_PHASE_COLORS.todo, 'Pendente')}
+    ${seg(done, PI_PHASE_COLORS.done, 'done')}
+    ${seg(inProgress, PI_PHASE_COLORS.inprogress, 'inProgress')}
+    ${seg(todo, PI_PHASE_COLORS.todo, 'todo')}
   </div>`;
 }
 
@@ -4344,7 +4388,7 @@ function renderPiTracking(){
       return `<tr>
         <td class="pi-epic-key"><a href="${JIRA_BROWSE}${e.epic.Chave}" target="_blank" rel="noopener">${e.epic.Chave}</a></td>
         <td class="pi-resumo" data-help="${escapeHtml(String(e.epic.Resumo||''))}">${escapeHtml(String(e.epic.Resumo||''))}</td>
-        <td style="width:190px;">${piMeter(e.done, e.inProgress, e.todo)}</td>
+        <td style="width:190px;">${piMeter(e.done, e.inProgress, e.todo, e.epic.Chave)}</td>
         <td class="pi-sub" style="white-space:nowrap;">${piFmtPct(e.pct)}% · ${e.done}/${e.total}</td>
         <td class="pi-sub" style="white-space:nowrap;">${e.todo} pend · ${e.inProgress} and · ${e.done} concl</td>
         <td>${escapeHtml(String(e.epic.Status||''))}</td>
@@ -4385,13 +4429,26 @@ function renderPiTracking(){
 
 let __piChildrenByEpic = new Map();
 
-/* Recolher/expandir squad e abrir os filhos de um épico. Um handler só, no
-   documento, porque o conteúdo é reconstruído a cada render. */
+/* Recolher/expandir squad, abrir os filhos de um épico e abrir uma fase da
+   barra de progresso. Um handler só, no documento, porque o conteúdo é
+   reconstruído a cada render. */
 document.addEventListener('click', (e)=>{
   const kids = e.target.closest('[data-pi-kids]');
   if(kids){
     const row = __piChildrenByEpic.get(kids.getAttribute('data-pi-kids'));
     if(row) openDrawer(`Filhos de ${row.epic.Chave} — ${row.epic.Resumo||''}`, row.children);
+    return;
+  }
+  const seg = e.target.closest('[data-pi-phase]');
+  if(seg){
+    const row = __piChildrenByEpic.get(seg.getAttribute('data-pi-epic'));
+    const phase = seg.getAttribute('data-pi-phase');
+    const itens = row && row.byPhase && row.byPhase[phase];
+    // Segmento sem itens não é renderizado, então a lista vazia só apareceria se
+    // o dado tivesse sido recarregado sob o clique. Nesse caso, nada acontece.
+    if(itens && itens.length){
+      openDrawer(`${PI_PHASE_LABELS[phase]} · ${row.epic.Chave} — ${row.epic.Resumo||''}`, itens);
+    }
     return;
   }
   const head = e.target.closest('.pi-squad-head');
@@ -4402,6 +4459,17 @@ document.addEventListener('click', (e)=>{
     if(card.classList.contains('collapsed')) piExpandedSquads.delete(squad);
     else piExpandedSquads.add(squad);
   }
+});
+
+/* O segmento é um <i> com role="button", não um <button> — o medidor é um flex
+   de larguras proporcionais e um botão traria estilo próprio para desfazer.
+   Por isso o teclado precisa ser ligado à mão: Enter e Espaço, como um botão. */
+document.addEventListener('keydown', (e)=>{
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const seg = e.target.closest && e.target.closest('[data-pi-phase]');
+  if(!seg) return;
+  e.preventDefault();
+  seg.click();
 });
 
 /* ===================== Init / Bootstrap ===================== */
@@ -4575,6 +4643,8 @@ function renderProgressiveDataset(items, piItems, meta, generatedAt){
   EPICS=buildProgressiveEpicSummaries(DATA);
   window.__RULES_PENDING=meta.pendingStatuses||[];
   window.__RULES_INPROG=meta.inProgressStatuses||[];
+  window.__RULES_DONE=meta.doneStatuses||[];
+  window.__RULES_CANCELLED=meta.cancelledStatuses||[];
   window.__SPRINTS=meta.sprints||[];
   window.__QUARTER_RULES=meta.quarterRules||null;
   document.getElementById('exportDate').textContent=formatExportDate(generatedAt);
