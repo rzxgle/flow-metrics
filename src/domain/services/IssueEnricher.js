@@ -12,11 +12,12 @@ const { toIsoDate, toYearMonth, toYear } = require('../../shared/date.utils');
  */
 class IssueEnricher {
   constructor(classifier, metricsCalculator, sprintHistoryResolver = null,
-    sprintDeliveryResolver = null) {
+    sprintDeliveryResolver = null, statusTimeResolver = null) {
     this.classifier = classifier;
     this.metrics = metricsCalculator;
     this.sprintHistory = sprintHistoryResolver;
     this.sprintDelivery = sprintDeliveryResolver;
+    this.statusTime = statusTimeResolver;
   }
 
   /** @param {import('../entities/Issue')} issue */
@@ -27,6 +28,7 @@ class IssueEnricher {
     const cancelled = this.classifier.isCancelled(issue.status);
     const conclusao = issue.actualEndDate || issue.resolvedAt || null;
     const entregaSprint = this._resolveSprintDelivery(issue, conclusao);
+    const tempoStatus = this._resolveStatusTime(issue, done);
 
     return {
       Chave: issue.key,
@@ -80,6 +82,12 @@ class IssueEnricher {
       AnoCriacao: toYear(issue.createdAt),
       AnoMesConclusao: toYearMonth(conclusao),
       AnoConclusao: toYear(conclusao),
+      // Tempo por status, reconstruído do changelog (ver StatusTimeResolver).
+      // SÓ PARA CONCLUÍDOS, de propósito: a visão que consome isto mede itens
+      // concluídos, e omitir o campo nos demais mantém o lote progressivo
+      // pequeno — o Amplify tem limite de tamanho de resposta. As duas chaves
+      // são espalhadas para não existirem quando não há o que dizer.
+      ...tempoStatus,
       CycleTimeDias: this.metrics.cycleTimeDays(issue, done),
       LeadTimeDias: this.metrics.leadTimeDays(issue, done),
       AgingDias: this.metrics.agingDays(issue),
@@ -91,6 +99,31 @@ class IssueEnricher {
       parentKey: issue.parentKey,
       grupo,
       chave: issue.key,
+    };
+  }
+
+  /**
+   * `TempoPorStatus` + `StatusHistoricoOk`, ou objeto VAZIO (nenhuma das duas
+   * chaves) quando não há resolver, o item não está concluído, ou o changelog
+   * não permitiu reconstruir permanência alguma.
+   *
+   * `visitas` é omitido quando vale 1 (o caso comum): a chave se repete em cada
+   * status de cada issue concluída, e o payload inteiro atravessa a rede em
+   * lotes com limite de tamanho no Amplify. Quem lê deve tratar ausência como 1.
+   */
+  _resolveStatusTime(issue, isDone) {
+    if (!this.statusTime || !isDone) return {};
+    const { permanencias, reconstructed } = this.statusTime.resolve({
+      createdAt: issue.createdAt,
+      status: issue.status,
+      transitions: issue.statusTransitions,
+    });
+    if (!permanencias.length) return {};
+    return {
+      TempoPorStatus: permanencias.map((p) => (p.visitas > 1
+        ? { status: p.status, dias: p.dias, visitas: p.visitas }
+        : { status: p.status, dias: p.dias })),
+      StatusHistoricoOk: reconstructed,
     };
   }
 

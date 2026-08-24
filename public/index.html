@@ -240,6 +240,13 @@
   }
   .card h3{font-size:14.5px;margin-bottom:2px;}
   .card .cap{font-size:11.5px;color:var(--slate-soft);margin-bottom:10px;}
+  .statustime-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .statustime-metric{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--slate-soft);}
+  .statustime-metric select{
+    min-height:32px;padding:5px 9px;border:1px solid var(--line-dark);border-radius:8px;
+    background:#FFF;color:#3F3F46;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;max-width:330px;
+  }
+  .statustime-metric select:hover{border-color:#F0A6C6;}
   .card .chartwrap{position:relative;height:260px;}
   .card .chartwrap.tall{height:340px;}
   .card .chartwrap.short{height:190px;}
@@ -1075,6 +1082,25 @@
   </div>
 
   <div class="card" style="margin-top:14px;">
+    <div class="statustime-head">
+      <h3>Tempo por status (dias) — onde o tempo é gasto</h3>
+      <label class="statustime-metric">
+        <span>Medida</span>
+        <select id="statusTimeMetric">
+          <option value="media-todos">Média por item concluído (decompõe o Lead Time)</option>
+          <option value="p85-passou">P85 de quem passou pelo status</option>
+        </select>
+      </label>
+    </div>
+    <div class="cap">Reconstruído do changelog de Status do Jira: quanto tempo os itens concluídos do
+      recorte permaneceram em cada status, somando reentradas. A permanência no status atual fica de
+      fora (está aberta). Nesta visão, o filtro de Status escolhe QUAIS STATUS aparecem no gráfico —
+      não quais itens entram na conta.</div>
+    <div class="chartwrap" id="status-time-wrap"><canvas id="chart-flow-status-time"></canvas></div>
+    <div class="cap" id="status-time-caption" style="margin:10px 0 0;"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
     <h3>Cycle Time P85 por Value Stream (em dias)</h3>
     <div class="chartwrap short"><canvas id="chart-flow-cycle-vs"></canvas></div>
   </div>
@@ -1316,6 +1342,8 @@
       <h3>Limitações identificadas</h3>
       <ul style="font-size:12.5px;line-height:1.7;padding-left:18px;margin:0;">
         <li><b>Histórico de sprint e histórico de status: reconstruídos.</b> O dashboard busca no changelog do Jira as transições dos campos <b>Sprint</b> e <b>Status</b>, na mesma chamada em lote. O de Sprint permite saber quando cada item entrou e saiu de cada sprint — é o que sustenta o "comprometido no início" do velocity. O de Status dá a data em que o item entrou na categoria Done, que é a <b>data de entrega da sprint</b> (ver adiante). Com a série de status disponível, <b>CFD (Cumulative Flow Diagram), Burndown por status e Burnup clássicos passam a ser viáveis</b> e estão no roadmap; hoje a tela ainda mostra a aproximação por throughput mensal e o burndown de subitens.</li>
+        <li><b>Tempo por status: reconstruído do changelog, e com duas ressalvas.</b> O gráfico de tempo por status (aba <b>Lead &amp; Cycle Time</b>) decompõe o Lead Time usando as transições do campo <b>Status</b>. Duas coisas mudam de sentido ali. (1) <b>Só permanências encerradas entram</b>: a visita ao status ATUAL está aberta e ficaria crescendo entre um snapshot e outro, então o status final de cada item não aparece com tempo. (2) <b>O filtro de Status escolhe quais status aparecem no gráfico</b>, não quais itens entram na conta — nas outras abas ele recorta pelo status atual do item, o que aqui responderia outra pergunta ("quem está parado neste status hoje"). O status inicial de cada item é recuperado do <i>from</i> da primeira transição, porque o Jira não registra no changelog o valor preenchido na criação; sem isso o tempo da primeira fila desapareceria. Reentradas (devolução de code review, reprovação em teste) são <b>somadas</b> no mesmo status, e o tooltip mostra quantas visitas houve por item. Itens cujo changelog não fecha no status atual entram pelo trecho conhecido e são contados como <b>cronologia parcial</b> na legenda do gráfico. A medida padrão divide o tempo por TODOS os itens concluídos da base (quem não passou pelo status entra com zero), e é por isso que as barras somam o Lead Time médio; a outra medida do seletor (P85) divide só pelos itens que passaram pelo status e, por construção, não soma. O tooltip sempre repete na primeira linha o valor exato da barra, com o mesmo rótulo do seletor. A terceira linha decompõe a base em três grupos que somam o total — <b>quem já saiu do status, quem ainda está nele e quem nunca passou</b> — porque há duas razões diferentes para um item não entrar na média, e confundi-las distorce a leitura: quem está no status <b>agora</b> tem permanência aberta, sem duração. Nos status finais isso domina (em <span class="mono">PRONTO PARA ATIVAÇÃO DE VALOR</span>, 55 itens passaram e cerca de 300 continuam lá dentro), e é o que explica barras baixas nessas etapas.</li>
+        <li><b>Cinco status estavam fora das listas de classificação.</b> <span class="mono">To Do</span> (mais de 2.000 itens, quase todos sub-tarefas), <span class="mono">Aprofundamento</span>, <span class="mono">PI Planning</span>, <span class="mono">PRONTO P/ PREPARAR PI PLANNING</span> e <span class="mono">Design detalhado</span> não constavam em nenhuma das listas de fase e por isso caíam no default "Em andamento", inflando o indicador de trabalho em curso com itens que nem começaram. Passaram a contar como <b>pendentes</b>. Isso não altera o WIP (que é apenas "não concluído e não cancelado") nem o painel no recorte padrão de Tipo — muda os KPIs de Backlog e Em andamento quando sub-tarefas e épicos entram no filtro.</li>
         <li><b>Cycle Time com cobertura parcial</b>: apenas 437 dos 1.684 itens Concluídos (26%) têm tanto "Data de início real" quanto "Data de fim real" preenchidas. Os demais 74% não permitem calcular Cycle Time e foram excluídos dessa métrica especificamente (mas continuam contando em Throughput e Story Points).</li>
         <li><b>Lead Time com cobertura maior, mas não total</b>: 1.382 dos 1.684 Concluídos (82%) têm "Data de fim real" preenchida, permitindo Lead Time = Data de fim real − Criado. A coluna "Resolvido" quase não é usada neste projeto (apenas 204 registros no total), por isso não foi a base do cálculo.</li>
         <li><b>Story Points ausentes em 715 itens (22%)</b> — tratados como 0 nos totais, o que pode subestimar levemente o volume de esforço, especialmente em Sub-tasks menores.</li>
@@ -1374,7 +1402,7 @@ const TAB_HELP = {
   exec:'Consolida volume, esforço, tempos e distribuição do recorte. Métricas de entrega respeitam o período de conclusão; estados atuais, como pendentes e WIP, ignoram esse período.',
   throughput:'Conta itens com status classificado como concluído e usa a data de conclusão para posicioná-los no período. Os gráficos respondem aos filtros globais.',
   sp:'Compara Story Points planejados dos itens não cancelados com Story Points concluídos dentro do período selecionado.',
-  flow:'Lead Time vai da criação à conclusão. Cycle Time vai do início real ao fim real. Datas ausentes ou invertidas ficam fora dessas métricas.',
+  flow:'Lead Time vai da criação à conclusão. Cycle Time vai do início real ao fim real. Datas ausentes ou invertidas ficam fora dessas métricas. O gráfico de tempo por status decompõe o Lead Time usando o changelog do Jira; nele o filtro de Status escolhe quais status aparecem, não quais itens entram.',
   wip:'Mostra entregas, trabalho ainda aberto e Aging. Aging conta do início real até hoje apenas para itens em WIP.',
   block:'Considera itens do tipo Sub-block. Bloqueios resolvidos usam Cycle Time; bloqueios abertos contam da criação até hoje.',
   sprint:'A associação usa o histórico de sprints do Jira. Completude é subitens concluídos dividido pelo total de subitens do item.',
@@ -1513,6 +1541,11 @@ const DEFAULT_TIPO = ['Enabler','Melhoria','Story','Technical Debt'];
 DEFAULT_TIPO.forEach(t=> selections['Tipo de item'].add(t));
 // Abas que NÃO devem sofrer o filtro de Tipo (dependem de Sub-block/Sub-task).
 const SKIP_TIPO = new Set(['Tipo de item']);
+/* Recorte que IGNORA o filtro de Status. Usado só pelo gráfico de tempo por
+   status, onde a seleção de Status escolhe QUAIS BARRAS aparecer em vez de
+   recortar itens: filtrar pelo status ATUAL ali responderia a outra pergunta
+   ("quem está parado neste status hoje") e esvaziaria o gráfico. */
+const SKIP_STATUS = new Set(['Status']);
 /* Tipos que somem do filtro de Tipo na aba Sprint (só de lá: nas outras abas a
    lista segue inteira, e as seleções feitas fora continuam guardadas).
    A aba mede o nível PAI — subitem ali é unidade de medida, não linha: o
@@ -1565,6 +1598,19 @@ function uniqueVals(key){
   const set = new Set();
   if(key==='Sprint'){
     DATA.forEach(d=>(d.Sprints||[]).forEach(s=>set.add(s)));
+  } else if(key==='Status'){
+    /* Status entram pelo valor ATUAL **e** pelo histórico — mesma ideia da
+       dimensão Sprint acima, que também não se limita à sprint corrente.
+       Sem isso, status por onde os itens só PASSAM ficariam fora da lista:
+       medido na base, `Em teste`, `PROD`, `Aprovação Comitê`,
+       `PRONTO PARA PI PLANNING` e `Tarefas pendentes` não têm um único item
+       parado hoje — e `Em teste` é justamente uma etapa de trabalho que o
+       gráfico de tempo por status precisa poder selecionar. */
+    DATA.forEach(d=>{
+      const v = d.Status;
+      set.add((v===null || v===undefined || v==='') ? '(Não informado)' : v);
+      (d.TempoPorStatus||[]).forEach(perm=>{ if(perm && perm.status) set.add(perm.status); });
+    });
   } else {
     DATA.forEach(d=>{
       let v = d[key];
@@ -2405,7 +2451,8 @@ function renderAll(){
   renderExec(f, atual);
   renderThroughput(f);
   renderSP(f, atual);
-  renderFlow(f);
+  // O segundo recorte serve só ao gráfico de tempo por status (ver SKIP_STATUS).
+  renderFlow(f, getFiltered(SKIP_STATUS));
   renderWip(f, atual);
   renderBlock(getFiltered(SKIP_TIPO), getFilteredNoDate(SKIP_TIPO));
   initSprintSelector();
@@ -2827,7 +2874,265 @@ function histogramBins(arr, nbins){
 function statBlock(vals){
   return { n:vals.length, mean:mean(vals), median:median(vals), p85:percentile(vals,85), min:vals.length?Math.min(...vals):null, max:vals.length?Math.max(...vals):null };
 }
-function renderFlow(f){
+/* ===================== Tempo por status (aba Lead & Cycle Time) =====================
+ * Decompõe o Lead Time: onde os itens concluídos gastaram o tempo. Os dados vêm
+ * do changelog de Status do Jira, reconstruídos no servidor
+ * (domain/services/StatusTimeResolver.js) e entregues em `TempoPorStatus`.
+ *
+ * Três decisões que valem registro:
+ *
+ *   1. O FILTRO DE STATUS MUDA DE SENTIDO AQUI. Nas outras visões ele recorta
+ *      itens pelo status ATUAL; aqui isso seria inútil (selecionar
+ *      "Desenvolvimento" mostraria só quem está parado lá hoje, e não o tempo que
+ *      os itens passaram lá). Então a base chega sem esse recorte (SKIP_STATUS) e
+ *      a seleção escolhe QUAIS BARRAS aparecem.
+ *
+ *   2. O DENOMINADOR ESTÁ NO RÓTULO DA MEDIDA, porque muda o número. "Média por
+ *      item concluído" divide por TODOS os itens da base (quem não passou pelo
+ *      status entra com zero) e por isso as barras somam, APROXIMADAMENTE, o Lead
+ *      Time médio — é uma decomposição. A aproximação tem causa conhecida: as
+ *      barras vão de Criado até a ÚLTIMA transição de status, e o Lead Time vai
+ *      de Criado até a Data de Fim Real; como o item segue transitando depois da
+ *      entrega (homologação, PROD, ativação de valor), a soma tende a ficar um
+ *      pouco maior. A legenda mostra os dois números lado a lado para a diferença
+ *      não ficar escondida. "P85 de quem passou" divide só por quem visitou o
+ *      status: responde "quando passa por aqui, quanto tempo fica" e NÃO soma.
+ *
+ *      Como os dois números convivem no mesmo gráfico, o TOOLTIP ESPELHA A
+ *      BARRA: a primeira linha repete, com o mesmo rótulo do seletor, o valor
+ *      exato que está desenhado. As leituras complementares vêm depois, sempre
+ *      dizendo sobre quem foram calculadas. Sem isso a barra mostrava 9,0 e o
+ *      tooltip abria com 18,2 (a média entre os que passaram), e não havia como
+ *      saber qual era qual.
+ *
+ *   3. Só permanências ENCERRADAS. A visita ao status atual está aberta e ficaria
+ *      crescendo sozinha entre um snapshot e outro.
+ */
+const STATUS_TIME_PHASE_ORDER = ['Pendente','Em andamento','Concluído','Cancelado'];
+/* Mesma leitura de cor do badge do drawer (cinza = espera, azul = andamento,
+   verde = concluído, rosa = cancelado), em tons cheios porque aqui é
+   preenchimento de barra e não fundo de etiqueta. */
+const STATUS_TIME_PHASE_COLOR = {
+  'Pendente':'#A1A1AA', 'Em andamento':'#0057B8', 'Concluído':'#16A34A', 'Cancelado':'#BE123C',
+};
+
+/* Fase de fluxo de um STATUS. O drawer resolve a fase de um ITEM (que já vem
+   calculada do backend em `FaseFluxo`); aqui a pergunta é sobre o status em si.
+   Usa as listas que chegam em `meta` — nunca casamento por pedaço de nome, que é
+   a decisão travada em test/drawer-status.spec.js. O default "Em andamento"
+   repete o backend: status fora de todas as listas nunca fica sem fase. */
+function faseDoStatus(status){
+  if(piInList(status, window.__RULES_CANCELLED)) return 'Cancelado';
+  if(piInList(status, window.__RULES_DONE)) return 'Concluído';
+  if(piInList(status, window.__RULES_PENDING)) return 'Pendente';
+  return 'Em andamento';
+}
+
+/* As medidas disponíveis, com o rótulo que aparece no seletor, no eixo e na
+   primeira linha do tooltip — os três precisam dizer a MESMA coisa, porque é a
+   troca silenciosa de denominador que confunde a leitura. */
+const STATUS_TIME_MEASURES = {
+  'media-todos': {
+    rotulo: 'Média por item concluído',
+    valor: (b)=>b.mediaTodos,
+  },
+  'p85-passou': {
+    rotulo: 'P85 de quem passou',
+    valor: (b)=>b.p85Passou,
+  },
+};
+
+/* Medida escolhida no seletor do card. Vive fora do render porque trocar de
+   medida não deve depender de um novo carregamento de dados. */
+let statusTimeMetric = 'media-todos';
+
+/* O <select> está no HTML estático, então é ligado uma vez só, aqui. Trocar a
+   medida redesenha apenas este gráfico — nada é buscado de novo. */
+(function ligarSeletorDeMedida(){
+  const el = document.getElementById('statusTimeMetric');
+  if(!el) return;
+  el.addEventListener('change', ()=>{
+    statusTimeMetric = el.value;
+    renderTempoPorStatus(getFiltered(SKIP_STATUS));
+  });
+})();
+
+/**
+ * Junta as permanências de todos os itens da base num balde por status.
+ *
+ * Conta também quem está PARADO em cada status. São duas coisas diferentes, e
+ * confundi-las foi o que tornou o tooltip ambíguo: um item pode não entrar na
+ * média porque (a) nunca passou por aquele status, ou (b) está nele AGORA — e
+ * nesse caso a permanência está aberta, sem duração, então fica de fora.
+ *
+ * O caso (b) não é raro: medido na base, `PRONTO PARA ATIVAÇÃO DE VALOR` tem 55
+ * itens que passaram e 301 parados dentro dele. Sem separar os dois, a barra
+ * baixa parecia um erro de conta.
+ *
+ * Um status onde NINGUÉM passou (só há gente parada) ganha balde sem dias, e o
+ * `filter(valor>0)` do render o descarta — não vira barra fantasma.
+ */
+function agregarTempoPorStatus(base){
+  const comHistorico = base.filter(d=>(d.TempoPorStatus||[]).length);
+  const porStatus = new Map();
+  const balde = (nome)=>{
+    const acc = porStatus.get(nome) || {status:nome, dias:[], visitas:0, parados:0, issues:[]};
+    porStatus.set(nome, acc);
+    return acc;
+  };
+  comHistorico.forEach(d=>{
+    const visitados = new Set();
+    (d.TempoPorStatus||[]).forEach(p=>{
+      const nome = p && p.status && String(p.status).trim();
+      if(!nome || !(p.dias>0)) return;
+      visitados.add(nome);
+      const acc = balde(nome);
+      acc.dias.push(p.dias);
+      // `visitas` é omitido no payload quando vale 1 (ver IssueEnricher).
+      acc.visitas += (p.visitas||1);
+      acc.issues.push(d);
+    });
+    // Sem permanência encerrada no próprio status atual = a visita corrente
+    // ainda está aberta. Como a base é só de concluídos, isto acontece nos
+    // status finais do fluxo.
+    const atual = d.Status && String(d.Status).trim();
+    if(atual && !visitados.has(atual)) balde(atual).parados += 1;
+  });
+  return {comHistorico, porStatus};
+}
+
+/** "1 item" / "2 itens" — o tooltip mostra grupos que podem ter um só item. */
+function statusTimePlural(n, singular, plural){
+  return fmt0(n)+' '+(n===1 ? singular : plural);
+}
+
+function renderTempoPorStatus(base){
+  if(!document.getElementById('chart-flow-status-time')) return;
+  const caption = document.getElementById('status-time-caption');
+
+  const medida = STATUS_TIME_MEASURES[statusTimeMetric] || STATUS_TIME_MEASURES['media-todos'];
+  const concluidos = base.filter(d=>d.Concluido);
+  const agregado = agregarTempoPorStatus(concluidos);
+  const comHistorico = agregado.comHistorico;
+
+  // Sem status selecionado, mostra todos os percorridos; com seleção, ela é a
+  // lista de barras. Comparação normalizada, igual ao resto do painel.
+  const selecionados = selections['Status'];
+  const querStatus = (nome)=> selecionados.size===0
+    || Array.from(selecionados).some(sel=>piNorm(sel)===piNorm(nome));
+
+  const barras = Array.from(agregado.porStatus.values())
+    .filter(x=>querStatus(x.status))
+    .map(x=>{
+      const fase = faseDoStatus(x.status);
+      return {
+        status:x.status, fase, issues:x.issues,
+        n:x.dias.length,
+        parados:x.parados,
+        // Os três grupos somam a base: quem saiu, quem ainda está lá, quem
+        // nunca passou. É o que permite conferir a conta no próprio tooltip.
+        nunca: Math.max(0, comHistorico.length - x.dias.length - x.parados),
+        visitasMedias: x.dias.length ? x.visitas/x.dias.length : 0,
+        // Média com denominador = TODA a base (quem não passou entra com zero):
+        // é a única que soma o Lead Time médio.
+        mediaTodos: comHistorico.length ? sum(x.dias,v=>v)/comHistorico.length : 0,
+        mediaPassou: mean(x.dias),
+        p85Passou: percentile(x.dias,85),
+      };
+    })
+    .map(b=>Object.assign({}, b, {valor: medida.valor(b)}))
+    .filter(b=>b.valor>0)
+    .sort((a,b)=> STATUS_TIME_PHASE_ORDER.indexOf(a.fase)-STATUS_TIME_PHASE_ORDER.indexOf(b.fase)
+      || b.valor-a.valor);
+
+  const semCronologia = comHistorico.filter(d=>d.StatusHistoricoOk===false).length;
+  const semHistorico = concluidos.length - comHistorico.length;
+
+  if(caption){
+    const partes = [];
+    partes.push('<b>Base:</b> '+fmt0(comHistorico.length)+' de '+fmt0(concluidos.length)
+      +' itens concluídos do recorte têm histórico de status recuperável'
+      +(semHistorico>0 ? ' ('+fmt0(semHistorico)+' sem changelog ficam fora)' : '')+'.');
+    if(statusTimeMetric==='media-todos'){
+      const somaBarras = sum(barras, b=>b.valor);
+      const leadMedio = mean(comHistorico.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias));
+      partes.push('<b>Soma das barras:</b> '+fmt1(somaBarras)+' d'
+        +' · <b>Lead Time médio dos mesmos itens:</b> '+fmt1(leadMedio)+' d'
+        +(selecionados.size ? ' (a soma cobre só os status selecionados).' : '.'));
+    } else {
+      partes.push('Cada barra usa <b>apenas os itens que passaram pelo status</b>,'
+        +' então as barras não somam o Lead Time.');
+    }
+    partes.push('A barra mostra <b>'+medida.rotulo.toLocaleLowerCase('pt-BR')+'</b>;'
+      +' o tooltip repete esse número e mostra a outra leitura ao lado.');
+    if(semCronologia>0){
+      partes.push('⚠️ '+fmt0(semCronologia)+' itens têm cronologia <b>parcial</b>'
+        +' (o changelog não fecha no status atual): o tempo deles entra pelo trecho conhecido.');
+    }
+    caption.innerHTML = partes.join(' ');
+  }
+
+  /* Altura proporcional ao número de barras: numa caixa fixa as barras
+     horizontais viram fatias de poucos pixels e os rótulos colidem.
+     O teto é generoso de propósito — medido na base, o recorte sem filtro de
+     Tipo chega a 58 status distintos, e com 900px cada barra ficava com 15px.
+     A 1200px o pior caso dá ~21px por barra, ainda legível, e o recorte padrão
+     (26 status) nem encosta no teto. */
+  const wrap = document.getElementById('status-time-wrap');
+  if(wrap) wrap.style.height = Math.min(1200, Math.max(200, barras.length*30 + 56))+'px';
+
+  upsertChart('chart-flow-status-time', {
+    type:'bar',
+    data:{labels:barras.map(b=>b.status), datasets:[{
+      label:'Dias', data:barras.map(b=>b.valor),
+      backgroundColor:barras.map(b=>STATUS_TIME_PHASE_COLOR[b.fase]||'#0057B8'),
+    }]},
+    options:{indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      barLabels:true, barLabelFmt:'d1', layout:{padding:{right:44}},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{
+        title:(items)=>{ const b = items.length && barras[items[0].dataIndex];
+          return b ? b.status+' · '+b.fase : ''; },
+        label:(item)=>{
+          const b = barras[item.dataIndex];
+          if(!b) return '';
+          // 1ª linha: EXATAMENTE o que a barra desenha, com o rótulo do seletor.
+          const linhas = [medida.rotulo+': '+fmt1(b.valor)+' d'];
+          // 2ª: a outra leitura, dizendo sobre quem foi calculada. É ela que
+          // explica a diferença — mediaTodos = mediaPassou × n / base.
+          linhas.push(statusTimeMetric==='media-todos'
+            ? 'Entre os '+fmt0(b.n)+' que passaram: '+fmt1(b.mediaPassou)+' d de média'
+            : 'Média por item concluído: '+fmt1(b.mediaTodos)+' d');
+          // 3ª: a composição da base. Os grupos zerados somem, para não poluir
+          // com "0 ainda estão nele" no caso comum.
+          const grupos = [];
+          if(!b.parados && !b.nunca){
+            grupos.push('todos os '+statusTimePlural(b.n,'item','itens')+' já passaram por aqui');
+          } else {
+            grupos.push(statusTimePlural(b.n,'já saiu','já saíram')+' deste status');
+            if(b.parados) grupos.push(statusTimePlural(b.parados,'ainda está nele','ainda estão nele'));
+            if(b.nunca) grupos.push(statusTimePlural(b.nunca,'nunca passou','nunca passaram'));
+          }
+          linhas.push(grupos.join(' · '));
+          linhas.push(b.visitasMedias.toFixed(2)+' visitas por item');
+          // 4ª, só quando existe: explica POR QUE quem está no status não conta.
+          // Sem repetir o número da linha acima — aqui o que falta é o motivo.
+          if(b.parados){
+            linhas.push('Quem ainda está no status tem permanência aberta e fica fora da média.');
+          }
+          return linhas;
+        },
+      }}},
+      // O eixo nomeia a medida: sem isso o número da barra fica sem denominador
+      // para quem não abriu o tooltip nem olhou o seletor.
+      scales:{x:{beginAtZero:true, grid:{color:'#ECECEC'},
+          title:{display:true, text:medida.rotulo+' (dias)'}},
+        y:{grid:{display:false}, ticks:{font:{size:10}}}},
+      onClick: drillClick((idx)=>{ const b=barras[idx]; if(!b) return null;
+        return {title:'Tempo em "'+b.status+'" · '+fmt0(b.n)+' itens que passaram', issues:b.issues}; })}
+  });
+}
+
+function renderFlow(f, semRecorteDeStatus){
   const concl = f.filter(d=>d.Concluido);
   const leadItems = concl.filter(d=>d.LeadTimeDias!=null);
   const cycleItems = concl.filter(d=>d.CycleTimeDias!=null);
@@ -2899,6 +3204,9 @@ function renderFlow(f){
       onClick: drillClick((idx)=>{ const k=vsCycle[idx][0];
         return {title:`Cycle Time · VS: ${k}`, issues: cycleItems.filter(d=>d.VS===k)}; })}
   });
+
+  // Recebe a base SEM o recorte de Status: ali o filtro escolhe barras, não itens.
+  renderTempoPorStatus(semRecorteDeStatus || f);
 }
 
 /* ===================== TAB: WIP / ENTREGAS / AGING ===================== */
@@ -4537,7 +4845,10 @@ const DASHBOARD_STORE = 'snapshots';
 // 3 = Aging só para itens com Data de início real (sem fallback para a Criação).
 // 4 = payload passa a trazer SprintPeriodos/SprintHistoricoOk (velocity).
 // 9 = reconstrói períodos após normalizar o alias histórico APP_Aprenderr.
-const DASHBOARD_SCHEMA_VERSION = 9;
+// 10 = payload traz TempoPorStatus/StatusHistoricoOk (tempo por status) E cinco
+//      status saem do default "Em andamento" para pendingStatuses, mudando o
+//      FaseFluxo gravado no snapshot.
+const DASHBOARD_SCHEMA_VERSION = 10;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 
