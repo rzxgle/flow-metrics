@@ -471,4 +471,96 @@ check('Conclusão não força display inline sobre a regra da aba Sprint', () =>
   assert.match(html, /#filterBar\s+\.date-filter\s*\{display:flex;\}/);
 });
 
+console.log('\nEficiência de Fluxo (Visão Geral):');
+
+/* O card é a divisão dos dois P85 exibidos ao lado dele. O que estes testes
+   protegem é exatamente essa amarração: se um dia o percentil for recalculado
+   dentro de cada card, os três números divergem e a conta de cabeça do leitor
+   deixa de fechar — defeito que não quebra nada e ninguém percebe. O cenário
+   inclui de propósito um item SEM Cycle Time, porque as duas bases são
+   diferentes na realidade (metade dos concluídos não tem Data Início Real). */
+const tempoItem = (chave, lead, cycle) => {
+  const d = item({ chave, sp:1, concl:true, conclusao:'2026-07-10' });
+  d.PI = 'PI3'; d.FaseFluxo = 'Concluído'; d.AnoMesConclusao = '2026-07';
+  d.LeadTimeDias = lead; d.CycleTimeDias = cycle;
+  return d;
+};
+const cardsExec = (issues) => {
+  T.renderExec(issues, issues);
+  return getEl('exec-kpis').innerHTML.split('<div class="kpi ').slice(1).map((b)=>({
+    label: (b.match(/class="eyebrow">([^<]*)</) || [])[1],
+    valor: (b.match(/class="val">([^<]*)</) || [])[1],
+    unidade: (b.match(/class="unit">([^<]*)</) || [])[1] || null,
+    delta: (b.match(/class="delta [^"]*">([^<]*)</) || [])[1] || null,
+    regra: (b.match(/data-kpi-rule="([^"]*)"/) || [])[1] || null,
+    clicavel: /kpi-clickable/.test(b),
+  }));
+};
+const acharCard = (cards, label) => cards.find((c)=>c.label===label);
+
+// leads [10,20,30] -> P85 27,0 | cycles [2,6] -> P85 5,4 | 5,4/27,0 = 20,0%
+const baseTempos = [tempoItem('T-1',10,2), tempoItem('T-2',20,null), tempoItem('T-3',30,6)];
+
+check('o card divide o Cycle Time P85 pelo Lead Time P85 exibidos ao lado', () => {
+  const cards = cardsExec(baseTempos);
+  assert.strictEqual(acharCard(cards,'Lead Time (P85)').valor, '27.0');
+  assert.strictEqual(acharCard(cards,'Cycle Time (P85)').valor, '5.4');
+  const efic = acharCard(cards,'Eficiência de Fluxo');
+  assert.strictEqual(efic.valor, '20.0');
+  assert.strictEqual(efic.unidade, '%');
+  // A amarração: o valor do card é a razão dos dois números ao lado, não um
+  // percentil recalculado sobre outra base.
+  const lead = parseFloat(acharCard(cards,'Lead Time (P85)').valor);
+  const cycle = parseFloat(acharCard(cards,'Cycle Time (P85)').valor);
+  assert.strictEqual(parseFloat(efic.valor).toFixed(1), (cycle/lead*100).toFixed(1));
+});
+
+check('o card fica ao lado dos dois P85, no fim da linha de KPIs', () => {
+  const labels = cardsExec(baseTempos).map((c)=>c.label);
+  assert.deepStrictEqual(labels.slice(-3),
+    ['Lead Time (P85)', 'Cycle Time (P85)', 'Eficiência de Fluxo']);
+});
+
+check('o complemento declara a fatia de espera', () => {
+  const efic = acharCard(cardsExec(baseTempos), 'Eficiência de Fluxo');
+  assert.strictEqual(efic.delta, '80.0% em espera');
+});
+
+check('sem Cycle Time em nenhum item o card mostra travessão, não 0%', () => {
+  const efic = acharCard(cardsExec([tempoItem('S-1',10,null)]), 'Eficiência de Fluxo');
+  assert.strictEqual(efic.valor, '—');
+  assert.strictEqual(efic.delta, null, 'sem base não há espera a declarar');
+});
+
+check('Lead Time P85 zerado não gera Infinity nem NaN', () => {
+  // Item criado e concluído no mesmo instante: a razão não existe.
+  const efic = acharCard(cardsExec([tempoItem('Z-1',0,0)]), 'Eficiência de Fluxo');
+  assert.strictEqual(efic.valor, '—');
+});
+
+check('eficiência acima de 100% aparece sem trava, e sem complemento', () => {
+  // Recorte estreito em que só o item longo tem Data Início Real: leads [1,2]
+  // -> P85 1,85 e cycles [10] -> P85 10. O número absurdo é o sinal de que as
+  // bases divergiram; truncar em 100% esconderia justamente esse recorte.
+  const efic = acharCard(cardsExec([tempoItem('X-1',1,null), tempoItem('X-2',2,10)]),
+    'Eficiência de Fluxo');
+  assert.ok(parseFloat(efic.valor) > 100, `esperado acima de 100%, veio ${efic.valor}`);
+  assert.strictEqual(efic.delta, null, 'espera negativa não é exibida');
+});
+
+check('a regra do card cabe no limite de 170 caracteres do tooltip', () => {
+  // Acima disso enhanceHelpTooltips descarta o texto e cai no genérico, que não
+  // avisa que as duas bases são diferentes.
+  const efic = acharCard(cardsExec(baseTempos), 'Eficiência de Fluxo');
+  assert.ok(efic.regra && efic.regra.length > 0, 'card sem data-kpi-rule');
+  assert.ok(efic.regra.length <= 170, `${efic.regra.length} caracteres`);
+  assert.match(efic.regra, /Data Início Real/);
+});
+
+check('o card não é clicável: nenhuma lista de issues reproduz a razão', () => {
+  const cards = cardsExec(baseTempos);
+  assert.strictEqual(acharCard(cards,'Eficiência de Fluxo').clicavel, false);
+  assert.strictEqual(acharCard(cards,'Cycle Time (P85)').clicavel, true);
+});
+
 console.log(`\n✅ ${passed} verificações passaram.\n`);

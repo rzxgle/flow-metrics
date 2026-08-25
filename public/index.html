@@ -1502,6 +1502,7 @@
         <li><b>Cerca de 4% dos itens standard não têm cronologia de sprint recuperável</b>: o campo Sprint preenchido na criação não gera changelog, e movimentações em massa entre sprints às vezes também não. Nesses casos sabemos o conjunto de sprints, não as datas, e o item é contado como presente desde a criação — o bloco de velocity mostra quantos itens estão nessa condição e permite abrir a lista. Subtarefas são o caso extremo (herdam a sprint do pai sem gerar histórico), mas não afetam o velocity porque não entram no cálculo.</li>
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>A aba Dependências mede um issuetype com regras próprias.</b> Uma <span class="mono">Dependência</span> é aberta pelo time <b>demandante</b> para o time de quem ele depende — o <b>dependente</b>, que é o campo <span class="mono">Team</span>. Quatro coisas ali não seguem o resto do painel. (1) <b>A data de conclusão vem do changelog</b>: o workflow deste tipo não seta resolução — nas 62 dependências concluídas da base, <span class="mono">resolutiondate</span> está vazia em <b>100%</b> delas, e <span class="mono">Data de Fim Real</span> também. A data usada é a <b>entrada na categoria Done</b>, a mesma régua da entrega de sprint. (2) <b>O relógio começa na abertura</b>, como num bloqueio: uma dependência nasce ativa, ninguém "começa a trabalhar" nela. A duração é lead time, e a dependência aberta conta da abertura até hoje, recalculado a cada abertura do painel. <b>Cancelada não soma dias</b> — no processo da Afya, cancelar significa que a dependência <b>deixou de ser necessária</b>, então ela conta como episódio sem duração medida. (3) <b>Os dois campos de time escrevem a mesma squad de dois jeitos</b>: o <span class="mono">Team</span> grava "Squad Core - Core Features" e o <span class="mono">Time Demandante</span>, "Core Features". Os nomes são canonizados antes de cruzar a matriz, senão a mesma squad viraria dois nós. Por isso a aba tem filtros próprios de <b>Squad</b> e <b>Papel</b> na barra, e o filtro <span class="mono">Squad</span> global sai da tela: os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo id canônico e leva o papel em conta. (4) <b>O item impactado depende de link no Jira</b>. Valem os links oficiais <span class="mono">Dependo de</span> / <span class="mono">Depende de mim</span> (in e out VS) e, como aproximação, <span class="mono">Blocks</span> e <span class="mono">Relates</span>; <span class="mono">Cloners</span> fica de fora, porque um clone é cópia da própria dependência e não o item que ficou esperando. Hoje isso cobre <b>41%</b> das dependências (16% se só os oficiais contassem), e a cobertura vai escrita embaixo da tabela — o card <b>Qualidade do preenchimento</b> existe justamente para essa lacuna encolher.</li>
+        <li><b>Eficiência de Fluxo é a razão de dois percentis, não uma média por item.</b> O card da <b>Visão Geral</b> divide o <b>Cycle Time P85</b> pelo <b>Lead Time P85</b> — exatamente os dois números exibidos ao lado dele, para que a conta feche de cabeça. O preço dessa escolha: os dois percentis saem de <b>bases diferentes</b>, porque Cycle Time exige <span class="mono">Data Início Real</span> e Lead Time não. Na base atual são <b>9.151</b> itens com Lead Time contra <b>4.663</b> com Cycle Time, e só <b>4.641</b> têm os dois — o Lead Time P85 cai de 30,1 para 27,9 dias justamente por incluir os itens sem início real. Por isso o indicador é uma <b>referência de tendência</b>, não uma medida exata de tempo tocado: calculada item a item na base comum, a eficiência média fica em <b>36%</b> contra <b>25%</b> na razão dos percentis. A leitura que vale é comparativa — se a razão sobe ou desce entre recortes e períodos —, e ela fica mais fiel à medida que o preenchimento de <span class="mono">Data Início Real</span> avança.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Na base atual o status literal <span class="mono">Concluído</span> aparece em 110 Bugs e em mais nenhum item. Por isso a lista de status de conclusão abrange todas as etapas pós-desenvolvimento, e <b>"Concluído" e "Entregue (amplo)" são hoje o mesmo predicado</b> (<span class="mono">broadlyDeliveredStatuses === doneStatuses</span>, zero divergências em 16.912 itens) — não são duas definições concorrentes de pronto, como já foram. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
       </ul>
     </div>
@@ -2726,6 +2727,22 @@ function renderExec(f, atual){
   const naoCancel = atual.filter(d=>!d.Cancelado);
   const leadVals = f.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
   const cycleVals = f.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
+  // Os dois P85 são calculados UMA vez e reaproveitados pelos três cards de
+  // tempo. A Eficiência de Fluxo é a divisão exata dos dois números exibidos ao
+  // lado dela — é essa conta que o leitor confere de cabeça, e recalcular o
+  // percentil por card abriria espaço para os três divergirem.
+  const leadP85 = percentile(leadVals, 85);
+  const cycleP85 = percentile(cycleVals, 85);
+  // Eficiência de fluxo = tempo de execução sobre o tempo total do fluxo.
+  // Lead Time nulo (recorte sem concluídos) ou zerado (item criado e concluído
+  // no mesmo instante) não tem razão a exibir: fmt1 imprime '—' para null.
+  // Não há trava em 100%: o Cycle Time exige Data Início Real e por isso sai de
+  // uma base menor que o Lead Time, então num recorte estreito onde só os itens
+  // longos têm essa data a razão pode passar de 100%. Truncar esconderia
+  // justamente o recorte em que o indicador não deve ser lido.
+  const eficFluxo = (leadP85 && cycleP85!=null) ? (cycleP85/leadP85*100) : null;
+  const eficEspera = (eficFluxo!=null && eficFluxo>=0 && eficFluxo<=100)
+    ? {cls:'flat', text:`${fmt1(100-eficFluxo)}% em espera`} : null;
 
   // Pendentes e Em andamento refletem o ESTADO ATUAL (ignoram o filtro de data,
   // respeitam os demais filtros). Concluídos respeita o período selecionado.
@@ -2753,8 +2770,12 @@ function renderExec(f, atual){
       {cls:'flat', text:`posição em ${hojeFmt}`}, 'Status em andamento: '+statusAnd, 'andamento'),
     kpiCard('Concluídos', fmt0(concl.length), 'itens', '',
       {cls:'up', text: temPeriodo ? 'no período filtrado' : pct.toFixed(0)+'% dos itens ativos'}, null, 'concluidos'),
-    kpiCard('Lead Time (P85)', fmt1(percentile(leadVals, 85)), 'dias', 'amber', null, null, 'lead'),
-    kpiCard('Cycle Time (P85)', fmt1(percentile(cycleVals, 85)), 'dias', 'amber', null, null, 'cycle'),
+    kpiCard('Lead Time (P85)', fmt1(leadP85), 'dias', 'amber', null, null, 'lead'),
+    kpiCard('Cycle Time (P85)', fmt1(cycleP85), 'dias', 'amber', null, null, 'cycle'),
+    // Sem drill: nenhum conjunto de issues reproduz a razão de dois percentis,
+    // e os dois cards ao lado já abrem cada uma das bases.
+    kpiCard('Eficiência de Fluxo', fmt1(eficFluxo), '%', 'amber', eficEspera,
+      'Cycle Time P85 dividido pelo Lead Time P85, os dois cards ao lado. O Cycle exige Data Início Real, ausente em parte dos concluídos, então as bases não são as mesmas.', null),
   ].join('');
 
   // Throughput mensal
