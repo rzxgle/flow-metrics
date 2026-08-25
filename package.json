@@ -21,7 +21,8 @@
     "test:drawer": "node test/drawer-status.spec.js",
     "test:status-time": "node test/status-time.spec.js",
     "test:status-time-view": "node test/status-time-view.spec.js",
-    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:pi-drill && npm run test:delivery && npm run test:filtros && npm run test:bloqueios && npm run test:drawer && npm run test:status-time && npm run test:status-time-view && npm run test:amplify"
+    "test:dependencias": "node test/dependencias.spec.js",
+    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:pi-drill && npm run test:delivery && npm run test:filtros && npm run test:bloqueios && npm run test:drawer && npm run test:status-time && npm run test:status-time-view && npm run test:dependencias && npm run test:amplify"
   },
   "engines": {
     "node": ">=18"

@@ -91,6 +91,9 @@ class GetProgressiveDashboardDataUseCase {
         // Regras da aba de PI Tracking. Viajam com o payload para que o front
         // nao mantenha uma segunda copia delas, que sairia de sincronia.
         quarterRules: this.quarterRules,
+        // id canônico -> rótulo dos times da aba de Dependências. Viaja UMA vez
+        // aqui, em vez de repetir o nome do time em cada linha do payload.
+        dependencyTeams: this.enricher.dependency ? this.enricher.dependency.teamCatalog() : {},
         sprints: Array.from(sprintCatalog.values()),
       },
     };

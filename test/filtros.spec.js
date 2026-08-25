@@ -37,10 +37,14 @@ const GRUPOS = {
 };
 /* O nível que a aba Sprint mede: nem épico, nem subitem. */
 const VISIVEIS_NA_SPRINT = ['Bug', 'Bug hotfix', 'Enabler', 'Melhoria', 'Story', 'Technical Debt'];
-/* Os 11 da lista; `Subtarefa` e `Correção Staging` não têm ocorrência na base. */
+/* Os 12 da lista; `Subtarefa` e `Correção Staging` não têm ocorrência na base.
+   `Dependência` entrou junto com a aba de Dependências: 141 das 189 da base têm
+   sprint preenchida, mas uma dependência é acordo entre times e não trabalho de
+   entrega da squad — ela não é o nível que esta aba mede. A exclusão de verdade
+   está em `isStandard`; esta lista é a limpeza visual correspondente. */
 const ESPERADOS_NA_LISTA = [
-  'Epic', 'Enabler Epic', 'Sub-block', 'Sub-bug', 'Sub-design', 'Sub-imp',
-  'Sub-script', 'Sub-task', 'Sub-test', 'Subtarefa', 'Correção Staging',
+  'Epic', 'Enabler Epic', 'Dependência', 'Sub-block', 'Sub-bug', 'Sub-design',
+  'Sub-imp', 'Sub-script', 'Sub-task', 'Sub-test', 'Subtarefa', 'Correção Staging',
 ];
 
 /* ---------- boot da página real dentro do jsdom ---------- */

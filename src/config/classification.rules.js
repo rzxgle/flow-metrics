@@ -24,6 +24,10 @@ const issueTypeToGroup = {
   'Bug hotfix': 'Bug',
   'Technical Debt': 'Débito Técnico',
   Enabler: 'Enabler',
+  // Dependência tem grupo próprio, e não o default 'Sub-task': ela não é
+  // trabalho de entrega do time, é um acordo entre times. Deixá-la cair no
+  // default somaria 189 itens ao velocity, ao burndown e ao "Incremental".
+  'Dependência': 'Dependência',
   // Todos os subtipos caem em "Sub-task"
   Subtarefa: 'Sub-task',
   'Sub-block': 'Sub-task',

@@ -33,6 +33,16 @@ class JiraFieldMap {
     this.sprint = env.JIRA_FIELD_SPRINT || 'customfield_10113'; // "Sprint" (array de objetos)
     this.bcp = env.JIRA_FIELD_BCP || 'customfield_12377'; // "BCP" (numérico)
     this.blockReason = env.JIRA_FIELD_BLOCK_REASON || 'customfield_11638'; // "Motivo de Bloqueio"
+
+    // Campos do issuetype "Dependência" (ver domain/services/DependencyResolver).
+    this.timeDemandante = env.JIRA_FIELD_TIME_DEMANDANTE || 'customfield_12487'; // "Time Demandante"
+    this.timeExterno = env.JIRA_FIELD_TIME_EXTERNO || 'customfield_12486'; // "Time Externo"
+    this.depApproved = env.JIRA_FIELD_DEP_APROVADA || 'customfield_12045'; // "Dependência Aprovada"
+    this.depDescription = env.JIRA_FIELD_DEP_DESCRICAO || 'customfield_12078'; // "Descrição Dependência"
+
+    // Links entre issues. É por eles que uma dependência aponta o item que ficou
+    // parado esperando o outro time.
+    this.issueLinks = 'issuelinks';
   }
 
   /** Lista de campos a solicitar na busca (reduz payload da API). */
@@ -42,6 +52,8 @@ class JiraFieldMap {
       this.created, this.resolutiondate, this.duedate, this.labels, this.parent,
       this.team, this.storyPoints, this.startDate, this.actualStart, this.actualEnd,
       this.sprint, this.bcp, this.blockReason,
+      this.timeDemandante, this.timeExterno, this.depApproved, this.depDescription,
+      this.issueLinks,
     ];
   }
 }

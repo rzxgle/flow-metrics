@@ -9,10 +9,10 @@ function loadConfig(env = process.env) {
   const jql =
     env.JIRA_JQL ||
     // JQL original extraída da aba "About" da planilha:
-    'project IN (LEG, COREX, APP, "DESC", CONV, APR, PLAT) ' +
+    'project IN (LEG, COREX, APP, "DESC", CONV, APR, PLAT, MART) ' +
       'AND type IN (Epic, "Enabler Epic", "Bug hotfix", Bug, Sub-block, Sub-bug, Sub-imp, ' +
       'Sub-design, História, Story, Melhoria, Sub-script, Sub-task, Sub-test, ' +
-      '"Technical Debt", "Correção Staging", Enabler) AND created >= startOfYear() ORDER BY created DESC';
+      '"Technical Debt", "Correção Staging", Enabler, Dependência) AND created >= startOfYear() ORDER BY created DESC';
 
   return {
     port: Number(env.PORT) || 3000,

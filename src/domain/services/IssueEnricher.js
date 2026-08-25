@@ -12,12 +12,13 @@ const { toIsoDate, toYearMonth, toYear } = require('../../shared/date.utils');
  */
 class IssueEnricher {
   constructor(classifier, metricsCalculator, sprintHistoryResolver = null,
-    sprintDeliveryResolver = null, statusTimeResolver = null) {
+    sprintDeliveryResolver = null, statusTimeResolver = null, dependencyResolver = null) {
     this.classifier = classifier;
     this.metrics = metricsCalculator;
     this.sprintHistory = sprintHistoryResolver;
     this.sprintDelivery = sprintDeliveryResolver;
     this.statusTime = statusTimeResolver;
+    this.dependency = dependencyResolver;
   }
 
   /** @param {import('../entities/Issue')} issue */
@@ -99,7 +100,19 @@ class IssueEnricher {
       parentKey: issue.parentKey,
       grupo,
       chave: issue.key,
+      // Bloco da aba de Dependências. Vem POR ÚLTIMO de propósito: ele
+      // sobrescreve 'Data Conclusao' e 'LeadTimeDias' com a data tirada do
+      // changelog, única fonte que existe para este issuetype (o workflow de
+      // Dependência não seta resolution). Só as issues do tipo carregam estas
+      // chaves — as outras ~3.200 do payload não ganham um byte.
+      ...this._resolveDependency(issue),
     };
+  }
+
+  /** Bloco `Dep*`, ou objeto VAZIO quando a issue não é uma dependência. */
+  _resolveDependency(issue) {
+    if (!this.dependency || !this.dependency.isDependency(issue.issueType)) return {};
+    return this.dependency.resolve(issue);
   }
 
   /**
