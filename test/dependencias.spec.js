@@ -694,6 +694,19 @@ teste('dependência não entra no rollup do épico, mesmo tendo pai', () => {
   assert.strictEqual(comDep.TotalItens, 2);
 });
 
+teste('o snapshot do navegador é invalidado — senão a aba nasce parcial', () => {
+  // O painel guarda o dataset em IndexedDB e, ao reabrir, só busca no Jira o que
+  // mudou (`delta`, updated >= -Nd). O snapshot antigo foi montado quando a JQL
+  // nem pedia Dependência, então sem subir a versão a aba mostraria apenas as
+  // dependências mexidas no período — um número plausível e errado, que é pior
+  // do que a aba vazia. Este caso trava o par (versão, campos do payload).
+  const versao = Number(/const DASHBOARD_SCHEMA_VERSION = (\d+);/.exec(html)[1]);
+  assert.ok(versao >= 11, `a aba de Dependências exige recoleta completa (versão ${versao})`);
+  // E o guardião continua descartando snapshot de versão anterior.
+  assert.ok(/snap\.schemaVersion===DASHBOARD_SCHEMA_VERSION\?snap:null/.test(html),
+    'o snapshot de versão diferente precisa ser descartado');
+});
+
 teste('a barra troca o Squad global e o Tipo pelos filtros da aba', () => {
   const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
   assert.ok(/#filterBar\.dep-only #dd-Tipo_de_item/.test(css), 'Tipo deveria sumir na aba');

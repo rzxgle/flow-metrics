@@ -5501,7 +5501,16 @@ const DASHBOARD_STORE = 'snapshots';
 // 10 = payload traz TempoPorStatus/StatusHistoricoOk (tempo por status) E cinco
 //      status saem do default "Em andamento" para pendingStatuses, mudando o
 //      FaseFluxo gravado no snapshot.
-const DASHBOARD_SCHEMA_VERSION = 10;
+// 11 = aba de Dependências. A JQL passou a trazer o issuetype Dependência e o
+//      projeto MART, e o payload ganhou o bloco Dep* e meta.dependencyTeams.
+//      Precisa de recoleta COMPLETA, e não da sincronização incremental: o
+//      snapshot antigo foi montado quando a JQL nem pedia esses itens, e a fase
+//      `delta` só busca `updated >= -Nd`. Sem o bump, quem já tinha o painel
+//      aberto veria a aba com um subconjunto arbitrário das dependências — as
+//      que por acaso foram mexidas no período —, o que é pior do que vazia,
+//      porque parece um número plausível. `Tipo Agrupado` também mudou para os
+//      itens desse tipo, então o campo gravado no snapshot estaria errado.
+const DASHBOARD_SCHEMA_VERSION = 11;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 
