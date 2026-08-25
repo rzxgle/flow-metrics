@@ -30,6 +30,7 @@ src/
 │       ├── EpicResolver.js           # cadeia de parents -> épico
 │       ├── EpicSummaryBuilder.js     # agregação por épico
 │       ├── EpicHealthEvaluator.js    # saúde do épico
+│       ├── StatusTimeResolver.js     # tempo em cada status (changelog)
 │       └── IssueEnricher.js          # compõe tudo no formato do dashboard
 │
 ├── application/
@@ -104,8 +105,8 @@ Os testes não tocam a rede: todos usam fixtures sintéticos. Vários deles
 extraem o `<script>` inline do `public/index.html` e o executam — testar uma
 cópia da lógica não pegaria os defeitos que já apareceram ali. Os de cálculo
 (`test:velocity`, por exemplo) rodam num `vm` do Node com um DOM falso;
-`test:filtros` e `test:bloqueios` usam **jsdom**, porque o que eles verificam é
-apresentação — o que a tela de fato mostra: se um item some pela cascata de CSS
+`test:filtros`, `test:bloqueios` e `test:status-time-view` usam **jsdom**, porque
+o que eles verificam é apresentação — o que a tela de fato mostra: se um item some pela cascata de CSS
 (inclusive quando a busca do dropdown escreve `display` inline no elemento), o
 valor que cada KPI exibe, o HTML de uma linha de tabela. Um DOM falso não tem
 cascata, e não dá para ler dele o que foi renderizado.
@@ -184,6 +185,141 @@ avisam em vez de somar quarters.
 Rode `npm run test:pi` para validar as regras — o teste executa o script da
 própria página num `vm`, não uma cópia.
 
+## Tempo por status (aba Lead & Cycle Time)
+
+Lead Time e Cycle Time dizem quanto tempo o item levou; não dizem **onde** o
+tempo foi gasto. O gráfico "Tempo por status" decompõe isso a partir do
+changelog do campo **Status** — que já era coletado na mesma chamada em lote do
+changelog de Sprint, então a visão não custou nenhuma requisição nova ao Jira.
+
+`domain/services/StatusTimeResolver.js` reconstrói as permanências. Três
+particularidades moldam o algoritmo, e as duas primeiras são as mesmas que o
+`SprintHistoryResolver` enfrenta no campo Sprint:
+
+1. **O valor de criação não gera entrada no changelog.** O status inicial só é
+   conhecido pelo `from` da primeira transição, e a permanência nele vai da
+   criação até essa transição. Sem isso o tempo da primeira fila — tipicamente
+   `Backlog`, a maior do fluxo — desapareceria sem nenhum sinal de erro.
+2. **Reentradas somam.** Item devolvido do code review volta para
+   `Desenvolvimento`; as passagens são somadas num único balde por status, com a
+   contagem em `visitas`. É assim que retrabalho aparece como tempo acumulado em
+   vez de virar duas médias diluídas.
+3. **Só permanências encerradas.** A visita ao status atual está aberta e
+   cresceria sozinha entre um snapshot e outro (é o problema que obriga o Aging a
+   ser recalculado no navegador). Como a visão mede itens **concluídos**, a
+   visita aberta é sempre o status final — nada de relevante se perde.
+
+**O campo só existe em itens concluídos**, e é de propósito: é o recorte da
+visão, e o payload atravessa a rede em lotes com limite de tamanho no Amplify.
+Medido num lote de 500 issues amostrado da base inteira (59% concluídas): 589 KB
+→ 676 KB, +14,7%. `visitas` é omitido quando vale 1, e quem lê trata a ausência
+como 1.
+
+### Duas coisas que mudam de sentido nesta visão
+
+**O filtro de Status escolhe barras, não itens.** Nas outras abas ele recorta
+pelo status *atual*; aqui isso responderia outra pergunta ("quem está parado
+neste status hoje") e esvaziaria o gráfico. A base chega sem esse recorte
+(`SKIP_STATUS`, o mesmo mecanismo do `SKIP_TIPO` na aba de Bloqueios) e a seleção
+define quais status viram barra. Sem seleção, todos os status percorridos
+aparecem.
+
+Por isso o dropdown de Status passou a listar também os status vindos do
+**histórico**, não só os atuais — exatamente como a dimensão Sprint já fazia.
+Medido na base: `Em teste`, `PROD`, `Aprovação Comitê`, `PRONTO PARA PI PLANNING`
+e `Tarefas pendentes` não têm um único item parado hoje, e `Em teste` é justo uma
+etapa de trabalho que interessa medir. Efeito colateral aceito: nas outras abas,
+selecionar um desses status filtra para zero itens — o que é verdade.
+
+**O denominador está no rótulo da medida, porque muda o número.** "Média por item
+concluído" divide por todos os itens da base (quem não passou pelo status entra
+com zero) e por isso as barras **somam, aproximadamente, o Lead Time médio** — é
+uma decomposição. A legenda do gráfico mostra a soma ao lado do Lead Time médio
+justamente para a diferença ficar visível.
+
+Ela não é exata, e a razão é conhecida: as barras cobrem de `Criado` até a
+**última transição de status**, enquanto o Lead Time vai de `Criado` até
+`Data de Fim Real` (ou a resolução). Como neste processo o item continua
+transitando depois da entrega — homologação integrada, deploy em PROD, ativação
+de valor — e a `Data de Fim Real` é preenchida à mão, a linha do tempo de status
+costuma ser **mais longa** que o Lead Time. Medido no dataset atual, num recorte
+de 287 itens: soma das barras 51,7 d contra Lead Time médio de 46,6 d. É a mesma
+defasagem que motivou o `SprintDeliveryResolver`.
+
+"P85 de quem passou" divide só pelos visitantes: responde "quando um item passa
+por aqui, quanto tempo fica" e, por construção, **não** soma. (Havia uma terceira
+medida, a mediana; foi retirada a pedido do time, que não a usa.)
+
+Como as duas medidas convivem no mesmo gráfico, **o tooltip espelha a barra**: a
+primeira linha repete, com o mesmo rótulo do seletor, o valor exato que está
+desenhado, e a segunda dá a leitura complementar dizendo sobre quem foi
+calculada. O título do eixo também nomeia a medida, para o número da barra nunca
+ficar sem denominador. Sem isso a barra marcava 9,0 enquanto o tooltip abria com
+18,2, e não havia como saber qual era qual.
+
+### Por que um item não entra na média: são duas razões, não uma
+
+A terceira linha do tooltip decompõe a base em **três grupos que somam o total**:
+
+```
+PRONTO PARA ATIVAÇÃO DE VALOR · Concluído
+  Média por item concluído: 0.8 d
+  Entre os 55 que passaram: 13.9 d de média
+  55 já saíram deste status · 300 ainda estão nele · 654 nunca passaram
+  1.11 visitas por item
+  Quem ainda está no status tem permanência aberta e fica fora da média.
+```
+
+Antes essa linha dizia apenas "55 de 1.009 itens passaram por aqui", e não
+distinguia as duas razões para um item ficar de fora: **nunca ter entrado** no
+status, ou **estar nele agora** — caso em que a permanência está aberta, não tem
+duração e por isso não conta.
+
+O segundo caso não é exceção; é a regra nos status finais do fluxo. Medido no
+recorte padrão de Tipo (1.009 itens concluídos com histórico):
+
+| Status | já saíram | ainda estão nele | nunca passaram |
+| --- | --- | --- | --- |
+| `PRONTO PARA ATIVAÇÃO DE VALOR` | 55 | **300** | 654 |
+| `PRONTO PARA PROD` | 666 | **269** | 74 |
+| `Deploy em PROD` | ~207 | **~181** | ~622 |
+
+É o que explica a barra de `PRONTO PARA ATIVAÇÃO DE VALOR` estar em 0,8 d: quase
+todo mundo que está lá **continua lá**. A última linha só aparece quando há
+alguém parado, e explica o mecanismo em vez de repetir o número. Grupos zerados
+somem da linha, e quando todos passaram ela diz isso em uma frase.
+
+Nada disso exigiu mudança no backend: `Status` e `TempoPorStatus` já bastam para
+separar os três grupos no navegador.
+
+Ordem e cor das barras saem da **fase do status** (Pendente → Em andamento →
+Concluído → Cancelado), pelas listas de `classification.rules.js` que viajam no
+`meta` — nunca por pedaço do nome do status, que é a decisão travada em
+`test/drawer-status.spec.js`.
+
+`npm run test:status-time` valida as regras de domínio e
+`npm run test:status-time-view` valida a tela (jsdom, executando o script real da
+página).
+
+### Cinco status saíram do default "Em andamento"
+
+`To Do` (mais de 2.000 itens, quase todos sub-tarefas), `Aprofundamento`,
+`PI Planning`, `PRONTO P/ PREPARAR PI PLANNING` e `Design detalhado` não
+constavam em nenhuma lista de fase e caíam no default de `phaseOf`, inflando
+"Itens em andamento" com trabalho que nem começou. Agora são **pendentes**, por
+coerência com a lista, que já tratava refinamento e revisão de design como
+trabalho não iniciado.
+
+O que muda: cerca de 2.100 itens saem de "Em andamento" para "Pendente" no
+recorte que inclui sub-tarefas e épicos — no snapshot em que isso foi medido,
+Backlog foi de ~870 para ~2.950 e Em andamento de ~2.300 para ~230 (as
+quantidades exatas mudam a cada coleta; a ordem de grandeza, não).
+
+O que **não** muda: o WIP (é apenas "não concluído e não cancelado", não consulta
+essas listas) e o painel no recorte padrão de Tipo — **nenhum** item afetado é
+`Enabler`, `Melhoria`, `Story` ou `Technical Debt`, e essa é uma propriedade
+estrutural do fluxo, não um número do snapshot.
+
 ## Fidelidade da transformação
 
 As regras foram reconstruídas a partir do dataset original e **conferidas contra
@@ -200,6 +336,7 @@ processo antigo ainda não tratava PI4).
 - **Novo tipo de item, status ou PI** → `config/classification.rules.js`.
 - **Regras do acompanhamento de PI** → `config/quarter.rules.js`.
 - **Fórmula de Lead/Cycle/Aging** → `domain/services/FlowMetricsCalculator.js`.
+- **Regra do tempo por status** → `domain/services/StatusTimeResolver.js`.
 - **Regra de saúde do épico** → `domain/services/EpicHealthEvaluator.js`.
 - **Trocar Jira por outra fonte** → nova classe que estenda `IssueRepository` e
   troque a linha no `main.js`.

@@ -62,16 +62,34 @@ const cancelledStatuses = ['CANCELADO'];
 /**
  * Status que representam item PENDENTE — trabalho que ainda NÃO começou
  * (backlog, priorização, refinamento).
+ *
+ * Cinco status estavam FORA de todas as listas e por isso caíam no default de
+ * `phaseOf` ("Em andamento"), inflando o "Itens em andamento" com trabalho que
+ * nem começou: `To Do` (mais de 2.000 itens, quase todos sub-tarefas),
+ * `Aprofundamento`, `PI Planning`, `PRONTO P/ PREPARAR PI PLANNING` e
+ * `Design detalhado`. Entram aqui por decisão do time e por coerência com a
+ * lista, que já tratava refinamento e revisão de design como trabalho não
+ * iniciado.
+ *
+ * Nenhum deles aparece em item do filtro padrão de Tipo (Enabler/Melhoria/
+ * Story/Technical Debt), então o painel como ele abre não muda; muda o recorte
+ * que inclui sub-tarefas e épicos. `isWip` NÃO é afetado — ele é
+ * `!isDone && !isCancelled` e não consulta esta lista.
  */
 const pendingStatuses = [
   'Backlog',
+  'To Do',
   'PRIORIZADO',
   'PRIORIZADO PARA O PI',
+  'PRONTO P/ PREPARAR PI PLANNING',
   'PRONTO PARA PI PLANNING',
+  'PI Planning',
   'PRONTO PARA REF. NEGÓCIO',
   'Refinamento de negócio',
+  'Aprofundamento',
   'Pronto para revisão design',
   'Revisão design',
+  'Design detalhado',
   'PRONTO PARA REFINAMENTO TÉCNICO',
   'Refinamento técnico',
   'PRONTO PARA DESENVOLVIMENTO',
