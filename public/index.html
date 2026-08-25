@@ -1193,7 +1193,7 @@
   <div class="grid grid-3" style="margin-top:14px;">
     <div class="card">
       <h3>Entregas por Squad</h3>
-      <div class="cap">Épicos, Histórias e Sub-tasks concluídos.</div>
+      <div class="cap">Itens concluídos no período. Diferente dos KPIs acima, os três gráficos de entrega <b>seguem o filtro de Tipo</b> da barra — no recorte padrão isso significa Story, Melhoria, Enabler e Débito Técnico, sem épicos nem subitens.</div>
       <div class="chartwrap"><canvas id="chart-wip-entregas-squad"></canvas></div>
     </div>
     <div class="card">
@@ -1494,13 +1494,15 @@
         <li><b>Os filhos não herdam o PI do épico.</b> As labels de PI ficam no épico; um item filho pode não ter nenhuma. Dos 3.465 filhos dos épicos de PI3 - Afya One, <b>1.430 têm PI "Não informado"</b>. Por isso a aba PI Tracking seleciona os <b>épicos</b> pela label e depois puxa <b>todos</b> os filhos pela cadeia de parent, ignorando o PI do filho — filtrar filhos por PI cortaria 40% da base sem avisar. Consequência: o progresso do PI mede o trabalho dos épicos daquele ciclo, não o conjunto de itens que carregam a label.</li>
         <li><b>Labels de transbordo entram no PI de destino.</b> Um item com <span class="mono">TransbordoPI2AfyaOne</span> transbordou do PI2 e é cobrado no PI3, então é ali que ele aparece — mesmo mantendo a label <span class="mono">PI2AfyaOne</span>. O mesmo vale para <span class="mono">NOVOPI3AfyaOne</span>, <span class="mono">LegadoTransbordoP126</span> e <span class="mono">LegadoTransbordoP226</span>. A label <span class="mono">DESPRIORIZADOPI3AfyaOne</span> não classifica mais o item como parte do PI3.</li>
         <li><b>O PI Tracking tem uma coleta própria.</b> A consulta geral continua usando <span class="mono">created &gt;= startOfYear()</span>, mas esta aba busca os épicos diretamente pelas labels configuradas, sem corte por data de criação, e depois busca seus filhos. Assim, épicos antigos planejados para o quarter entram no PI sem alterar as métricas das outras abas.</li>
+        <li><b>Os KPIs de "Entregas, WIP &amp; Aging" ignoram o filtro de Tipo e têm data de entrega própria.</b> Cada card já declara o seu recorte de tipo no nome, então o filtro da barra só subtraía: com o recorte padrão (<span class="mono">Enabler</span>, <span class="mono">Melhoria</span>, <span class="mono">Story</span>, <span class="mono">Technical Debt</span>) não há um único Epic nem um único subitem, e "Épicos entregues" e "Sub-tasks concluídas" vinham zerados — havia 8.768 sub-tasks concluídas na base. Os demais filtros e a janela de datas continuam valendo. Além disso, para <b>Épico</b> a janela é aplicada sobre a primeira transição para a categoria Done (changelog) quando não há Data de Fim Real: só 5 dos 75 épicos concluídos da base têm data de conclusão preenchida, e nenhum deles numa janela de 30 dias. O fallback vale só para Épico, para não mover os números das outras abas. <b>Os três gráficos de entrega da mesma aba seguem o recorte geral</b> e continuam obedecendo ao filtro de Tipo.</li>
+        <li><b>"% conclusão geral" lê só o nível história e compara o mesmo conjunto nos dois lados</b>: dos itens de <b>História, Enabler e Débito Técnico</b> que <b>fecharam</b> no período (têm data de entrega na janela), o percentual que fechou como concluído — é a taxa de conclusão do card "Histórias entregues", que fica ao lado. <b>Subitem fica fora de propósito</b>: ele é quatro vezes o volume de todo o resto e tem taxa de conclusão mais alta, então dominava o agregado — medido na base, Sub-task fechava 2.654 dos 3.434 itens da janela com 82% de conclusão contra 67% de História, e o indicador marcava 77% falando quase só de subitem; restrito ao nível história dá 69%. Os <b>cancelados entram no denominador</b> porque são o contraponto do indicador. Antes, além de somar tudo, só o numerador respeitava a janela de datas, e o percentual caía por estreitar o período sem nada ter mudado (16% no recorte padrão).</li>
         <li><b>Progresso do épico e status do épico são dimensões independentes.</b> O KPI "Épicos entregues" usa o <b>status do próprio épico no Jira</b>; o "Progresso do PI" usa os <b>filhos</b>. Um épico pode estar 100% nos filhos e ainda não ter sido movido para um status de conclusão — e o contrário também acontece. Divergência entre os dois costuma ser sinal de status desatualizado, não de erro de cálculo.</li>
         <li><b>Data de entrega da sprint ≠ data de conclusão.</b> Neste processo a <b>homologação integrada acontece depois da sprint</b>, então os status finais (<span class="mono">Homologação integrada</span>, <span class="mono">PRONTO PARA PROD</span>, <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span>) e o campo manual <span class="mono">Data de Fim Real</span> refletem o <b>release</b>, não o trabalho do time. Por acordo com as squads, o compromisso da sprint está entregue quando o item <b>entra no primeiro status da categoria Done</b> — hoje <span class="mono">Pronto p/ Deploy STG</span>. Essa data vem do <b>changelog de status</b> do Jira e é a que alimenta velocity, say-do e o burndown da sprint. Quando o changelog não está disponível para um item, cai-se na Data de conclusão (comportamento antigo) e o item é contado na ressalva acima. Lead time, cycle time e as abas de Entregas seguem usando a Data de conclusão, que é a entrega de valor ponta a ponta.</li>
         <li><b>Velocity: o que entra e o que não entra</b>. Só <b>itens standard</b> (exclui Épico, cujo SP é agregado, e Sub-task, que somaria de novo o SP do pai) e não cancelados. <b>Comprometido</b> = era membro da sprint no instante em que ela começou; <b>adicionado</b> = entrou depois do início; <b>entregue</b> = a entrega é atribuída a <b>uma única</b> sprint, por três regras em ordem: (1) a sprint cuja janela contém a data de entrega; (2) senão, a primeira sprint do item que termina em ou depois dela — cobre o item já <b>pronto quando a sprint abriu</b> (trabalho puxado antes do início); (3) senão, a <b>última sprint do item, se ela fechou com o item ainda dentro</b> e a entrega veio em até <b>7 dias</b>. A regra 3 existe porque, ao encerrar uma sprint, o Jira move para a próxima apenas os itens <b>incompletos</b> — quem permanece é quem o board já dava por pronto; é a mesma semântica do Sprint Report nativo, e sem ela um item que entrou em Done um dia após o fim ficava comprometido numa sprint e entregue em nenhuma. O que sobra vai para o KPI <b>"Entregue fora de sprint"</b>, detalhado logo abaixo por motivo (entrou em Done tarde demais × saiu da sprint antes de concluir), tudo clicável. A janela da sprint vai do início até o <b>maior</b> entre o fim planejado e o fechamento real — a maioria das sprints da base foi encerrada depois do <span class="mono">endDate</span>, e ignorar isso descartava as entregas desses dias. As janelas são comparadas em <b>datas</b>, não em horários, para não descartar entregas do último dia da sprint. Sprint <b>em andamento</b> aparece em tom claro e fica fora das médias (está sempre sub-entregue); sprint <b>futura</b> não aparece. Sprint em que a squad não teve nenhum item não entra no gráfico nem na média — itens emprestados entre boards fariam aparecer sprints de outros times zeradas.</li>
         <li><b>Cerca de 4% dos itens standard não têm cronologia de sprint recuperável</b>: o campo Sprint preenchido na criação não gera changelog, e movimentações em massa entre sprints às vezes também não. Nesses casos sabemos o conjunto de sprints, não as datas, e o item é contado como presente desde a criação — o bloco de velocity mostra quantos itens estão nessa condição e permite abrir a lista. Subtarefas são o caso extremo (herdam a sprint do pai sem gerar histórico), mas não afetam o velocity porque não entram no cálculo.</li>
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>A aba Dependências mede um issuetype com regras próprias.</b> Uma <span class="mono">Dependência</span> é aberta pelo time <b>demandante</b> para o time de quem ele depende — o <b>dependente</b>, que é o campo <span class="mono">Team</span>. Quatro coisas ali não seguem o resto do painel. (1) <b>A data de conclusão vem do changelog</b>: o workflow deste tipo não seta resolução — nas 62 dependências concluídas da base, <span class="mono">resolutiondate</span> está vazia em <b>100%</b> delas, e <span class="mono">Data de Fim Real</span> também. A data usada é a <b>entrada na categoria Done</b>, a mesma régua da entrega de sprint. (2) <b>O relógio começa na abertura</b>, como num bloqueio: uma dependência nasce ativa, ninguém "começa a trabalhar" nela. A duração é lead time, e a dependência aberta conta da abertura até hoje, recalculado a cada abertura do painel. <b>Cancelada não soma dias</b> — no processo da Afya, cancelar significa que a dependência <b>deixou de ser necessária</b>, então ela conta como episódio sem duração medida. (3) <b>Os dois campos de time escrevem a mesma squad de dois jeitos</b>: o <span class="mono">Team</span> grava "Squad Core - Core Features" e o <span class="mono">Time Demandante</span>, "Core Features". Os nomes são canonizados antes de cruzar a matriz, senão a mesma squad viraria dois nós. Por isso a aba tem filtros próprios de <b>Squad</b> e <b>Papel</b> na barra, e o filtro <span class="mono">Squad</span> global sai da tela: os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo id canônico e leva o papel em conta. (4) <b>O item impactado depende de link no Jira</b>. Valem os links oficiais <span class="mono">Dependo de</span> / <span class="mono">Depende de mim</span> (in e out VS) e, como aproximação, <span class="mono">Blocks</span> e <span class="mono">Relates</span>; <span class="mono">Cloners</span> fica de fora, porque um clone é cópia da própria dependência e não o item que ficou esperando. Hoje isso cobre <b>41%</b> das dependências (16% se só os oficiais contassem), e a cobertura vai escrita embaixo da tabela — o card <b>Qualidade do preenchimento</b> existe justamente para essa lacuna encolher.</li>
-        <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Apenas Sub-tasks são consistentemente marcadas como Concluído. Por isso, além do Throughput estrito (Status = Concluído), a aba de Entregas mostra também "Entregue (amplo)", que considera todos os status pós-desenvolvimento. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
+        <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Na base atual o status literal <span class="mono">Concluído</span> aparece em 110 Bugs e em mais nenhum item. Por isso a lista de status de conclusão abrange todas as etapas pós-desenvolvimento, e <b>"Concluído" e "Entregue (amplo)" são hoje o mesmo predicado</b> (<span class="mono">broadlyDeliveredStatuses === doneStatuses</span>, zero divergências em 16.912 itens) — não são duas definições concorrentes de pronto, como já foram. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
       </ul>
     </div>
   </div>
@@ -1542,7 +1544,7 @@ const TAB_HELP = {
   throughput:'Conta itens com status classificado como concluído e usa a data de conclusão para posicioná-los no período. Os gráficos respondem aos filtros globais.',
   sp:'Compara Story Points planejados dos itens não cancelados com Story Points concluídos dentro do período selecionado.',
   flow:'Lead Time vai da criação à conclusão. Cycle Time vai do início real ao fim real. Datas ausentes ou invertidas ficam fora dessas métricas. O gráfico de tempo por status decompõe o Lead Time usando o changelog do Jira; nele o filtro de Status escolhe quais status aparecem, não quais itens entram.',
-  wip:'Mostra entregas, trabalho ainda aberto e Aging. Aging conta do início real até hoje apenas para itens em WIP.',
+  wip:'Mostra entregas, trabalho ainda aberto e Aging. Os KPIs do topo ignoram o filtro de Tipo (cada card já recorta o seu tipo); os gráficos de entrega seguem o filtro. Aging conta do início real até hoje apenas para itens em WIP.',
   block:'Considera itens do tipo Sub-block. Bloqueios resolvidos usam Cycle Time; bloqueios abertos contam da criação até hoje.',
   sprint:'A associação usa o histórico de sprints do Jira. Completude é subitens concluídos dividido pelo total de subitens do item.',
   pi:'Agrupa épicos do PI por squad. O progresso usa os filhos elegíveis, exclui cancelados do denominador e não duplica épicos ou subtarefas.',
@@ -1681,6 +1683,14 @@ const DEFAULT_TIPO = ['Enabler','Melhoria','Story','Technical Debt'];
 DEFAULT_TIPO.forEach(t=> selections['Tipo de item'].add(t));
 // Abas que NÃO devem sofrer o filtro de Tipo (dependem de Sub-block/Sub-task).
 const SKIP_TIPO = new Set(['Tipo de item']);
+/* Grupos que compõem o KPI "Histórias entregues" (aba Entregas, WIP & Aging).
+   É o NÍVEL história: filho de épico que não é subitem. Por decisão do time,
+   Bug fica FORA — correção de defeito não é entrega de escopo novo —, e
+   Dependência também, pela regra geral de que ela é acordo entre times e não
+   trabalho de entrega da squad. Antes o KPI olhava só o grupo 'História', então
+   Enabler e Débito Técnico entravam no recorte, contavam no percentual e nos
+   gráficos, e não apareciam em nenhum dos cards. */
+const GRUPOS_NIVEL_HISTORIA = ['História', 'Enabler', 'Débito Técnico'];
 /* Recorte que IGNORA o filtro de Status. Usado só pelo gráfico de tempo por
    status, onde a seleção de Status escolhe QUAIS BARRAS aparecer em vez de
    recortar itens: filtrar pelo status ATUAL ali responderia a outra pergunta
@@ -1997,6 +2007,39 @@ function getFiltered(skip){
     }
     return true;
   });
+}
+
+/* ---------- Recorte de ENTREGA da aba "Entregas, WIP & Aging" ----------
+
+   Duas regras próprias, e as duas existem porque o recorte geral (`getFiltered`)
+   apagava KPIs inteiros desta aba:
+
+   1) DATA EFETIVA DE ENTREGA. `getFiltered` exige `Data Conclusao`
+      (= "Data Fim Real" || "Conclusão"). Épico neste workflow não recebe nenhuma
+      das duas: medido na base, só 5 dos 75 épicos concluídos têm
+      `Data Conclusao`, e nenhum deles cai numa janela de 30 dias — o KPI
+      "Épicos entregues" vinha ZERO mesmo com o filtro de Tipo aberto. Os 75 têm
+      `Data Entrega Sprint`, a primeira transição para a categoria Done tirada do
+      changelog (`OrigemEntregaSprint: 'changelog'` nos 75). O fallback vale só
+      para Épico de propósito: estendê-lo a todos os tipos mudaria os números das
+      outras abas, que compartilham o recorte `f`.
+
+   2) SEM JANELA SELECIONADA, PASSA TUDO. Mesmo comportamento do `getFiltered`:
+      o intervalo só recorta quando existe.
+*/
+function dataEntregaEfetiva(d){
+  if(d['Data Conclusao']) return d['Data Conclusao'];
+  if(d['Tipo Agrupado']==='Épico' && d['Data Entrega Sprint']) return d['Data Entrega Sprint'];
+  return null;
+}
+/** true quando a data efetiva de entrega cai no intervalo selecionado. */
+function dentroDoPeriodoDeEntrega(d){
+  if(!dateRange.from && !dateRange.to) return true;
+  const dc = dataEntregaEfetiva(d);
+  if(!dc) return false;
+  if(dateRange.from && dc < dateRange.from) return false;
+  if(dateRange.to && dc > dateRange.to) return false;
+  return true;
 }
 
 /* ===================== Utility stats ===================== */
@@ -2598,14 +2641,18 @@ function renderAll(){
   syncFilterBarForTab();
   const f = getFiltered();
   const atual = getFilteredNoDate();
+  // Base sem o filtro de Tipo: usada pela aba de Bloqueios e pelo bloco de KPIs
+  // de Entregas/WIP. Calculada uma vez — são ~17 mil itens por passada.
+  const semTipo = getFilteredNoDate(SKIP_TIPO);
   renderPeriodo(f, atual);
   renderExec(f, atual);
   renderThroughput(f);
   renderSP(f, atual);
   // O segundo recorte serve só ao gráfico de tempo por status (ver SKIP_STATUS).
   renderFlow(f, getFiltered(SKIP_STATUS));
-  renderWip(f, atual);
-  renderBlock(getFiltered(SKIP_TIPO), getFilteredNoDate(SKIP_TIPO));
+  // 3o argumento: base do bloco de KPIs, que ignora o filtro de Tipo.
+  renderWip(f, atual, semTipo);
+  renderBlock(getFiltered(SKIP_TIPO), semTipo);
   initSprintSelector();
   renderSprint();
   renderPiTracking();
@@ -3362,31 +3409,96 @@ function renderFlow(f, semRecorteDeStatus){
 }
 
 /* ===================== TAB: WIP / ENTREGAS / AGING ===================== */
-function renderWip(f, atual){
+/**
+ * @param f          recorte geral com período (alimenta os GRÁFICOS de entrega)
+ * @param atual      recorte geral sem período (WIP, Aging, cancelados)
+ * @param baseSemTipo recorte SEM o filtro de Tipo e sem período (bloco de KPIs)
+ *
+ * O BLOCO DE KPIs IGNORA O FILTRO DE TIPO, e por isso recebe uma base própria.
+ * Cada card já traz o seu recorte de tipo no nome (Épico / nível história /
+ * Sub-task), então o filtro da barra só podia subtrair: o padrão dele são os
+ * tipos crus `Enabler`, `Melhoria`, `Story` e `Technical Debt`, onde não existe
+ * um único Epic nem um único subitem — "Épicos entregues" e "Sub-tasks
+ * concluídas" vinham ZERO em todo recorte padrão, com 8.768 sub-tasks
+ * concluídas na base. Mesma decisão já tomada na aba de Bloqueios, que também
+ * usa SKIP_TIPO. Os outros filtros (Squad, VS, PI, Programa, Status) e a janela
+ * de datas continuam valendo nos KPIs.
+ *
+ * Os gráficos abaixo dos KPIs seguem no recorte geral `f`, ou seja, ainda
+ * obedecem ao filtro de Tipo — a legenda de cada um diz isso.
+ */
+function renderWip(f, atual, baseSemTipo){
   // Entregas seguem o período (f); WIP e Aging são foto de hoje e usam `atual`
   // — item em aberto não tem data de conclusão e sumiria do recorte por período.
   const concl = f.filter(d=>d.Concluido);
   const wipItems = atual.filter(d=>d.WIP);
-  const epicosConcl = concl.filter(d=>d['Tipo Agrupado']==='Épico').length;
-  const historiasConcl = concl.filter(d=>d['Tipo Agrupado']==='História').length;
-  const subtasksConcl = concl.filter(d=>d['Tipo Agrupado']==='Sub-task').length;
-  const epicosEntreg = f.filter(d=>d['Tipo Agrupado']==='Épico' && d.EntregueAmplo).length;
-  const historiasEntreg = f.filter(d=>d['Tipo Agrupado']==='História' && d.EntregueAmplo).length;
-  const ativos = atual.filter(d=>!d.Cancelado).length;
-  const pctGeral = ativos? (concl.length/ativos*100):0;
+
+  /* Base dos KPIs: sem filtro de Tipo, com a janela aplicada sobre a data
+     EFETIVA de entrega (ver dataEntregaEfetiva — é o que resgata o épico). */
+  const kpiBase = (baseSemTipo || f).filter(dentroDoPeriodoDeEntrega);
+  const entregues = kpiBase.filter(d=>d.Concluido);
+  const doGrupo = (arr, g) => arr.filter(d=>d['Tipo Agrupado']===g);
+  const epicosEntregues = doGrupo(entregues, 'Épico');
+  const historiasEntregues = entregues.filter(d=>GRUPOS_NIVEL_HISTORIA.includes(d['Tipo Agrupado']));
+  const subtasksEntregues = doGrupo(entregues, 'Sub-task');
+
+  /* Quantos épicos só entraram por causa do fallback de changelog. Vira o
+     subtítulo do card: é a informação que explica o número, no lugar do antigo
+     'N c/ status "Concluído"' — que sempre repetia o próprio KPI, porque
+     EntregueAmplo e Concluido são o MESMO predicado
+     (broadlyDeliveredStatuses === doneStatuses, 0 divergências na base). */
+  const epicosPorChangelog = epicosEntregues.filter(d=>!d['Data Conclusao']).length;
+  /* Composição do card de histórias, só os grupos com item no recorte. */
+  const composicaoHistorias = GRUPOS_NIVEL_HISTORIA
+    .map(g=>[g, doGrupo(historiasEntregues, g).length])
+    .filter(par=>par[1]>0)
+    .map(par=>`${fmt0(par[1])} ${par[0]}`)
+    .join(' · ');
+
+  /* % conclusão geral. Duas regras, e as duas foram correções de leitura:
+
+     1) SÓ O NÍVEL HISTÓRIA (o mesmo recorte do card de Histórias entregues, por
+        isso o numerador é literalmente `historiasEntregues`). Antes o
+        indicador somava TODOS os grupos, e subitem é 4x o volume de tudo o
+        resto: medido na base, Sub-task fechava 2.654 dos 3.434 itens da janela
+        com 82% de conclusão, contra 67% de História — o agregado ia a 77%
+        falando quase só de subitem. Restrito ao nível história dá 69%, que é o
+        nível em que o time planeja e se compromete.
+
+     2) MESMA BASE NOS DOIS LADOS: dos itens que FECHARAM no período, quantos
+        fecharam como concluídos. Os cancelados entram no denominador de
+        propósito — são o contraponto do indicador. Antes o numerador tinha a
+        janela de datas e o denominador NÃO tinha, então o percentual caía só
+        por estreitar o período (medido: 16%). Sem janela selecionada, o recorte
+        é a base inteira e o indicador vira "quanto do nível história já foi
+        concluído". */
+  const pctBase = kpiBase.filter(d=>GRUPOS_NIVEL_HISTORIA.includes(d['Tipo Agrupado']));
+  const canceladosNoPeriodo = pctBase.filter(d=>d.Cancelado).length;
+  const pctGeral = pctBase.length ? (historiasEntregues.length/pctBase.length*100) : 0;
 
   Object.assign(__cardDrills, {
-    wip_epicos: {title:'Épicos entregues (EntregueAmplo)', issues: f.filter(d=>d['Tipo Agrupado']==='Épico' && d.EntregueAmplo)},
-    wip_historias: {title:'Histórias entregues (EntregueAmplo)', issues: f.filter(d=>d['Tipo Agrupado']==='História' && d.EntregueAmplo)},
-    wip_subtasks: {title:'Sub-tasks concluídas', issues: concl.filter(d=>d['Tipo Agrupado']==='Sub-task')},
-    wip_concl: {title:'Concluídos (base do % geral)', issues: concl},
+    wip_epicos: {title:'Épicos entregues no período', issues: epicosEntregues},
+    wip_historias: {title:`Nível história entregue no período (${GRUPOS_NIVEL_HISTORIA.join(', ')})`, issues: historiasEntregues},
+    wip_subtasks: {title:'Sub-tasks concluídas no período', issues: subtasksEntregues},
+    wip_concl: {title:'Nível história fechado no período (base do % de conclusão)', issues: pctBase},
     wip_total: {title:'WIP total (em aberto)', issues: wipItems},
   });
   document.getElementById('wip-kpis').innerHTML = [
-    kpiCard('Épicos entregues', fmt0(epicosEntreg), null, '', {cls:'flat', text:`${fmt0(epicosConcl)} c/ status "Concluído"`}, null, 'wip_epicos'),
-    kpiCard('Histórias entregues', fmt0(historiasEntreg), null, '', {cls:'flat', text:`${fmt0(historiasConcl)} c/ status "Concluído"`}, null, 'wip_historias'),
-    kpiCard('Sub-tasks concluídas', fmt0(subtasksConcl), '', '', null, null, 'wip_subtasks'),
-    kpiCard('% conclusão geral', pctGeral.toFixed(0), '%', '', null, null, 'wip_concl'),
+    kpiCard('Épicos entregues', fmt0(epicosEntregues.length), null, '',
+      epicosPorChangelog?{cls:'flat', text:`${fmt0(epicosPorChangelog)} pela data de changelog`}:null,
+      'Épicos concluídos com entrega no período. Sem Data de Fim Real, usa a 1a transição para a categoria Done (changelog). Ignora o filtro de Tipo.',
+      'wip_epicos'),
+    kpiCard('Histórias entregues', fmt0(historiasEntregues.length), null, '',
+      composicaoHistorias?{cls:'flat', text:composicaoHistorias}:null,
+      'Nível história: História, Enabler e Débito Técnico. Bug e Dependência ficam fora. Ignora o filtro de Tipo.',
+      'wip_historias'),
+    kpiCard('Sub-tasks concluídas', fmt0(subtasksEntregues.length), '', '', null,
+      'Subitens concluídos com data de entrega no período. Ignora o filtro de Tipo.',
+      'wip_subtasks'),
+    kpiCard('% conclusão geral', pctGeral.toFixed(0), '%', '',
+      {cls:'flat', text:`${fmt0(historiasEntregues.length)} de ${fmt0(pctBase.length)} do nível história${canceladosNoPeriodo?` · ${fmt0(canceladosNoPeriodo)} cancelados`:''}`},
+      'Só o nível história (o recorte do card ao lado): dos que fecharam no período, quantos fecharam como concluídos. Subitem fica fora, e cancelado entra no denominador.',
+      'wip_concl'),
     kpiCard('WIP total', fmt0(wipItems.length), 'itens', 'coral', null, null, 'wip_total'),
   ].join('');
 
