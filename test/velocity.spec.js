@@ -94,7 +94,7 @@ const check = (desc, fn) => { fn(); passed += 1; console.log('  ✓', desc); };
 
 console.log('\nAtribuição de entregas (uma entrega -> uma sprint):');
 
-check('Visão Executiva renderiza sem os KPIs de SP e mantém o gráfico por PI', () => {
+check('Visão Geral renderiza sem os KPIs de SP e mantém o gráfico por PI', () => {
   const execItem = item({chave:'EXEC-1', sp:5, concl:true, conclusao:'2026-07-10'});
   execItem.PI = 'PI3'; execItem.FaseFluxo = 'Concluído'; execItem.AnoMesConclusao = '2026-07';
   execItem.LeadTimeDias = 2; execItem.CycleTimeDias = 1;

@@ -967,14 +967,14 @@
         </div>
       </div>
       <nav class="tabs" id="tabNav">
-        <button class="tab-btn active" data-tab="exec">Visão Executiva</button>
+        <button class="tab-btn" data-tab="exec">Visão Geral</button>
         <button class="tab-btn" data-tab="throughput">Throughput</button>
         <button class="tab-btn" data-tab="sp">Story Points</button>
         <button class="tab-btn" data-tab="flow">Lead &amp; Cycle Time</button>
         <button class="tab-btn" data-tab="wip">Entregas, WIP &amp; Aging</button>
         <button class="tab-btn" data-tab="block">Bloqueios</button>
         <button class="tab-btn" data-tab="sprint">Sprint</button>
-        <button class="tab-btn" data-tab="pi">PI Tracking</button>
+        <button class="tab-btn active" data-tab="pi">PI Tracking</button>
         <button class="tab-btn" data-tab="dep">Dependências</button>
         <button class="tab-btn" data-tab="notas">Notas sobre os Dados</button>
       </nav>
@@ -1000,10 +1000,10 @@
 </div>
 
 <main id="mainContent">
-<!-- ===================== TAB: VISÃO EXECUTIVA ===================== -->
-<section class="tabpanel active" id="panel-exec">
+<!-- ===================== TAB: VISÃO GERAL ===================== -->
+<section class="tabpanel" id="panel-exec">
   <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-    <h2>Visão Executiva</h2>
+    <h2>Visão Geral</h2>
     <button id="btn-ver-issues-exec" class="drill-btn" onclick="openDrawer('Issues do recorte atual', getFilteredNoDate())">📋 Ver issues do recorte</button>
   </div>
 
@@ -1379,7 +1379,7 @@
 </section>
 
 <!-- ===================== TAB: PI TRACKING ===================== -->
-<section class="tabpanel" id="panel-pi">
+<section class="tabpanel active" id="panel-pi">
   <div class="section-head">
     <h2>Acompanhamento do PI</h2>
     <div class="note" id="pi-recorte"></div>
@@ -2558,7 +2558,7 @@ document.addEventListener('click', (e)=>{
 });
 
 /* ===================== Tabs ===================== */
-let activeTab = 'exec';
+let activeTab = 'pi';
 
 /**
  * Ajusta os filtros visíveis para as abas com recorte próprio (PI Tracking e
@@ -2722,7 +2722,7 @@ function renderExec(f, atual){
   const ativos = total - cancel;
   const pct = ativos? (concl.length/ativos*100) : 0;
   // Ainda alimenta o gráfico planejado × concluído por PI; apenas os dois KPIs
-  // de SP foram removidos da Visão Executiva.
+  // de SP foram removidos da Visão Geral.
   const naoCancel = atual.filter(d=>!d.Cancelado);
   const leadVals = f.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
   const cycleVals = f.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
@@ -5106,7 +5106,7 @@ function renderBurndown(sprint, subs){
    Não existe cópia delas aqui de propósito — uma segunda cópia sairia de
    sincronia com a primeira sem ninguém perceber.
 
-   Três diferenças que explicam quase toda a divergência com a aba Executiva:
+   Três diferenças que explicam quase toda a divergência com a aba Visão Geral:
      - sub-tarefas e o próprio épico ficam FORA do denominador (senão o mesmo
        trabalho é contado duas vezes: a história e cada um dos seus subitens);
      - itens cancelados saem do denominador em vez de contarem como não feitos;
