@@ -19,7 +19,8 @@ src/
 ├── config/
 │   ├── index.js                # lê variáveis de ambiente (.env)
 │   ├── classification.rules.js # REGRAS de negócio como dados (Open/Closed)
-│   └── quarter.rules.js        # regras da aba PI Tracking (outras, de propósito)
+│   ├── quarter.rules.js        # regras da aba PI Tracking (outras, de propósito)
+│   └── dependency.rules.js     # tipos de link e nomes de time da aba Dependências
 │
 ├── domain/                     # Regras de negócio puras (sem dependências)
 │   ├── entities/Issue.js
@@ -31,6 +32,7 @@ src/
 │       ├── EpicSummaryBuilder.js     # agregação por épico
 │       ├── EpicHealthEvaluator.js    # saúde do épico
 │       ├── StatusTimeResolver.js     # tempo em cada status (changelog)
+│       ├── DependencyResolver.js     # issuetype Dependência (times, links, datas)
 │       └── IssueEnricher.js          # compõe tudo no formato do dashboard
 │
 ├── application/
@@ -105,7 +107,8 @@ Os testes não tocam a rede: todos usam fixtures sintéticos. Vários deles
 extraem o `<script>` inline do `public/index.html` e o executam — testar uma
 cópia da lógica não pegaria os defeitos que já apareceram ali. Os de cálculo
 (`test:velocity`, por exemplo) rodam num `vm` do Node com um DOM falso;
-`test:filtros`, `test:bloqueios` e `test:status-time-view` usam **jsdom**, porque
+`test:filtros`, `test:bloqueios`, `test:status-time-view` e `test:dependencias`
+usam **jsdom**, porque
 o que eles verificam é apresentação — o que a tela de fato mostra: se um item some pela cascata de CSS
 (inclusive quando a busca do dropdown escreve `display` inline no elemento), o
 valor que cada KPI exibe, o HTML de uma linha de tabela. Um DOM falso não tem
@@ -117,9 +120,11 @@ O jsdom é a única `devDependency` do projeto. O build do Amplify roda
 ## ⚠️ Custom fields — leia isto
 
 Campos padrão (summary, status, created, labels, parent...) têm nomes fixos na
-API. Mas **Team, Story Points, Data de início real e Data de fim real são campos
-customizados**, e seus IDs (`customfield_XXXXX`) são específicos da sua
-instância. Os valores no `.env.example` são apenas chutes comuns.
+API. Mas **Team, Story Points, Data de início real, Data de fim real e os campos
+do issuetype Dependência (Time Demandante, Time Externo, Dependência Aprovada,
+Descrição Dependência) são campos customizados**, e seus IDs
+(`customfield_XXXXX`) são específicos da sua instância. Os valores no
+`.env.example` são apenas chutes comuns.
 
 Rode `npm run discover:fields` — ele lista os campos e sugere os IDs prováveis.
 Cole os corretos no `.env`. Sem isso, Story Points/datas podem vir zerados/vazios.
@@ -320,6 +325,68 @@ essas listas) e o painel no recorte padrão de Tipo — **nenhum** item afetado 
 `Enabler`, `Melhoria`, `Story` ou `Technical Debt`, e essa é uma propriedade
 estrutural do fluxo, não um número do snapshot.
 
+## A aba Dependências
+
+Uma **Dependência** é um issuetype próprio: o time **demandante** abre a issue
+para o time de quem ele depende — o **dependente**, que é o campo `Team`. Quando
+o dependente está fora das nossas Value Streams (SSO, Ecommerce Engine, CaaS…),
+o campo `Time Externo` marca isso; conferido contra a base, ele repete o `Team`
+em 27 dos 29 casos, ou seja, sinaliza *"de quem eu dependo está fora"*.
+
+Quatro decisões desta aba divergem do resto do painel, e cada uma pode quebrar
+mostrando um número plausível e errado. Todas estão travadas em
+`test/dependencias.spec.js`.
+
+**1. A data de conclusão vem do changelog, não de `resolutiondate`.** O workflow
+deste issuetype não seta resolução: nas 62 dependências concluídas da base,
+`resolutiondate` está vazia em **100%** delas, e `Data de Fim Real` também. A
+data usada é a **entrada na categoria Done** — a mesma régua do
+`SprintDeliveryResolver`. Sem isso, toda dependência chegaria sem data: lead time
+nulo e a aba inteira desaparecendo do filtro global de período, sem erro na tela.
+
+**2. O relógio começa na abertura**, como num bloqueio (ver
+`domain/services/DependencyResolver.js`). Uma dependência nasce ativa: ninguém
+"começa a trabalhar" nela. A duração é lead time (criação → conclusão), e a
+dependência aberta conta da abertura até hoje — recalculado no navegador, senão o
+snapshot em cache congelaria o envelhecimento. **Cancelada não soma dias**: no
+processo da Afya, cancelar significa que a dependência *deixou de ser
+necessária*, então ela conta como episódio sem duração medida.
+
+**3. Os dois campos de time escrevem a mesma squad de dois jeitos.** O `Team`
+grava `Squad Core - Core Features`; o `Time Demandante`, `Core Features`. O
+`DependencyResolver` canoniza os dois (remove o prefixo `Squad X - `, acentos e
+`&`) e resolve o que sobra por apelido em `config/dependency.rules.js` — sem
+isso, a matriz demandante × dependente sai com dois nós para a mesma squad. Só o
+**id canônico** viaja em cada linha do payload; os rótulos vão uma única vez em
+`meta.dependencyTeams`, porque repetir "Martech CDP & Tracking [Educon]" duas
+vezes por dependência custaria mais que o catálogo inteiro.
+
+Por isso a aba tem **filtros próprios de Squad e Papel** (demandante /
+dependente / ambos) na barra global, e o filtro `Squad` global sai da tela ali:
+os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo
+**id canônico** e leva o papel em conta, enquanto o global compara com o nome cru
+do campo `Team` — que só cobre o lado dependente. O da aba é de seleção
+múltipla, como os demais da barra. O
+filtro de Tipo também sai — a aba é de um tipo só, e o recorte padrão da barra
+(Enabler/Melhoria/Story/Technical Debt) a esvaziaria.
+
+**4. O item impactado depende de link no Jira.** Valem os links oficiais
+`Dependo de` / `Depende de mim` (in e out VS) e, como aproximação acordada com o
+time, `Blocks` e `Relates`. `Cloners` fica **de fora**: um clone é cópia da
+própria dependência, não o item que ficou esperando, e entraria como ruído em 42
+links. Hoje isso cobre **41%** das dependências — 16% se só os oficiais
+contassem —, e a cobertura vai escrita embaixo da tabela de itens impactados. O
+card **Qualidade do preenchimento** existe para essa lacuna encolher: ele mostra
+quanto falta em Time Demandante, link, link oficial e label de PI, com drill para
+a lista corrigível.
+
+O escopo (`Mesma VS` / `Outras VS`) sai do tipo de link oficial. Sem link oficial
+ele fica `Não informado` — dizer "mesma VS" por omissão seria inventar o dado.
+
+`Dependência` tem **grupo próprio** em `classification.rules.js`, e não o default
+`Sub-task`: ela é um acordo entre times, não trabalho de entrega. Deixá-la cair
+no default somaria as dependências ao velocity, ao burndown e ao `Incremental`.
+
 ## Fidelidade da transformação
 
 As regras foram reconstruídas a partir do dataset original e **conferidas contra
@@ -335,6 +402,7 @@ processo antigo ainda não tratava PI4).
 - **Trocar/editar a JQL** → `JIRA_JQL` no `.env` (ou o padrão em `config/index.js`).
 - **Novo tipo de item, status ou PI** → `config/classification.rules.js`.
 - **Regras do acompanhamento de PI** → `config/quarter.rules.js`.
+- **Tipos de link e apelidos de time da aba Dependências** → `config/dependency.rules.js`.
 - **Fórmula de Lead/Cycle/Aging** → `domain/services/FlowMetricsCalculator.js`.
 - **Regra do tempo por status** → `domain/services/StatusTimeResolver.js`.
 - **Regra de saúde do épico** → `domain/services/EpicHealthEvaluator.js`.

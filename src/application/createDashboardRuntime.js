@@ -4,6 +4,7 @@ const path = require('path');
 const { loadConfig } = require('../config');
 const classificationRules = require('../config/classification.rules');
 const quarterRules = require('../config/quarter.rules');
+const dependencyRules = require('../config/dependency.rules');
 const IssueClassifier = require('../domain/services/IssueClassifier');
 const FlowMetricsCalculator = require('../domain/services/FlowMetricsCalculator');
 const IssueEnricher = require('../domain/services/IssueEnricher');
@@ -12,6 +13,7 @@ const EpicHealthEvaluator = require('../domain/services/EpicHealthEvaluator');
 const SprintHistoryResolver = require('../domain/services/SprintHistoryResolver');
 const SprintDeliveryResolver = require('../domain/services/SprintDeliveryResolver');
 const StatusTimeResolver = require('../domain/services/StatusTimeResolver');
+const DependencyResolver = require('../domain/services/DependencyResolver');
 const GetDashboardDataUseCase = require('./use-cases/GetDashboardDataUseCase');
 const GetProgressiveDashboardDataUseCase = require('./use-cases/GetProgressiveDashboardDataUseCase');
 const JiraFieldMap = require('../infrastructure/jira/JiraFieldMap');
@@ -32,10 +34,11 @@ function createDashboardRuntime(env = process.env) {
   const cache = new PersistentCache(config.cacheFilePath);
   const classifier = new IssueClassifier(classificationRules);
   const metricsCalculator = new FlowMetricsCalculator(referenceDate);
+  const dependencyResolver = new DependencyResolver(classifier, dependencyRules);
   const enricher = new IssueEnricher(
     classifier, metricsCalculator,
     new SprintHistoryResolver(), new SprintDeliveryResolver(classifier),
-    new StatusTimeResolver(),
+    new StatusTimeResolver(), dependencyResolver,
   );
   const epicSummaryBuilder = new EpicSummaryBuilder();
   const epicHealthEvaluator = new EpicHealthEvaluator(classifier, referenceDate);

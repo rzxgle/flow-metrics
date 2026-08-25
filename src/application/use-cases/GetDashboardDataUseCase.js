@@ -93,6 +93,9 @@ class GetDashboardDataUseCase {
         cancelledStatuses: this.enricher.classifier.rules.cancelledStatuses || [],
         // Regras da aba de PI Tracking (ver config/quarter.rules.js).
         quarterRules: this.quarterRules,
+        // id canônico -> rótulo dos times da aba de Dependências. Viaja UMA vez
+        // aqui, em vez de repetir o nome do time em cada linha do payload.
+        dependencyTeams: this.enricher.dependency ? this.enricher.dependency.teamCatalog() : {},
         sprints: Array.from(sprintCatalog.values()),
       },
     };

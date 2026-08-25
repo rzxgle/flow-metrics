@@ -162,7 +162,66 @@ class JiraIssueRepository extends IssueRepository {
       sprintMeta: this._readSprintMeta(f[fm.sprint]),
       bcp: f[fm.bcp],
       blockReason: this._readSelect(f[fm.blockReason]),
+      timeDemandante: this._readSelect(f[fm.timeDemandante]),
+      timeExterno: this._readSelect(f[fm.timeExterno]),
+      depApproved: this._readChecked(f[fm.depApproved]),
+      depDescription: this._readRichText(f[fm.depDescription]),
+      issueLinks: this._readIssueLinks(f[fm.issueLinks]),
     });
+  }
+
+  /**
+   * Links entre issues, achatados para [{key, type, direction, issueType, status}].
+   *
+   * `direction` guarda de que lado a issue está: 'out' quando ELA aponta para a
+   * outra (`Dependo de`, `blocks`) e 'in' quando é apontada (`Depende de mim`).
+   * O sentido importa — é o que separa "o que me trava" de "o que eu travo" —
+   * e não dá para recuperá-lo depois, porque o nome do tipo é o mesmo nos dois.
+   */
+  _readIssueLinks(value) {
+    if (!Array.isArray(value)) return [];
+    const out = [];
+    for (const link of value) {
+      if (!link || !link.type) continue;
+      const other = link.outwardIssue || link.inwardIssue;
+      if (!other || !other.key) continue;
+      const of = other.fields || {};
+      out.push({
+        key: other.key,
+        type: link.type.name || null,
+        direction: link.outwardIssue ? 'out' : 'in',
+        issueType: of.issuetype ? of.issuetype.name : null,
+        status: of.status ? of.status.name : null,
+      });
+    }
+    return out;
+  }
+
+  /**
+   * Campo de múltipla escolha (checkbox) — vem como array de opções. Aqui só
+   * interessa se há ALGUMA opção marcada.
+   */
+  _readChecked(value) {
+    if (Array.isArray(value)) return value.length > 0;
+    return !!value;
+  }
+
+  /**
+   * Campo de texto longo. Na API v3 ele vem em ADF (documento estruturado), não
+   * em string — extraímos apenas os nós de texto.
+   */
+  _readRichText(value) {
+    if (!value) return null;
+    if (typeof value === 'string') return value.trim() || null;
+    const parts = [];
+    const walk = (node) => {
+      if (!node || typeof node !== 'object') return;
+      if (typeof node.text === 'string') parts.push(node.text);
+      for (const child of node.content || []) walk(child);
+    };
+    walk(value);
+    const text = parts.join(' ').replace(/\s+/g, ' ').trim();
+    return text || null;
   }
 
   /**

@@ -9,7 +9,7 @@ const { roundHalfEven } = require('../../shared/date.utils');
  *
  * Regras (validadas 100% contra o dataset original):
  *   - membros do épico = todas as issues cujo EpicoChave == chave do épico
- *     (inclui o próprio épico);
+ *     (inclui o próprio épico; exclui Dependência — ver comentário no laço);
  *   - TotalItens     = quantidade de membros;
  *   - Concluidos     = membros concluídos;
  *   - Cancelados     = membros cancelados;
@@ -28,6 +28,12 @@ class EpicSummaryBuilder {
     for (const issue of enrichedIssues) {
       const epicKey = issue.EpicoChave;
       if (!epicKey) continue;
+      // Dependência fica FORA do rollup mesmo tendo pai (76 das 189 da base
+      // têm): ela é um acordo entre times, não entrega do épico, e contá-la
+      // inflaria TotalItens e derrubaria o % de conclusão com trabalho de
+      // outra squad. É a mesma exclusão que `quarter.rules.js` aplica na aba
+      // de PI Tracking (`excludedChildTypes`).
+      if (issue['Tipo Agrupado'] === 'Dependência') continue;
       if (!membersByEpic.has(epicKey)) membersByEpic.set(epicKey, []);
       membersByEpic.get(epicKey).push(issue);
     }
