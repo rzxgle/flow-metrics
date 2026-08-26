@@ -358,7 +358,7 @@ check('progresso da sprint usa as mesmas entregas atribuídas pelo velocity', ()
   const spKpis = getEl('sp-kpis').innerHTML;
   assert.match(spKpis, /Story Points planejados[\s\S]*?<div class="val">8<span class="unit">sp<\/span>/);
   assert.match(spKpis, /Story Points concluídos[\s\S]*?<div class="val">3<span class="unit">sp<\/span>/,
-    'a aba Story Points deve usar a mesma entrega atribuída pelo velocity');
+    'a aba Estimativas deve usar a mesma entrega atribuída pelo velocity');
   T.selections.Sprint.clear();
 });
 
@@ -447,7 +447,7 @@ check('a barra recebe sprint-only apenas na aba Sprint', () => {
   assert.strictEqual(states['sp-sprint-filter'], false);
 });
 
-check('filtro Sprint aparece apenas em Story Points', () => {
+check('filtro Sprint aparece apenas em Estimativas', () => {
   assert.match(html, /#filterBar #dd-Sprint\{display:none;\}/);
   assert.match(html, /#filterBar\.sp-sprint-filter #dd-Sprint\{display:block;\}/);
 });

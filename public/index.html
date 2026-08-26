@@ -325,7 +325,7 @@
   #filterBar #dd-AnoCriacao,
   #filterBar #dd-Mes{display:none;}
 
-  /* Sprint é um recorte de esforço apenas na aba Story Points. */
+  /* Sprint é um recorte de esforço apenas na aba Estimativas. */
   #filterBar #dd-Sprint{display:none;}
   #filterBar.sp-sprint-filter #dd-Sprint{display:block;}
   #filterBar.sp-sprint-filter.sp-sprint-selected .date-filter{display:none;}
@@ -969,7 +969,10 @@
       <nav class="tabs" id="tabNav">
         <button class="tab-btn" data-tab="exec">Visão Geral</button>
         <button class="tab-btn" data-tab="throughput">Throughput</button>
-        <button class="tab-btn" data-tab="sp">Story Points</button>
+        <!-- O rótulo é "Estimativas", mas o identificador da aba segue sendo `sp`:
+             ele é chave de CSS (.tab-btn[data-tab="sp"]), do recorte de Sprint
+             (sp-sprint-filter) e dos testes. Renomeá-lo não mudaria nada na tela. -->
+        <button class="tab-btn" data-tab="sp">Estimativas</button>
         <button class="tab-btn" data-tab="flow">Lead &amp; Cycle Time</button>
         <button class="tab-btn" data-tab="wip">Entregas, WIP &amp; Aging</button>
         <button class="tab-btn" data-tab="block">Bloqueios</button>
@@ -1090,10 +1093,10 @@
   </div>
 </section>
 
-<!-- ===================== TAB: STORY POINTS ===================== -->
+<!-- ===================== TAB: ESTIMATIVAS ===================== -->
 <section class="tabpanel" id="panel-sp">
   <div class="section-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-    <h2>Story Points</h2>
+    <h2>Estimativas</h2>
     <button class="drill-btn" onclick="openDrawer('Itens do recorte (com SP)', getFilteredNoDate().filter(d=>(d['Story Points']||0)>0))">📋 Ver issues com SP</button>
   </div>
 
@@ -1120,6 +1123,31 @@
       <div class="cap">Linha de tendência (média móvel de 3 meses) sobreposta.</div>
       <div class="chartwrap"><canvas id="chart-sp-month"></canvas></div>
     </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="statustime-head">
+      <h3>Tempo por Story Point — quanto tempo custa cada tamanho</h3>
+      <label class="statustime-metric">
+        <span>Medida</span>
+        <select id="spTimeMetric">
+          <option value="cycle">Cycle Time (início real → fim real)</option>
+          <option value="lead">Lead Time (criação → conclusão)</option>
+        </select>
+      </label>
+    </div>
+    <div class="cap">Itens de entrega já concluídos no recorte, agrupados pelo Story Point estimado.
+      A barra clara é a <b>média</b> e a escura o <b>P85</b> — o valor que cabe em 85% dos casos, que é
+      o número para se comprometer. São <b>dias corridos</b>, não dias úteis. Tamanhos com menos de
+      3 itens concluídos não viram barra e aparecem só na última linha da tabela; nos que têm poucos
+      itens, olhe a coluna <b>Itens medidos</b> antes de tirar conclusão — a média de 3 ou 4 itens
+      muda bastante com um item a mais.</div>
+    <div class="chartwrap"><canvas id="chart-sp-time"></canvas></div>
+    <div class="cap" id="sp-time-caption" style="margin:10px 0 0;"></div>
+    <table class="datatable" id="sp-time-table" style="margin-top:12px;">
+      <thead><tr><th>Story Points</th><th>Itens medidos</th><th>Média (dias)</th><th>P85 (dias)</th></tr></thead>
+      <tbody></tbody>
+    </table>
   </div>
 </section>
 
@@ -1503,6 +1531,7 @@
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>A aba Dependências mede um issuetype com regras próprias.</b> Uma <span class="mono">Dependência</span> é aberta pelo time <b>demandante</b> para o time de quem ele depende — o <b>dependente</b>, que é o campo <span class="mono">Team</span>. Quatro coisas ali não seguem o resto do painel. (1) <b>A data de conclusão vem do changelog</b>: o workflow deste tipo não seta resolução — nas 62 dependências concluídas da base, <span class="mono">resolutiondate</span> está vazia em <b>100%</b> delas, e <span class="mono">Data de Fim Real</span> também. A data usada é a <b>entrada na categoria Done</b>, a mesma régua da entrega de sprint. (2) <b>O relógio começa na abertura</b>, como num bloqueio: uma dependência nasce ativa, ninguém "começa a trabalhar" nela. A duração é lead time, e a dependência aberta conta da abertura até hoje, recalculado a cada abertura do painel. <b>Cancelada não soma dias</b> — no processo da Afya, cancelar significa que a dependência <b>deixou de ser necessária</b>, então ela conta como episódio sem duração medida. (3) <b>Os dois campos de time escrevem a mesma squad de dois jeitos</b>: o <span class="mono">Team</span> grava "Squad Core - Core Features" e o <span class="mono">Time Demandante</span>, "Core Features". Os nomes são canonizados antes de cruzar a matriz, senão a mesma squad viraria dois nós. Por isso a aba tem filtros próprios de <b>Squad</b> e <b>Papel</b> na barra, e o filtro <span class="mono">Squad</span> global sai da tela: os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo id canônico e leva o papel em conta. (4) <b>O item impactado depende de link no Jira</b>. Valem os links oficiais <span class="mono">Dependo de</span> / <span class="mono">Depende de mim</span> (in e out VS) e, como aproximação, <span class="mono">Blocks</span> e <span class="mono">Relates</span>; <span class="mono">Cloners</span> fica de fora, porque um clone é cópia da própria dependência e não o item que ficou esperando. Hoje isso cobre <b>41%</b> das dependências (16% se só os oficiais contassem), e a cobertura vai escrita embaixo da tabela — o card <b>Qualidade do preenchimento</b> existe justamente para essa lacuna encolher.</li>
         <li><b>Eficiência de Fluxo é a razão de dois percentis, não uma média por item.</b> O card da <b>Visão Geral</b> divide o <b>Cycle Time P85</b> pelo <b>Lead Time P85</b> — exatamente os dois números exibidos ao lado dele, para que a conta feche de cabeça. O preço dessa escolha: os dois percentis saem de <b>bases diferentes</b>, porque Cycle Time exige <span class="mono">Data Início Real</span> e Lead Time não. Na base atual são <b>9.151</b> itens com Lead Time contra <b>4.663</b> com Cycle Time, e só <b>4.641</b> têm os dois — o Lead Time P85 cai de 30,1 para 27,9 dias justamente por incluir os itens sem início real. Por isso o indicador é uma <b>referência de tendência</b>, não uma medida exata de tempo tocado: calculada item a item na base comum, a eficiência média fica em <b>36%</b> contra <b>25%</b> na razão dos percentis. A leitura que vale é comparativa — se a razão sobe ou desce entre recortes e períodos —, e ela fica mais fiel à medida que o preenchimento de <span class="mono">Data Início Real</span> avança.</li>
+        <li><b>Tempo por Story Point mede o tempo de EXECUÇÃO, e por isso o padrão do card é o Cycle Time, não o Lead Time.</b> O card da aba <b>Estimativas</b> cruza a estimativa com a duração real dos itens já concluídos do recorte. As duas réguas do seletor são as <b>mesmas já usadas na aba Lead &amp; Cycle Time</b> — o painel não ganha uma terceira definição de tempo. O padrão é o <b>Cycle Time</b> (<span class="mono">Data Início Real</span> → <span class="mono">Data Fim Real</span>) porque é ele que responde "quanto tempo custa um item de 3 pontos": na base, um item de 1 SP leva <b>5,7</b> dias de Cycle Time e <b>18,1</b> de Lead Time, e a diferença é a fila de backlog anterior ao início — que não é esforço do item. Trocar para Lead Time no seletor é justamente como se enxerga esse tempo de espera. Três ressalvas fazem parte da leitura. (1) <b>A cobertura do Cycle Time é menor</b>: ele exige os dois campos manuais de data preenchidos, e na base isso vale para <b>83%</b> dos itens de entrega concluídos com SP (contra 98% do Lead Time). Por isso a legenda do card sempre declara em quantos itens a medida existe, e ela melhora à medida que o preenchimento de <span class="mono">Data Início Real</span> avança. Item sem as datas entra como <b>sem medida</b>, e não como zero dia — zero puxaria a média para baixo como se o item tivesse sido instantâneo. (2) São <b>dias corridos</b>, não dias úteis. (3) <b>Só itens de entrega entram</b> — Story, Melhoria, Enabler, Débito Técnico e Bug. Épicos, subitens e <span class="mono">Dependência</span> ficam fora mesmo quando o filtro de Tipo os inclui, porque o SP de uma sub-task é herdado do pai e não uma estimativa própria: há <b>8.095</b> sub-tasks concluídas com SP na base, que sozinhas afogariam a leitura. Por fim, <b>tamanho com menos de 3 itens não vira barra</b>, e esse corte é baixo de propósito. Na base inteira ele quase não importa — subir de 3 para 5 tira uma única barra. No <b>recorte por squad</b>, que é como o card é usado de verdade, ele decide muito: medido nas 18 squads com 20+ itens, o corte em 5 deixa <b>64</b> barras contra <b>76</b> no corte em 3, e squads inteiras caem para duas barras — o que não é um gráfico. O preço está aceito e é real: com 3 ou 4 itens a média oscila cerca de <b>30%</b> se um único item entrar ou sair, e o <b>P85 deixa de ser um percentil</b> — em três valores ele cai a 70% do caminho até o maior deles, ou seja, é praticamente "o pior dos três" com nome de estatística. Por isso a tabela traz a coluna <b>Itens medidos</b> e o tooltip repete a contagem: é ela que diz o quanto pesar cada barra. Abaixo do corte o tamanho não some em silêncio — vai para a última linha da tabela e para a legenda, com a contagem.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Na base atual o status literal <span class="mono">Concluído</span> aparece em 110 Bugs e em mais nenhum item. Por isso a lista de status de conclusão abrange todas as etapas pós-desenvolvimento, e <b>"Concluído" e "Entregue (amplo)" são hoje o mesmo predicado</b> (<span class="mono">broadlyDeliveredStatuses === doneStatuses</span>, zero divergências em 16.912 itens) — não são duas definições concorrentes de pronto, como já foram. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
       </ul>
     </div>
@@ -1543,7 +1572,7 @@ const TIPO_COLOR = {'Épico':'#333333','História':'#CE0058','Sub-task':'#9AA0A6
 const TAB_HELP = {
   exec:'Consolida volume, esforço, tempos e distribuição do recorte. Métricas de entrega respeitam o período de conclusão; estados atuais, como pendentes e WIP, ignoram esse período.',
   throughput:'Conta itens com status classificado como concluído e usa a data de conclusão para posicioná-los no período. Os gráficos respondem aos filtros globais.',
-  sp:'Compara Story Points planejados dos itens não cancelados com Story Points concluídos dentro do período selecionado.',
+  sp:'Compara Story Points planejados dos itens não cancelados com Story Points concluídos dentro do período selecionado. O card de tempo por Story Point cruza a estimativa com o Cycle Time real dos itens concluídos, em dias corridos, e considera só itens de entrega.',
   flow:'Lead Time vai da criação à conclusão. Cycle Time vai do início real ao fim real. Datas ausentes ou invertidas ficam fora dessas métricas. O gráfico de tempo por status decompõe o Lead Time usando o changelog do Jira; nele o filtro de Status escolhe quais status aparecem, não quais itens entram.',
   wip:'Mostra entregas, trabalho ainda aberto e Aging. Os KPIs do topo ignoram o filtro de Tipo (cada card já recorta o seu tipo); os gráficos de entrega seguem o filtro. Aging conta do início real até hoje apenas para itens em WIP.',
   block:'Considera itens do tipo Sub-block. Bloqueios resolvidos usam Cycle Time; bloqueios abertos contam da criação até hoje.',
@@ -1557,7 +1586,7 @@ const FILTER_HELP = {
   'dd-VS':'Value Stream é mapeada a partir do projeto do Jira. Vazio significa todas.',
   'dd-Squad':'Squad vem do campo Team do Jira. Na aba Sprint, esse filtro também define quais sprints ficam disponíveis.',
   'dd-PI':'PI é identificado pelas labels configuradas. Quando há mais de uma label válida, prevalece o PI mais recente reconhecido.',
-  'dd-Sprint':'Na aba Story Points, planejado é o escopo standard da sprint e concluído usa a mesma atribuição do velocity.',
+  'dd-Sprint':'Na aba Estimativas, planejado é o escopo standard da sprint e concluído usa a mesma atribuição do velocity.',
   'dd-AnoCriacao':'Filtra pelo ano de criação da issue, não pelo ano de conclusão.',
   'dd-Mes':'Filtra pelo mês de criação da issue, não pelo mês de conclusão.',
   'dd-Tipo_de_item':'Filtra pelo tipo bruto do Jira, como Story, Enabler, Bug ou Sub-task.',
@@ -1968,7 +1997,7 @@ function matchesBarFilters(d, skip){
     if(skip && skip.has(f.key)) continue;
     const sel = selections[f.key];
     if(sel.size===0) continue;
-    // Sprint tem semântica própria na aba Story Points e não é um filtro global.
+    // Sprint tem semântica própria na aba Estimativas e não é um filtro global.
     if(f.key==='Sprint') continue;
     let v = d[f.key];
     if(v===null||v===undefined||v==='') v='(Não informado)';
@@ -2971,7 +3000,7 @@ function renderThroughput(f){
   }
 }
 
-/* ===================== TAB: STORY POINTS ===================== */
+/* ===================== TAB: ESTIMATIVAS ===================== */
 function renderSP(f, atual){
   const sprintSelecionada = selections.Sprint.size>0;
   let concl;
@@ -3078,6 +3107,211 @@ function renderSP(f, atual){
     options:{responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}}, x:{grid:{display:false}}},
       onClick: drillClick((idx)=>{ const m=months[idx];
         return {title:`SP concluído · ${monthLabel(m)}`, issues: concl.filter(d=>d.AnoMesConclusao===m)}; })}
+  });
+
+  // A base do card de tempo por SP é a MESMA lista de concluídos da aba, com o
+  // recorte de sprint já resolvido acima. Guardá-la em __spTimeBase é o que
+  // permite trocar a medida no seletor sem refazer `atribuirEntregas`.
+  __spTimeBase = concl;
+  renderSpTempoPorSP(concl);
+}
+
+/* ===================== Tempo por Story Point (aba Estimativas) =====================
+ * Responde "1 SP custa quantos dias?" — cruza a ESTIMATIVA (Story Points) com a
+ * DURAÇÃO real dos itens já concluídos do recorte.
+ *
+ * Três decisões desta visão:
+ *
+ * 1. A MEDIDA PADRÃO É O CYCLE TIME, não o Lead Time. Um item de 1 SP leva ~6
+ *    dias de início real a fim real; o Lead Time do mesmo item passa de 18,
+ *    porque carrega a fila de backlog anterior ao início. Quem pergunta "quanto
+ *    tempo custa um item de 3 pontos" está perguntando pelo tempo de mão na
+ *    massa, e é o Cycle Time que responde isso. As duas réguas são as MESMAS já
+ *    usadas na aba Lead & Cycle Time — de propósito: o painel não ganha uma
+ *    terceira definição de tempo, e comparar uma com a outra aqui é justamente
+ *    onde o tempo de espera aparece.
+ *
+ * 2. SÓ ITENS DE ENTREGA (`isStandard`). Épicos, subitens e Dependência ficam
+ *    fora sempre, mesmo que o filtro de Tipo os inclua: o SP de uma sub-task é
+ *    herdado do pai, não uma estimativa própria — na base há 8.095 sub-tasks
+ *    concluídas com SP, que sozinhas afogariam a leitura.
+ *
+ * 3. TAMANHO COM AMOSTRA PEQUENA NÃO VIRA BARRA. Fora da escala usada pelos
+ *    times (0,5 · 1 · 2 · 3 · 5 · 8 · 13) aparecem valores avulsos com um ou
+ *    dois itens, cuja "média" é o próprio item. Eles não somem em silêncio: vão
+ *    para a última linha da tabela e para a legenda, com a contagem.
+ */
+
+/**
+ * Mínimo de itens medidos para um tamanho virar barra.
+ *
+ * O corte é BAIXO de propósito, e a razão está no recorte por squad — que é
+ * como o card é usado de verdade. Na base inteira o limiar quase não importa
+ * (subir de 3 para 5 tira uma única barra); filtrando por squad ele decide
+ * muito: medido nas 18 squads com 20+ itens, o corte em 5 deixa 64 barras
+ * contra 76 no corte em 3, e squads como Conversão - Experiência de Compra
+ * caem para DUAS barras, o que não é um gráfico.
+ *
+ * O preço está aceito e é real: com 3 ou 4 itens a média oscila ~30% se um
+ * único item entrar ou sair, e o P85 deixa de ser percentil — em n=3 ele cai no
+ * índice 1,7 de 0..2, ou seja, é praticamente o maior valor da amostra. A
+ * contagem de itens vai na tabela e no tooltip justamente para quem lê poder
+ * pesar a barra; abaixo do corte, o tamanho ainda aparece na última linha da
+ * tabela, com quantos itens tem.
+ */
+const SP_TIME_MIN_AMOSTRA = 3;
+
+/* As medidas do seletor — as mesmas duas da aba Lead & Cycle Time, e nenhuma
+   régua nova. O rótulo aparece no seletor, no eixo, na legenda e na primeira
+   linha do tooltip: os quatro precisam dizer a MESMA coisa, porque é a troca
+   silenciosa de régua que confunde a leitura.
+
+   Ambas devolvem `null` (e não 0) quando a data que a métrica exige não está
+   preenchida: zero dia entraria na média como se o item tivesse sido
+   instantâneo, quando o que houve foi ausência de registro. É por isso que a
+   legenda do card sempre declara em quantos itens a medida existe — no Cycle
+   Time isso importa, porque ele depende de dois campos manuais. */
+const SP_TIME_MEASURES = {
+  cycle: {
+    rotulo:'Cycle Time',
+    eixo:'Cycle Time (dias)',
+    regra:'da Data de Início Real à Data de Fim Real',
+    valor:(d)=>(d.CycleTimeDias==null ? null : d.CycleTimeDias),
+  },
+  lead: {
+    rotulo:'Lead Time',
+    eixo:'Lead Time (dias)',
+    regra:'da criação à conclusão, incluindo o tempo de fila antes do início',
+    valor:(d)=>(d.LeadTimeDias==null ? null : d.LeadTimeDias),
+  },
+};
+
+/* Medida escolhida no seletor, e a base do último render. Ambas vivem fora do
+   render porque trocar de medida não deve refazer o recorte da aba — em modo
+   Sprint isso significaria rodar `atribuirEntregas` de novo. */
+let spTimeMetric = 'cycle';
+let __spTimeBase = [];
+
+/* O <select> está no HTML estático, então é ligado uma vez só, aqui. */
+(function ligarSeletorDeTempoPorSP(){
+  const el = document.getElementById('spTimeMetric');
+  if(!el) return;
+  el.addEventListener('change', ()=>{
+    spTimeMetric = el.value;
+    renderSpTempoPorSP(__spTimeBase);
+  });
+})();
+
+/**
+ * Um balde por valor de Story Point. `medidos` são os itens que TÊM a medida —
+ * é sobre eles que a média é calculada, e é essa lista que o drill abre, para
+ * que o número da tabela e o do drawer sejam sempre o mesmo.
+ */
+function agregarTempoPorSP(base, valor){
+  const porSp = new Map();
+  base.forEach(d=>{
+    const sp = d['Story Points'];
+    if(!(sp>0)) return;
+    const acc = porSp.get(sp) || {sp, dias:[], medidos:[], total:0};
+    porSp.set(sp, acc);
+    acc.total += 1;
+    const v = valor(d);
+    if(v==null) return;
+    acc.dias.push(v);
+    acc.medidos.push(d);
+  });
+  return Array.from(porSp.values()).sort((a,b)=>a.sp-b.sp);
+}
+
+/** "0,5" · "3" · "13" — o mesmo formato de SP usado nos rótulos de barra. */
+function spLabel(sp){ return (Math.round(sp*10)/10).toLocaleString('pt-BR'); }
+
+function renderSpTempoPorSP(base){
+  if(!document.getElementById('chart-sp-time')) return;
+  const caption = document.getElementById('sp-time-caption');
+  const tbody = document.querySelector('#sp-time-table tbody');
+  const medida = SP_TIME_MEASURES[spTimeMetric] || SP_TIME_MEASURES.cycle;
+
+  const elegiveis = (base||[]).filter(d=>isStandard(d) && (d['Story Points']||0)>0);
+  const grupos = agregarTempoPorSP(elegiveis, medida.valor);
+  const comAmostra = grupos.filter(g=>g.medidos.length >= SP_TIME_MIN_AMOSTRA);
+  const semAmostra = grupos.filter(g=>g.medidos.length > 0 && g.medidos.length < SP_TIME_MIN_AMOSTRA);
+
+  const linhas = comAmostra.map(g=>({
+    sp:g.sp, n:g.medidos.length, media:mean(g.dias), p85:percentile(g.dias,85),
+    min:Math.min(...g.dias), max:Math.max(...g.dias), issues:g.medidos,
+  }));
+
+  const medidos = grupos.reduce((a,g)=>a+g.medidos.length, 0);
+  const cobertura = elegiveis.length ? (medidos/elegiveis.length*100) : 0;
+
+  /* Legenda: régua usada, cobertura e o que ficou de fora. Um recorte pode não
+     ter nenhum item medido (filtro de Tipo só com épicos, período sem
+     conclusões), e nesse caso a legenda diz isso em vez de a tela ficar muda. */
+  if(caption){
+    if(!elegiveis.length){
+      caption.innerHTML = 'Nenhum item de entrega concluído com Story Points no recorte atual. '
+        + 'Épicos, subitens e Dependência não entram nesta visão.';
+    } else {
+      const partes = ['Régua: <b>'+medida.rotulo+'</b> — '+medida.regra+'.'];
+      partes.push('Medida disponível em <b>'+fmt0(medidos)+'</b> de '+fmt0(elegiveis.length)
+        +' itens de entrega concluídos com SP ('+cobertura.toFixed(0)+'%).');
+      if(semAmostra.length){
+        const itens = semAmostra.reduce((a,g)=>a+g.medidos.length, 0);
+        partes.push('Fora do gráfico por amostra menor que '+SP_TIME_MIN_AMOSTRA+' itens: '
+          +'<b>'+semAmostra.map(g=>spLabel(g.sp)).join(', ')+'</b> SP — '
+          +statusTimePlural(itens,'item','itens')+' no total, na última linha da tabela.');
+      }
+      caption.innerHTML = partes.join(' ');
+    }
+  }
+
+  if(tbody){
+    const corpo = linhas.map(l=>`<tr><td><b>${spLabel(l.sp)}</b></td><td>${fmt0(l.n)}</td>`
+      +`<td><b>${fmt1(l.media)}</b></td><td>${fmt1(l.p85)}</td></tr>`);
+    if(semAmostra.length){
+      const itens = semAmostra.reduce((a,g)=>a+g.medidos.length, 0);
+      corpo.push('<tr><td colspan="4" style="color:var(--slate-soft);">'
+        +'Amostra insuficiente (&lt; '+SP_TIME_MIN_AMOSTRA+' itens): '
+        +semAmostra.map(g=>spLabel(g.sp)+' SP').join(' · ')
+        +' — '+statusTimePlural(itens,'item','itens')+', sem média confiável.</td></tr>');
+    }
+    tbody.innerHTML = corpo.length ? corpo.join('')
+      : '<tr><td colspan="4" style="color:var(--slate-soft);">Nenhum tamanho com itens suficientes para uma média no recorte atual.</td></tr>';
+  }
+
+  upsertChart('chart-sp-time', {
+    type:'bar',
+    data:{labels:linhas.map(l=>spLabel(l.sp)+' SP'), datasets:[
+      {label:'Média', data:linhas.map(l=>l.media), backgroundColor:'#F7C9DD'},
+      {label:'P85', data:linhas.map(l=>l.p85), backgroundColor:'#CE0058'}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      barLabels:true, barLabelFmt:'d1', barLabelStagger:true, layout:{padding:{top:24}},
+      scales:{
+        y:{beginAtZero:true, title:{display:true, text:medida.eixo}},
+        x:{grid:{display:false}, title:{display:true, text:'Story Points estimados'}}
+      },
+      plugins:{tooltip:{callbacks:{
+        title:(items)=>{ const l = items.length && linhas[items[0].dataIndex];
+          return l ? spLabel(l.sp)+' Story Points · '+medida.rotulo : ''; },
+        label:(item)=>{
+          const l = linhas[item.dataIndex];
+          if(!l) return '';
+          // 1ª linha: EXATAMENTE o que a barra desenha, com o rótulo da série.
+          const serie = item.dataset.label;
+          const valor = serie==='P85' ? l.p85 : l.media;
+          return ' '+serie+': '+fmt1(valor)+' dias';
+        },
+        afterBody:(items)=>{
+          const l = items.length && linhas[items[0].dataIndex];
+          if(!l) return '';
+          return [statusTimePlural(l.n,'item medido','itens medidos'),
+            'Amplitude: '+fmt1(l.min)+' a '+fmt1(l.max)+' dias'];
+        }
+      }}},
+      onClick: drillClick((idx)=>{ const l = linhas[idx];
+        return l ? {title:`${medida.rotulo} · ${spLabel(l.sp)} SP`, issues:l.issues} : null; })}
   });
 }
 
