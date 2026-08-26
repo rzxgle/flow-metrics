@@ -31,6 +31,11 @@
  *      tamanho não some — vai para a última linha da tabela e para a legenda,
  *      com a contagem.
  *
+ *   5. A REFERÊNCIA DO COMITÊ É META, NÃO MEDIÇÃO, e só vale no Cycle Time —
+ *      contra o Lead Time o descolamento chega a 18x. Tamanho fora da escala
+ *      Fibonacci entra com referência ZERO (erro de cadastro, sem prazo), e não
+ *      como valor faltante: é isso que o deixa sempre fora da referência.
+ *
  * jsdom porque o objeto do teste é o que a tela produz. Sem rede: DATA
  * sintética, Chart e canvas são stubs que capturam a configuração recebida.
  *
@@ -87,7 +92,7 @@ const epilogo = `
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   get DATA(){ return DATA; },
   selections, renderSpTempoPorSP, agregarTempoPorSP,
-  SP_TIME_MEASURES, SP_TIME_MIN_AMOSTRA,
+  SP_TIME_MEASURES, SP_TIME_MIN_AMOSTRA, SP_REFERENCIA_COMITE, referenciaDoComite,
   get spTimeMetric(){ return spTimeMetric; },
   // A base do último render fica guardada para o seletor de medida poder
   // redesenhar sem refazer o recorte da aba (que em modo Sprint significaria
@@ -133,6 +138,10 @@ const rotulos = (cfg) => Array.from((cfg || charts['chart-sp-time']).data.labels
 const serie = (cfg, i) => Array.from((cfg || charts['chart-sp-time']).data.datasets[i].data);
 const legenda = () => document.getElementById('sp-time-caption').textContent;
 const tabela = () => document.querySelector('#sp-time-table tbody').textContent;
+const refDataset = (cfg) => (cfg || charts['chart-sp-time']).data.datasets
+  .find((d) => d.label && d.label.startsWith('Referência'));
+const colunasVisiveis = () => Array.from(document.querySelectorAll('#sp-time-table thead th'))
+  .filter((th) => th.style.display !== 'none').map((th) => th.textContent);
 const trocarMedida = (valor) => {
   const el = document.getElementById('spTimeMetric');
   el.value = valor;
@@ -196,12 +205,15 @@ check('a medida padrão usa CycleTimeDias, não LeadTimeDias', () => {
   assert.deepStrictEqual(serie(cfg, 0), [8]);
 });
 
-check('as duas séries são média e P85, nessa ordem', () => {
+check('as duas séries medidas são média e P85, nessa ordem, antes da referência', () => {
   // cycle: 1,2,3,4,10 -> média 4 ; P85 interpola acima disso
   const cfg = desenhar([1, 2, 3, 4, 10].map((c) => item(2, c)));
   // Array.from traz o array para o realm do teste: o que vem do jsdom tem outro
   // Array.prototype e deepStrictEqual reprova por identidade de protótipo.
-  assert.deepStrictEqual(Array.from(cfg.data.datasets).map((d) => d.label), ['Média', 'P85']);
+  // A referência vem DEPOIS das duas: os índices 0 e 1 são medição, e é neles
+  // que o resto do arquivo (e o tooltip) confia.
+  assert.deepStrictEqual(Array.from(cfg.data.datasets).map((d) => d.label),
+    ['Média', 'P85', 'Referência (comitê de agilidade)']);
   assert.strictEqual(serie(cfg, 0)[0], 4);
   assert.ok(serie(cfg, 1)[0] > serie(cfg, 0)[0], 'P85 acima da média nesta amostra');
 });
@@ -303,11 +315,16 @@ check('o tamanho descartado aparece na legenda e na última linha da tabela, com
   assert.ok(tabela().includes('8 SP · 13 SP'), tabela());
 });
 
-check('a tabela lista um tamanho por linha, com n, média e P85', () => {
+check('a tabela lista um tamanho por linha, com n, média, P85 e as três de referência', () => {
+  // 1 SP: 5 itens de 2 dias contra referência de 1 -> 2,0x, nenhum dentro.
+  // 5 SP: 6 itens de 10 dias contra referência de 5 -> 2,0x, nenhum dentro.
   desenhar([...lote(1, 5, 2), ...lote(5, 6, 10)]);
   const linhas = Array.from(document.querySelectorAll('#sp-time-table tbody tr'))
     .map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent));
-  assert.deepStrictEqual(linhas, [['1', '5', '2.0', '2.0'], ['5', '6', '10.0', '10.0']]);
+  assert.deepStrictEqual(linhas, [
+    ['1', '5', '2.0', '2.0', '1 d', '2.0x', '0%'],
+    ['5', '6', '10.0', '10.0', '5 d', '2.0x', '0%'],
+  ]);
 });
 
 check('os tamanhos saem em ordem crescente, não na ordem de chegada', () => {
@@ -317,6 +334,78 @@ check('os tamanhos saem em ordem crescente, não na ordem de chegada', () => {
 
 check('SP fracionário mantém o decimal no rótulo (0,5 e não 1)', () => {
   assert.deepStrictEqual(rotulos(desenhar(lote(0.5, 5, 1))), ['0,5 SP']);
+});
+
+console.log('\nDecisão 5 — a referência do comitê é meta, e só vale no Cycle Time:');
+
+check('a tabela do comitê está fiel ao que foi definido', () => {
+  assert.deepStrictEqual({ ...T.SP_REFERENCIA_COMITE },
+    { 0.5: 1, 1: 1, 2: 2, 3: 3, 5: 5, 8: 8, 13: 15, 21: 20 });
+});
+
+check('tamanho fora da escala Fibonacci recebe referência ZERO, não "sem referência"', () => {
+  // Decisão do time: 4, 6, 7, 9, 10, 12, 14 e 20 SP são erro de cadastro e não
+  // ganham prazo. Zero, e não null — é o que os deixa sempre fora da referência.
+  [4, 6, 7, 9, 10, 12, 14, 20, 34].forEach((sp) => {
+    assert.strictEqual(T.referenciaDoComite(sp), 0, `${sp} SP`);
+  });
+  assert.strictEqual(T.referenciaDoComite(13), 15);
+});
+
+check('a linha de referência entra como série própria, tracejada, com os valores do comitê', () => {
+  const cfg = desenhar([...lote(1, 3, 9), ...lote(3, 3, 9), ...lote(13, 3, 9)]);
+  const ref = refDataset(cfg);
+  assert.ok(ref, 'a série de referência existe');
+  assert.strictEqual(ref.type, 'line');
+  assert.ok(Array.isArray(ref.borderDash) && ref.borderDash.length, 'tracejada');
+  assert.deepStrictEqual(serie(cfg, cfg.data.datasets.indexOf(ref)), [1, 3, 15]);
+});
+
+check('a linha desce a zero nos tamanhos fora da escala, em vez de interpolar', () => {
+  const cfg = desenhar([...lote(3, 3, 9), ...lote(4, 3, 9), ...lote(5, 3, 9)]);
+  const ref = refDataset(cfg);
+  assert.deepStrictEqual(serie(cfg, cfg.data.datasets.indexOf(ref)), [3, 0, 5]);
+});
+
+check('"dentro da referência" conta os itens que couberam nela', () => {
+  // 3 SP, referência 3 dias: dois itens dentro (1 e 3), dois fora (4 e 10).
+  desenhar([1, 3, 4, 10].map((c) => item(3, c)));
+  const celulas = Array.from(document.querySelectorAll('#sp-time-table tbody tr td'))
+    .map((td) => td.textContent);
+  assert.strictEqual(celulas[4], '3 d', 'coluna Referência');
+  assert.strictEqual(celulas[6], '50%', 'coluna Dentro da referência');
+});
+
+check('tamanho fora da escala fica com 0% dentro e sem razão a exibir', () => {
+  desenhar(lote(4, 3, 9));
+  const celulas = Array.from(document.querySelectorAll('#sp-time-table tbody tr td'))
+    .map((td) => td.textContent);
+  assert.strictEqual(celulas[4], 'fora da escala');
+  assert.strictEqual(celulas[5], '—', 'razão contra zero não é exibida');
+  assert.strictEqual(celulas[6], '0%');
+});
+
+check('no Lead Time a linha e as três colunas somem, e a legenda diz que sumiram', () => {
+  const base = [...lote(1, 3, 9), ...lote(3, 3, 9)];
+  desenhar(base);
+  assert.ok(refDataset(), 'a referência existe no Cycle Time');
+  assert.strictEqual(colunasVisiveis().length, 7);
+
+  trocarMedida('lead');
+  assert.strictEqual(refDataset(), undefined, 'a série de referência sai do gráfico');
+  assert.deepStrictEqual(colunasVisiveis(),
+    ['Story Points', 'Itens medidos', 'Média (dias)', 'P85 (dias)']);
+  assert.ok(legenda().includes('referência do comitê sai da tela'), legenda());
+
+  trocarMedida('cycle');
+  assert.ok(refDataset(), 'volta ao trocar de volta');
+  assert.strictEqual(colunasVisiveis().length, 7);
+});
+
+check('a legenda nomeia os tamanhos que entraram com referência zero', () => {
+  desenhar([...lote(3, 3, 9), ...lote(4, 3, 9), ...lote(6, 3, 9)]);
+  assert.ok(legenda().includes('4, 6'), legenda());
+  assert.ok(legenda().includes('erro de cadastro'), legenda());
 });
 
 console.log('\nDrill e estado vazio:');

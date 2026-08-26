@@ -1138,16 +1138,21 @@
     </div>
     <div class="cap">Itens de entrega já concluídos no recorte, agrupados pelo Story Point estimado.
       A barra clara é a <b>média</b> e a escura o <b>P85</b> — o valor que cabe em 85% dos casos, que é
-      o número para se comprometer. São <b>dias corridos</b>, não dias úteis. Tamanhos com menos de
-      3 itens concluídos não viram barra e aparecem só na última linha da tabela; nos que têm poucos
-      itens, olhe a coluna <b>Itens medidos</b> antes de tirar conclusão — a média de 3 ou 4 itens
-      muda bastante com um item a mais.</div>
+      o número para se comprometer. A linha tracejada é a <b>referência do comitê de agilidade</b>, e
+      só aparece no Cycle Time: ela foi definida para tempo de execução e não vale contra o Lead Time.
+      São <b>dias corridos</b>, não dias úteis. Tamanhos com menos de 3 itens concluídos não viram
+      barra e aparecem só na última linha da tabela; nos que têm poucos itens, olhe a coluna
+      <b>Itens medidos</b> antes de tirar conclusão — a média de 3 ou 4 itens muda bastante com um
+      item a mais.</div>
     <div class="chartwrap"><canvas id="chart-sp-time"></canvas></div>
     <div class="cap" id="sp-time-caption" style="margin:10px 0 0;"></div>
-    <table class="datatable" id="sp-time-table" style="margin-top:12px;">
-      <thead><tr><th>Story Points</th><th>Itens medidos</th><th>Média (dias)</th><th>P85 (dias)</th></tr></thead>
+    <div style="overflow-x:auto;"><table class="datatable" id="sp-time-table" style="margin-top:12px;">
+      <thead><tr><th>Story Points</th><th>Itens medidos</th><th>Média (dias)</th><th>P85 (dias)</th>
+        <th class="sp-time-ref-col">Referência</th>
+        <th class="sp-time-ref-col">Média vs. referência</th>
+        <th class="sp-time-ref-col">Dentro da referência</th></tr></thead>
       <tbody></tbody>
-    </table>
+    </table></div>
   </div>
 </section>
 
@@ -1532,6 +1537,7 @@
         <li><b>A aba Dependências mede um issuetype com regras próprias.</b> Uma <span class="mono">Dependência</span> é aberta pelo time <b>demandante</b> para o time de quem ele depende — o <b>dependente</b>, que é o campo <span class="mono">Team</span>. Quatro coisas ali não seguem o resto do painel. (1) <b>A data de conclusão vem do changelog</b>: o workflow deste tipo não seta resolução — nas 62 dependências concluídas da base, <span class="mono">resolutiondate</span> está vazia em <b>100%</b> delas, e <span class="mono">Data de Fim Real</span> também. A data usada é a <b>entrada na categoria Done</b>, a mesma régua da entrega de sprint. (2) <b>O relógio começa na abertura</b>, como num bloqueio: uma dependência nasce ativa, ninguém "começa a trabalhar" nela. A duração é lead time, e a dependência aberta conta da abertura até hoje, recalculado a cada abertura do painel. <b>Cancelada não soma dias</b> — no processo da Afya, cancelar significa que a dependência <b>deixou de ser necessária</b>, então ela conta como episódio sem duração medida. (3) <b>Os dois campos de time escrevem a mesma squad de dois jeitos</b>: o <span class="mono">Team</span> grava "Squad Core - Core Features" e o <span class="mono">Time Demandante</span>, "Core Features". Os nomes são canonizados antes de cruzar a matriz, senão a mesma squad viraria dois nós. Por isso a aba tem filtros próprios de <b>Squad</b> e <b>Papel</b> na barra, e o filtro <span class="mono">Squad</span> global sai da tela: os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo id canônico e leva o papel em conta. (4) <b>O item impactado depende de link no Jira</b>. Valem os links oficiais <span class="mono">Dependo de</span> / <span class="mono">Depende de mim</span> (in e out VS) e, como aproximação, <span class="mono">Blocks</span> e <span class="mono">Relates</span>; <span class="mono">Cloners</span> fica de fora, porque um clone é cópia da própria dependência e não o item que ficou esperando. Hoje isso cobre <b>41%</b> das dependências (16% se só os oficiais contassem), e a cobertura vai escrita embaixo da tabela — o card <b>Qualidade do preenchimento</b> existe justamente para essa lacuna encolher.</li>
         <li><b>Eficiência de Fluxo é a razão de dois percentis, não uma média por item.</b> O card da <b>Visão Geral</b> divide o <b>Cycle Time P85</b> pelo <b>Lead Time P85</b> — exatamente os dois números exibidos ao lado dele, para que a conta feche de cabeça. O preço dessa escolha: os dois percentis saem de <b>bases diferentes</b>, porque Cycle Time exige <span class="mono">Data Início Real</span> e Lead Time não. Na base atual são <b>9.151</b> itens com Lead Time contra <b>4.663</b> com Cycle Time, e só <b>4.641</b> têm os dois — o Lead Time P85 cai de 30,1 para 27,9 dias justamente por incluir os itens sem início real. Por isso o indicador é uma <b>referência de tendência</b>, não uma medida exata de tempo tocado: calculada item a item na base comum, a eficiência média fica em <b>36%</b> contra <b>25%</b> na razão dos percentis. A leitura que vale é comparativa — se a razão sobe ou desce entre recortes e períodos —, e ela fica mais fiel à medida que o preenchimento de <span class="mono">Data Início Real</span> avança.</li>
         <li><b>Tempo por Story Point mede o tempo de EXECUÇÃO, e por isso o padrão do card é o Cycle Time, não o Lead Time.</b> O card da aba <b>Estimativas</b> cruza a estimativa com a duração real dos itens já concluídos do recorte. As duas réguas do seletor são as <b>mesmas já usadas na aba Lead &amp; Cycle Time</b> — o painel não ganha uma terceira definição de tempo. O padrão é o <b>Cycle Time</b> (<span class="mono">Data Início Real</span> → <span class="mono">Data Fim Real</span>) porque é ele que responde "quanto tempo custa um item de 3 pontos": na base, um item de 1 SP leva <b>5,7</b> dias de Cycle Time e <b>18,1</b> de Lead Time, e a diferença é a fila de backlog anterior ao início — que não é esforço do item. Trocar para Lead Time no seletor é justamente como se enxerga esse tempo de espera. Três ressalvas fazem parte da leitura. (1) <b>A cobertura do Cycle Time é menor</b>: ele exige os dois campos manuais de data preenchidos, e na base isso vale para <b>83%</b> dos itens de entrega concluídos com SP (contra 98% do Lead Time). Por isso a legenda do card sempre declara em quantos itens a medida existe, e ela melhora à medida que o preenchimento de <span class="mono">Data Início Real</span> avança. Item sem as datas entra como <b>sem medida</b>, e não como zero dia — zero puxaria a média para baixo como se o item tivesse sido instantâneo. (2) São <b>dias corridos</b>, não dias úteis. (3) <b>Só itens de entrega entram</b> — Story, Melhoria, Enabler, Débito Técnico e Bug. Épicos, subitens e <span class="mono">Dependência</span> ficam fora mesmo quando o filtro de Tipo os inclui, porque o SP de uma sub-task é herdado do pai e não uma estimativa própria: há <b>8.095</b> sub-tasks concluídas com SP na base, que sozinhas afogariam a leitura. Por fim, <b>tamanho com menos de 3 itens não vira barra</b>, e esse corte é baixo de propósito. Na base inteira ele quase não importa — subir de 3 para 5 tira uma única barra. No <b>recorte por squad</b>, que é como o card é usado de verdade, ele decide muito: medido nas 18 squads com 20+ itens, o corte em 5 deixa <b>64</b> barras contra <b>76</b> no corte em 3, e squads inteiras caem para duas barras — o que não é um gráfico. O preço está aceito e é real: com 3 ou 4 itens a média oscila cerca de <b>30%</b> se um único item entrar ou sair, e o <b>P85 deixa de ser um percentil</b> — em três valores ele cai a 70% do caminho até o maior deles, ou seja, é praticamente "o pior dos três" com nome de estatística. Por isso a tabela traz a coluna <b>Itens medidos</b> e o tooltip repete a contagem: é ela que diz o quanto pesar cada barra. Abaixo do corte o tamanho não some em silêncio — vai para a última linha da tabela e para a legenda, com a contagem.</li>
+        <li><b>A referência por Story Point vem de um comitê, e por isso é uma META, não uma medição.</b> O time de agilidade definiu uma duração de referência por tamanho — <b>0,5 e 1 SP</b>: 1 dia; <b>2</b>: 2; <b>3</b>: 3; <b>5</b>: 5; <b>8</b>: 8; <b>13</b>: 15; <b>21</b>: 20 —, desenhada no card como linha tracejada. Quatro coisas definem como ela é lida. (1) <b>Só vale no Cycle Time.</b> Ela foi definida para tempo de execução; medida contra o Lead Time o descolamento chega a <b>18x</b> na base, porque o Lead carrega a fila de backlog anterior ao início — então a linha e as colunas de referência <b>somem</b> ao trocar de régua, e a legenda avisa que sumiram. (2) <b>Story Point fora da escala Fibonacci entra com referência ZERO</b>, não com "sem referência". Existem na base itens de 4, 6, 7, 9, 10, 12, 14 e 20 SP; como Story Points seguem Fibonacci, esses valores são <b>erro de cadastro</b>, e a decisão do time foi não conceder prazo a eles — aparecem sempre com 0% dentro da referência, o que é exatamente o sinal desejado. Se um tamanho Fibonacci novo passar a ser usado (34, 55…), ele precisa ser <b>acrescentado à tabela em <span class="mono">SP_REFERENCIA_COMITE</span></b>, senão cai no zero por omissão. (3) <b>As unidades não são as mesmas, e isso está aceito conscientemente.</b> A referência é de esforço, provavelmente em dias úteis; o card mede dias corridos de calendário. O time optou por manter assim e ajustar depois se precisar. (4) <b>A leitura que vale é o percentual, não a razão.</b> Medido na base, a média fica <b>5,7x</b> acima da referência em 1 SP e <b>1,1x</b> em 13 SP — ou seja, a régua é bem calibrada para itens grandes e otimista para os pequenos. Mas "a média está 2,9x acima" convida a discutir a régua, enquanto <b>"25% dos itens de 3 SP ficam dentro da referência"</b> é acionável e não depende de as unidades baterem. Por isso a tabela traz as três colunas — referência, razão e percentual dentro — e o gráfico traz só a linha.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Na base atual o status literal <span class="mono">Concluído</span> aparece em 110 Bugs e em mais nenhum item. Por isso a lista de status de conclusão abrange todas as etapas pós-desenvolvimento, e <b>"Concluído" e "Entregue (amplo)" são hoje o mesmo predicado</b> (<span class="mono">broadlyDeliveredStatuses === doneStatuses</span>, zero divergências em 16.912 itens) — não são duas definições concorrentes de pronto, como já foram. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
       </ul>
     </div>
@@ -3140,7 +3146,43 @@ function renderSP(f, atual){
  *    times (0,5 · 1 · 2 · 3 · 5 · 8 · 13) aparecem valores avulsos com um ou
  *    dois itens, cuja "média" é o próprio item. Eles não somem em silêncio: vão
  *    para a última linha da tabela e para a legenda, com a contagem.
+ *
+ * 4. A REFERÊNCIA DO COMITÊ SÓ VALE NO CYCLE TIME. Ela foi definida para tempo
+ *    de execução; medida contra o Lead Time o descolamento chega a 18x na base,
+ *    porque o Lead carrega a fila de backlog anterior ao início. Por isso a
+ *    linha e as três colunas de referência somem ao trocar de régua — e a
+ *    legenda diz que sumiram, para não parecer defeito.
  */
+
+/**
+ * Referência de duração por Story Point, definida em comitê pelo time de
+ * agilidade. Chave = Story Points, valor = dias.
+ *
+ * DUAS COISAS PARA QUEM FOR MEXER AQUI:
+ *
+ * (a) A tabela é a fonte da verdade do que é um tamanho VÁLIDO. Story Points
+ *     seguem Fibonacci, então 4, 6, 7, 9, 10, 12, 14 e 20 — que existem na base
+ *     — são erro de cadastro, não estimativa. Por decisão do time eles recebem
+ *     referência ZERO em vez de "sem referência": não deveriam existir, então
+ *     não ganham prazo nenhum e aparecem sempre fora da referência. É `?? 0` em
+ *     `referenciaDoComite`, e não um valor faltante. Se um tamanho Fibonacci
+ *     novo entrar em uso (34, 55...), ACRESCENTE AQUI — senão ele também cai no
+ *     zero e a leitura fica errada.
+ *
+ * (b) Os valores são de ESFORÇO, provavelmente em dias úteis, e o card mede
+ *     dias CORRIDOS. O time optou por manter assim por ora e ajustar depois se
+ *     precisar; medido na base, a média fica 5,7x acima da referência em 1 SP e
+ *     1,1x em 13 SP — ou seja, a régua é bem calibrada para itens grandes e
+ *     otimista para os pequenos. A tabela mostra a razão e o percentual dentro
+ *     da referência justamente para essa conversa ser possível com número.
+ */
+const SP_REFERENCIA_COMITE = { 0.5: 1, 1: 1, 2: 2, 3: 3, 5: 5, 8: 8, 13: 15, 21: 20 };
+
+/** Dias de referência de um tamanho. Fora da escala Fibonacci não há prazo — ver (a). */
+function referenciaDoComite(sp){
+  const dias = SP_REFERENCIA_COMITE[sp];
+  return dias == null ? 0 : dias;
+}
 
 /**
  * Mínimo de itens medidos para um tamanho virar barra.
@@ -3237,10 +3279,21 @@ function renderSpTempoPorSP(base){
   const comAmostra = grupos.filter(g=>g.medidos.length >= SP_TIME_MIN_AMOSTRA);
   const semAmostra = grupos.filter(g=>g.medidos.length > 0 && g.medidos.length < SP_TIME_MIN_AMOSTRA);
 
-  const linhas = comAmostra.map(g=>({
-    sp:g.sp, n:g.medidos.length, media:mean(g.dias), p85:percentile(g.dias,85),
-    min:Math.min(...g.dias), max:Math.max(...g.dias), issues:g.medidos,
-  }));
+  /* A referência só entra no Cycle Time — ver decisão (4). `comRef` governa
+     tanto a linha do gráfico quanto as três colunas da tabela, para os dois
+     nunca discordarem sobre a régua vigente. */
+  const comRef = spTimeMetric === 'cycle';
+
+  const linhas = comAmostra.map(g=>{
+    const ref = referenciaDoComite(g.sp);
+    return {
+      sp:g.sp, n:g.medidos.length, media:mean(g.dias), p85:percentile(g.dias,85),
+      min:Math.min(...g.dias), max:Math.max(...g.dias), issues:g.medidos, ref,
+      // Fatia dos itens que coube na referência. Com ref 0 (tamanho fora da
+      // escala Fibonacci) nada cabe, e é essa a intenção: são erro de cadastro.
+      dentro: 100*g.dias.filter(v=>v<=ref).length/g.dias.length,
+    };
+  });
 
   const medidos = grupos.reduce((a,g)=>a+g.medidos.length, 0);
   const cobertura = elegiveis.length ? (medidos/elegiveis.length*100) : 0;
@@ -3262,31 +3315,75 @@ function renderSpTempoPorSP(base){
           +'<b>'+semAmostra.map(g=>spLabel(g.sp)).join(', ')+'</b> SP — '
           +statusTimePlural(itens,'item','itens')+' no total, na última linha da tabela.');
       }
+      /* A referência aparecendo ou sumindo precisa ser DITA: sem isso, trocar a
+         régua faz uma linha e três colunas desaparecerem e parece defeito. */
+      if(comRef){
+        const foraDaEscala = linhas.filter(l=>l.ref===0);
+        if(foraDaEscala.length){
+          partes.push('Story Points fora da escala Fibonacci não têm prazo do comitê e entram com '
+            +'referência <b>zero</b> — são erro de cadastro: '
+            +'<b>'+foraDaEscala.map(l=>spLabel(l.sp)).join(', ')+'</b> SP.');
+        }
+      } else {
+        partes.push('A <b>referência do comitê sai da tela nesta régua</b>: ela foi definida para '
+          +'tempo de execução, e o Lead Time inclui a fila de backlog anterior ao início.');
+      }
       caption.innerHTML = partes.join(' ');
     }
   }
 
+  /* As colunas de referência existem no HTML estático e são ESCONDIDAS fora do
+     Cycle Time, em vez de recriar o cabeçalho a cada render. */
+  document.querySelectorAll('#sp-time-table .sp-time-ref-col')
+    .forEach(th=>{ th.style.display = comRef ? '' : 'none'; });
+
   if(tbody){
-    const corpo = linhas.map(l=>`<tr><td><b>${spLabel(l.sp)}</b></td><td>${fmt0(l.n)}</td>`
-      +`<td><b>${fmt1(l.media)}</b></td><td>${fmt1(l.p85)}</td></tr>`);
+    const colunas = comRef ? 7 : 4;
+    const corpo = linhas.map(l=>{
+      const celulas = [`<td><b>${spLabel(l.sp)}</b></td>`, `<td>${fmt0(l.n)}</td>`,
+        `<td><b>${fmt1(l.media)}</b></td>`, `<td>${fmt1(l.p85)}</td>`];
+      if(comRef){
+        // Tamanho fora da escala não tem prazo a cumprir: mostrar "2,3x acima de
+        // zero" seria dividir por zero e não diria nada. A célula diz o motivo.
+        const razao = l.ref>0 ? (l.media/l.ref).toFixed(1)+'x' : '—';
+        celulas.push(`<td class="sp-time-ref-col">${l.ref>0 ? fmt0(l.ref)+' d' : '<span style="color:var(--slate-soft);">fora da escala</span>'}</td>`);
+        celulas.push(`<td class="sp-time-ref-col">${razao}</td>`);
+        celulas.push(`<td class="sp-time-ref-col">${l.dentro.toFixed(0)}%</td>`);
+      }
+      return '<tr>'+celulas.join('')+'</tr>';
+    });
     if(semAmostra.length){
       const itens = semAmostra.reduce((a,g)=>a+g.medidos.length, 0);
-      corpo.push('<tr><td colspan="4" style="color:var(--slate-soft);">'
+      corpo.push('<tr><td colspan="'+colunas+'" style="color:var(--slate-soft);">'
         +'Amostra insuficiente (&lt; '+SP_TIME_MIN_AMOSTRA+' itens): '
         +semAmostra.map(g=>spLabel(g.sp)+' SP').join(' · ')
         +' — '+statusTimePlural(itens,'item','itens')+', sem média confiável.</td></tr>');
     }
     tbody.innerHTML = corpo.length ? corpo.join('')
-      : '<tr><td colspan="4" style="color:var(--slate-soft);">Nenhum tamanho com itens suficientes para uma média no recorte atual.</td></tr>';
+      : '<tr><td colspan="'+colunas+'" style="color:var(--slate-soft);">Nenhum tamanho com itens suficientes para uma média no recorte atual.</td></tr>';
+  }
+
+  const series = [
+    {label:'Média', data:linhas.map(l=>l.media), backgroundColor:'#F7C9DD'},
+    {label:'P85', data:linhas.map(l=>l.p85), backgroundColor:'#CE0058'}
+  ];
+  if(comRef){
+    /* Tracejada e por cima das barras (order menor desenha depois no Chart.js):
+       é uma meta, não uma medição, e precisa ser lida como outra coisa. */
+    series.push({
+      type:'line', label:'Referência (comitê de agilidade)',
+      data:linhas.map(l=>l.ref), order:0,
+      borderColor:'#333333', backgroundColor:'#333333', borderDash:[5,4],
+      borderWidth:2, tension:0, pointRadius:3, pointHoverRadius:5, fill:false,
+    });
   }
 
   upsertChart('chart-sp-time', {
     type:'bar',
-    data:{labels:linhas.map(l=>spLabel(l.sp)+' SP'), datasets:[
-      {label:'Média', data:linhas.map(l=>l.media), backgroundColor:'#F7C9DD'},
-      {label:'P85', data:linhas.map(l=>l.p85), backgroundColor:'#CE0058'}
-    ]},
+    data:{labels:linhas.map(l=>spLabel(l.sp)+' SP'), datasets:series},
     options:{responsive:true, maintainAspectRatio:false,
+      // O rótulo de valor fica só nas BARRAS: repeti-lo na linha de referência
+      // encavalaria os números onde a meta passa perto da média.
       barLabels:true, barLabelFmt:'d1', barLabelStagger:true, layout:{padding:{top:24}},
       scales:{
         y:{beginAtZero:true, title:{display:true, text:medida.eixo}},
@@ -3298,8 +3395,12 @@ function renderSpTempoPorSP(base){
         label:(item)=>{
           const l = linhas[item.dataIndex];
           if(!l) return '';
-          // 1ª linha: EXATAMENTE o que a barra desenha, com o rótulo da série.
+          // 1ª linha: EXATAMENTE o que a série desenha, com o rótulo dela.
           const serie = item.dataset.label;
+          if(item.dataset.type==='line'){
+            return l.ref>0 ? ' Referência: '+fmt0(l.ref)+' dias'
+              : ' Referência: nenhuma (Story Point fora da escala Fibonacci)';
+          }
           const valor = serie==='P85' ? l.p85 : l.media;
           return ' '+serie+': '+fmt1(valor)+' dias';
         },
