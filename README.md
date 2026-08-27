@@ -456,6 +456,25 @@ Não confundir com o transbordo de **PI** da aba PI Tracking (`piIsTransbordo`),
 que vem de label (`TransbordoPI2AfyaOne` etc.). Unidades diferentes, mesma
 palavra — o vocabulário é o do time.
 
+## Programa: de que projeto vem cada item
+
+O Jira não tem um campo "Programa" — ele é derivado do **projeto** da issue, em
+`config/classification.rules.js`. São **Afya Bridge** os projetos `LEG`
+(*Value Streams Afya Bridge*) e `BOPS` (*Operação e Bugs*); qualquer outro é
+**Afya One**.
+
+A comparação usa a **chave** do projeto, não o nome. A chave é o identificador
+estável no Jira: renomear um projeto muda o nome que chega aqui, e um dashboard
+que classifica por nome passaria a errar em silêncio a partir do dia do rename.
+O nome segue aceito como segunda via, para issues montadas sem a chave.
+
+`BOPS` entrou por decisão do time e é um caso particular: o projeto **não está
+na JQL geral** do dashboard, então ele só chega por um caminho — a coleta
+própria da aba PI Tracking, que busca épicos por *label* de PI **sem filtro de
+projeto** (`_piEpicJql`). Antes da regra, o único épico de BOPS com label de PI
+(`BOPS-2768`, com `EpicoPI1Legado` e 7 filhos) era contado como Afya One: um
+épico do Legado somado ao outro programa.
+
 ## Fidelidade da transformação
 
 As regras foram reconstruídas a partir do dataset original e **conferidas contra

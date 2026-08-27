@@ -76,8 +76,25 @@ const fixture = [
   },
   {
     key: 'BRG-1', summary: 'Épico do Afya Bridge', issueType: 'Enabler Epic',
-    projectName: 'Value Streams Afya Bridge', team: 'Squad Bridge', status: 'CANCELADO',
+    projectName: 'Value Streams Afya Bridge', projectKey: 'LEG', team: 'Squad Bridge', status: 'CANCELADO',
     storyPoints: 8, createdAt: '2026-04-01T10:00:00Z', labels: ['EpicoPI2Legado'], parentKey: null,
+  },
+  /* BOPS ("Operação e Bugs") é do Afya Bridge, não do Afya One — decisão do
+     time. O projeto não está na JQL geral: ele só entra pela coleta da aba PI
+     Tracking, que busca épicos por label de PI sem filtro de projeto. Antes da
+     regra, este épico contava como Afya One. */
+  {
+    key: 'BOPS-2768', summary: 'Autenticação por JWT', issueType: 'Enabler Epic',
+    projectName: 'Operação e Bugs', projectKey: 'BOPS', team: 'Squad Bridge', status: 'Done',
+    storyPoints: 5, createdAt: '2026-02-10T10:00:00Z', labels: ['EpicoPI1Legado'], parentKey: null,
+  },
+  /* Mesmo projeto renomeado no Jira: a chave continua sendo BOPS, e é ela que
+     tem de decidir. Classificar só por nome erraria em silêncio no dia do
+     rename. */
+  {
+    key: 'BOPS-9999', summary: 'Projeto renomeado', issueType: 'Epic',
+    projectName: 'Sustentação e Operações', projectKey: 'BOPS', team: 'Squad Bridge', status: 'Backlog',
+    storyPoints: 0, createdAt: '2026-03-01T10:00:00Z', labels: ['EpicoPI2Legado'], parentKey: null,
   },
 ];
 
@@ -115,6 +132,12 @@ function build() {
     assert.strictEqual(byKey['AONE-2'].Programa, 'Afya One'));
   check('Programa: Value Streams Afya Bridge -> Afya Bridge', () =>
     assert.strictEqual(byKey['BRG-1'].Programa, 'Afya Bridge'));
+  check('Programa: BOPS ("Operação e Bugs") -> Afya Bridge', () =>
+    assert.strictEqual(byKey['BOPS-2768'].Programa, 'Afya Bridge'));
+  check('Programa: a CHAVE decide, mesmo se o projeto for renomeado', () =>
+    assert.strictEqual(byKey['BOPS-9999'].Programa, 'Afya Bridge'));
+  check('Programa: a Value Stream continua sendo o nome do projeto, não o programa', () =>
+    assert.strictEqual(byKey['BOPS-2768'].VS, 'Operação e Bugs'));
 
   check('PI: PI3AfyaOne -> "PI3 - Afya One"', () =>
     assert.strictEqual(byKey['AONE-1'].PI, 'PI3 - Afya One'));

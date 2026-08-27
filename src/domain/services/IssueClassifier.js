@@ -20,9 +20,17 @@ class IssueClassifier {
     return this.rules.issueTypeToGroup[issueType] || this.rules.defaultGroup;
   }
 
-  /** Nome do projeto -> Programa (Afya Bridge | Afya One). */
-  programOf(projectName) {
-    return projectName === this.rules.bridgeValueStreamName
+  /**
+   * Projeto -> Programa (Afya Bridge | Afya One).
+   *
+   * A chave vem primeiro porque é o identificador estável do projeto no Jira; o
+   * nome continua sendo aceito para o caso de a chave não ter chegado (issue
+   * montada sem ela, como nas fixtures dos testes).
+   */
+  programOf(projectName, projectKey) {
+    const key = String(projectKey || '').trim().toUpperCase();
+    if (key && this.rules.bridgeProjectKeys.includes(key)) return 'Afya Bridge';
+    return this.rules.bridgeValueStreamNames.includes(projectName)
       ? 'Afya Bridge'
       : 'Afya One';
   }

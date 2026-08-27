@@ -36,7 +36,7 @@ class IssueEnricher {
       Resumo: issue.summary,
       'Tipo de item': issue.issueType,
       'Tipo Agrupado': grupo,
-      Programa: this.classifier.programOf(issue.projectName),
+      Programa: this.classifier.programOf(issue.projectName, issue.projectKey),
       VS: issue.projectName,
       Squad: issue.team || 'Não informado',
       PI: this.classifier.piOf(issue.labels),

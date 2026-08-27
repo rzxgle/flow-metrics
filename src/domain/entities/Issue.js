@@ -15,6 +15,7 @@ class Issue {
     summary,
     issueType,
     projectName,
+    projectKey,
     team,
     status,
     storyPoints,
@@ -46,6 +47,10 @@ class Issue {
     this.summary = summary;
     this.issueType = issueType;
     this.projectName = projectName;
+    // Chave do projeto (APR, LEG, BOPS...). É o identificador estável: o nome do
+    // projeto pode ser renomeado no Jira, e a classificação de Programa depende
+    // de saber a que projeto a issue pertence.
+    this.projectKey = projectKey || null;
     this.team = team;
     this.status = status;
     this.storyPoints = Number(storyPoints) || 0;

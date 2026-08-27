@@ -133,6 +133,15 @@ de Cycle Time contra ~5,2 de um item de entrega de 1 SP, e sub-itens são muito
 mais numerosos, então num recorte misturado são eles que mandam na média.
 Analisar separadamente é legítimo; fundir num agregado único, não.
 
+🟢 **Programa vem do projeto, e `BOPS` é Afya Bridge.** Não existe campo
+"Programa" no Jira: ele é derivado do projeto em `classification.rules.js`. São
+Afya Bridge os projetos `LEG` (*Value Streams Afya Bridge*) e `BOPS`
+(*Operação e Bugs*); qualquer outro é Afya One. A comparação é pela **chave** do
+projeto, não pelo nome — rename no Jira quebraria a classificação em silêncio.
+`BOPS` não está na JQL geral e só chega pela coleta da aba PI Tracking, que busca
+épicos por label de PI **sem filtro de projeto**; era por aí que um épico do
+Legado (`BOPS-2768`) entrava contado como Afya One.
+
 ### Tempo
 
 🟢 **A entrega de uma sprint é a primeira transição para `Pronto p/ Deploy STG`**

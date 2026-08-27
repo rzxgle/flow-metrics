@@ -146,6 +146,7 @@ class JiraIssueRepository extends IssueRepository {
       summary: f[fm.summary] || '',
       issueType: f[fm.issuetype] ? f[fm.issuetype].name : null,
       projectName: f[fm.project] ? f[fm.project].name : null,
+      projectKey: f[fm.project] ? f[fm.project].key : null,
       team: this._readTeam(f[fm.team]),
       status: f[fm.status] ? f[fm.status].name : null,
       storyPoints: f[fm.storyPoints],

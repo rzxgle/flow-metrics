@@ -150,10 +150,24 @@ const piRulesInPriorityOrder = [
 const defaultPi = 'Não informado';
 
 /**
- * Nome do projeto (Value Stream) que representa o programa "Afya Bridge".
- * Qualquer outro projeto é considerado "Afya One".
+ * Projetos que pertencem ao programa "Afya Bridge". Qualquer outro projeto é
+ * considerado "Afya One".
+ *
+ * A checagem é feita primeiro pela CHAVE do projeto e só depois pelo nome. A
+ * chave é o identificador estável no Jira — renomear um projeto muda o nome que
+ * chega aqui, e um dashboard que classifica por nome passa a errar em silêncio a
+ * partir do dia do rename.
+ *
+ * `BOPS` / `Operação e Bugs` entrou por decisão do time: ele é do Afya Bridge,
+ * não do Afya One. O projeto NÃO está na JQL geral do dashboard, então ele só
+ * chega por um caminho: a coleta própria da aba PI Tracking, que busca épicos
+ * por LABEL de PI sem filtro de projeto (`_piEpicJql`). Antes desta regra, o
+ * único épico de BOPS com label de PI — `BOPS-2768`, "Autenticação por JWT",
+ * com a label `EpicoPI1Legado` e 7 filhos — aparecia como Afya One, ou seja,
+ * um épico do Legado contado dentro do outro programa.
  */
-const bridgeValueStreamName = 'Value Streams Afya Bridge';
+const bridgeProjectKeys = ['LEG', 'BOPS'];
+const bridgeValueStreamNames = ['Value Streams Afya Bridge', 'Operação e Bugs'];
 
 module.exports = {
   issueTypeToGroup,
@@ -165,5 +179,6 @@ module.exports = {
   broadlyDeliveredStatuses,
   piRulesInPriorityOrder,
   defaultPi,
-  bridgeValueStreamName,
+  bridgeProjectKeys,
+  bridgeValueStreamNames,
 };
