@@ -1136,7 +1136,7 @@
         </select>
       </label>
     </div>
-    <div class="cap">Itens de entrega já concluídos no recorte, agrupados pelo Story Point estimado.
+    <div class="cap">Itens concluídos no recorte, agrupados pelo Story Point estimado — <b>segue o filtro de Tipo</b>, então sub-itens entram quando você os seleciona (o time pontua cada um com 0,5 ou 1 SP).
       A barra clara é a <b>média</b> e a escura o <b>P85</b> — o valor que cabe em 85% dos casos, que é
       o número para se comprometer. A linha tracejada é a <b>referência do comitê de agilidade</b>, e
       só aparece no Cycle Time: ela foi definida para tempo de execução e não vale contra o Lead Time.
@@ -1537,7 +1537,7 @@
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>A aba Dependências mede um issuetype com regras próprias.</b> Uma <span class="mono">Dependência</span> é aberta pelo time <b>demandante</b> para o time de quem ele depende — o <b>dependente</b>, que é o campo <span class="mono">Team</span>. Quatro coisas ali não seguem o resto do painel. (1) <b>A data de conclusão vem do changelog</b>: o workflow deste tipo não seta resolução — nas 62 dependências concluídas da base, <span class="mono">resolutiondate</span> está vazia em <b>100%</b> delas, e <span class="mono">Data de Fim Real</span> também. A data usada é a <b>entrada na categoria Done</b>, a mesma régua da entrega de sprint. (2) <b>O relógio começa na abertura</b>, como num bloqueio: uma dependência nasce ativa, ninguém "começa a trabalhar" nela. A duração é lead time, e a dependência aberta conta da abertura até hoje, recalculado a cada abertura do painel. <b>Cancelada não soma dias</b> — no processo da Afya, cancelar significa que a dependência <b>deixou de ser necessária</b>, então ela conta como episódio sem duração medida. (3) <b>Os dois campos de time escrevem a mesma squad de dois jeitos</b>: o <span class="mono">Team</span> grava "Squad Core - Core Features" e o <span class="mono">Time Demandante</span>, "Core Features". Os nomes são canonizados antes de cruzar a matriz, senão a mesma squad viraria dois nós. Por isso a aba tem filtros próprios de <b>Squad</b> e <b>Papel</b> na barra, e o filtro <span class="mono">Squad</span> global sai da tela: os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo id canônico e leva o papel em conta. (4) <b>O item impactado depende de link no Jira</b>. Valem os links oficiais <span class="mono">Dependo de</span> / <span class="mono">Depende de mim</span> (in e out VS) e, como aproximação, <span class="mono">Blocks</span> e <span class="mono">Relates</span>; <span class="mono">Cloners</span> fica de fora, porque um clone é cópia da própria dependência e não o item que ficou esperando. Hoje isso cobre <b>41%</b> das dependências (16% se só os oficiais contassem), e a cobertura vai escrita embaixo da tabela — o card <b>Qualidade do preenchimento</b> existe justamente para essa lacuna encolher.</li>
         <li><b>Eficiência de Fluxo é a razão de dois percentis, não uma média por item.</b> O card da <b>Visão Geral</b> divide o <b>Cycle Time P85</b> pelo <b>Lead Time P85</b> — exatamente os dois números exibidos ao lado dele, para que a conta feche de cabeça. O preço dessa escolha: os dois percentis saem de <b>bases diferentes</b>, porque Cycle Time exige <span class="mono">Data Início Real</span> e Lead Time não. Na base atual são <b>9.151</b> itens com Lead Time contra <b>4.663</b> com Cycle Time, e só <b>4.641</b> têm os dois — o Lead Time P85 cai de 30,1 para 27,9 dias justamente por incluir os itens sem início real. Por isso o indicador é uma <b>referência de tendência</b>, não uma medida exata de tempo tocado: calculada item a item na base comum, a eficiência média fica em <b>36%</b> contra <b>25%</b> na razão dos percentis. A leitura que vale é comparativa — se a razão sobe ou desce entre recortes e períodos —, e ela fica mais fiel à medida que o preenchimento de <span class="mono">Data Início Real</span> avança.</li>
-        <li><b>Tempo por Story Point mede o tempo de EXECUÇÃO, e por isso o padrão do card é o Cycle Time, não o Lead Time.</b> O card da aba <b>Estimativas</b> cruza a estimativa com a duração real dos itens já concluídos do recorte. As duas réguas do seletor são as <b>mesmas já usadas na aba Lead &amp; Cycle Time</b> — o painel não ganha uma terceira definição de tempo. O padrão é o <b>Cycle Time</b> (<span class="mono">Data Início Real</span> → <span class="mono">Data Fim Real</span>) porque é ele que responde "quanto tempo custa um item de 3 pontos": na base, um item de 1 SP leva <b>5,7</b> dias de Cycle Time e <b>18,1</b> de Lead Time, e a diferença é a fila de backlog anterior ao início — que não é esforço do item. Trocar para Lead Time no seletor é justamente como se enxerga esse tempo de espera. Três ressalvas fazem parte da leitura. (1) <b>A cobertura do Cycle Time é menor</b>: ele exige os dois campos manuais de data preenchidos, e na base isso vale para <b>83%</b> dos itens de entrega concluídos com SP (contra 98% do Lead Time). Por isso a legenda do card sempre declara em quantos itens a medida existe, e ela melhora à medida que o preenchimento de <span class="mono">Data Início Real</span> avança. Item sem as datas entra como <b>sem medida</b>, e não como zero dia — zero puxaria a média para baixo como se o item tivesse sido instantâneo. (2) São <b>dias corridos</b>, não dias úteis. (3) <b>Só itens de entrega entram</b> — Story, Melhoria, Enabler, Débito Técnico e Bug. Épicos, subitens e <span class="mono">Dependência</span> ficam fora mesmo quando o filtro de Tipo os inclui, porque o SP de uma sub-task é herdado do pai e não uma estimativa própria: há <b>8.095</b> sub-tasks concluídas com SP na base, que sozinhas afogariam a leitura. Por fim, <b>tamanho com menos de 3 itens não vira barra</b>, e esse corte é baixo de propósito. Na base inteira ele quase não importa — subir de 3 para 5 tira uma única barra. No <b>recorte por squad</b>, que é como o card é usado de verdade, ele decide muito: medido nas 18 squads com 20+ itens, o corte em 5 deixa <b>64</b> barras contra <b>76</b> no corte em 3, e squads inteiras caem para duas barras — o que não é um gráfico. O preço está aceito e é real: com 3 ou 4 itens a média oscila cerca de <b>30%</b> se um único item entrar ou sair, e o <b>P85 deixa de ser um percentil</b> — em três valores ele cai a 70% do caminho até o maior deles, ou seja, é praticamente "o pior dos três" com nome de estatística. Por isso a tabela traz a coluna <b>Itens medidos</b> e o tooltip repete a contagem: é ela que diz o quanto pesar cada barra. Abaixo do corte o tamanho não some em silêncio — vai para a última linha da tabela e para a legenda, com a contagem.</li>
+        <li><b>Tempo por Story Point mede o tempo de EXECUÇÃO, e por isso o padrão do card é o Cycle Time, não o Lead Time.</b> O card da aba <b>Estimativas</b> cruza a estimativa com a duração real dos itens já concluídos do recorte. As duas réguas do seletor são as <b>mesmas já usadas na aba Lead &amp; Cycle Time</b> — o painel não ganha uma terceira definição de tempo. O padrão é o <b>Cycle Time</b> (<span class="mono">Data Início Real</span> → <span class="mono">Data Fim Real</span>) porque é ele que responde "quanto tempo custa um item de 3 pontos": na base, um item de 1 SP leva <b>5,7</b> dias de Cycle Time e <b>18,1</b> de Lead Time, e a diferença é a fila de backlog anterior ao início — que não é esforço do item. Trocar para Lead Time no seletor é justamente como se enxerga esse tempo de espera. Três ressalvas fazem parte da leitura. (1) <b>A cobertura do Cycle Time é menor</b>: ele exige os dois campos manuais de data preenchidos, e na base isso vale para <b>83%</b> dos itens de entrega concluídos com SP (contra 98% do Lead Time). Por isso a legenda do card sempre declara em quantos itens a medida existe, e ela melhora à medida que o preenchimento de <span class="mono">Data Início Real</span> avança. Item sem as datas entra como <b>sem medida</b>, e não como zero dia — zero puxaria a média para baixo como se o item tivesse sido instantâneo. (2) São <b>dias corridos</b>, não dias úteis. (3) <b>Quem entra é o filtro de Tipo, e sub-itens entram</b>. O time pontua cada sub-item com 0,5 ou 1 SP de propósito, e a base confirma: <b>92,3%</b> dos 8.228 sub-itens concluídos com SP estão nesses dois valores, com aderência alta em todos os subtipos. Não é valor herdado do pai. A única exclusão fixa é <span class="mono">Dependência</span>, por ser acordo entre squads e não entrega da squad. Em troca, o <b>risco fica declarado em vez de travado</b>: sub-item e item de entrega são níveis diferentes e a mesma pontuação vale durações diferentes — <b>1 SP roda em 2,1 dias no sub-item contra 5,2 no item de entrega</b>, e como os sub-itens são muito mais numerosos, num recorte misturado são eles que mandam na média. Quando os dois níveis aparecem juntos, a legenda do card diz a composição. Duas consequências práticas: a cobertura de Cycle Time cai bastante nos sub-itens (<b>39%</b> contra 84% nos itens de entrega, porque muitos não têm as datas reais preenchidas), e a referência do comitê de <b>1 SP = 1 dia</b> bate bem melhor neste nível (2,1x) do que no nível história (5,2x) — indício de que ela foi calibrada pensando em sub-item. Vale ainda que, com uma <b>sprint selecionada</b>, sub-itens não chegam ao card: naquele modo a aba mede capacidade e usa só itens de entrega, para não somar o esforço do filho com o do pai. Por fim, <b>tamanho com menos de 3 itens não vira barra</b>, e esse corte é baixo de propósito. Na base inteira ele quase não importa — subir de 3 para 5 tira uma única barra. No <b>recorte por squad</b>, que é como o card é usado de verdade, ele decide muito: medido nas 18 squads com 20+ itens, o corte em 5 deixa <b>64</b> barras contra <b>76</b> no corte em 3, e squads inteiras caem para duas barras — o que não é um gráfico. O preço está aceito e é real: com 3 ou 4 itens a média oscila cerca de <b>30%</b> se um único item entrar ou sair, e o <b>P85 deixa de ser um percentil</b> — em três valores ele cai a 70% do caminho até o maior deles, ou seja, é praticamente "o pior dos três" com nome de estatística. Por isso a tabela traz a coluna <b>Itens medidos</b> e o tooltip repete a contagem: é ela que diz o quanto pesar cada barra. Abaixo do corte o tamanho não some em silêncio — vai para a última linha da tabela e para a legenda, com a contagem.</li>
         <li><b>A referência por Story Point vem de um comitê, e por isso é uma META, não uma medição.</b> O time de agilidade definiu uma duração de referência por tamanho — <b>0,5 e 1 SP</b>: 1 dia; <b>2</b>: 2; <b>3</b>: 3; <b>5</b>: 5; <b>8</b>: 8; <b>13</b>: 15; <b>21</b>: 20 —, desenhada no card como linha tracejada. Quatro coisas definem como ela é lida. (1) <b>Só vale no Cycle Time.</b> Ela foi definida para tempo de execução; medida contra o Lead Time o descolamento chega a <b>18x</b> na base, porque o Lead carrega a fila de backlog anterior ao início — então a linha e as colunas de referência <b>somem</b> ao trocar de régua, e a legenda avisa que sumiram. (2) <b>Story Point fora da escala Fibonacci entra com referência ZERO</b>, não com "sem referência". Existem na base itens de 4, 6, 7, 9, 10, 12, 14 e 20 SP; como Story Points seguem Fibonacci, esses valores são <b>erro de cadastro</b>, e a decisão do time foi não conceder prazo a eles — aparecem sempre com 0% dentro da referência, o que é exatamente o sinal desejado. Se um tamanho Fibonacci novo passar a ser usado (34, 55…), ele precisa ser <b>acrescentado à tabela em <span class="mono">SP_REFERENCIA_COMITE</span></b>, senão cai no zero por omissão. (3) <b>As unidades não são as mesmas, e isso está aceito conscientemente.</b> A referência é de esforço, provavelmente em dias úteis; o card mede dias corridos de calendário. O time optou por manter assim e ajustar depois se precisar. (4) <b>A leitura que vale é o percentual, não a razão.</b> Medido na base, a média fica <b>5,7x</b> acima da referência em 1 SP e <b>1,1x</b> em 13 SP — ou seja, a régua é bem calibrada para itens grandes e otimista para os pequenos. Mas "a média está 2,9x acima" convida a discutir a régua, enquanto <b>"25% dos itens de 3 SP ficam dentro da referência"</b> é acionável e não depende de as unidades baterem. Por isso a tabela traz as três colunas — referência, razão e percentual dentro — e o gráfico traz só a linha.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Na base atual o status literal <span class="mono">Concluído</span> aparece em 110 Bugs e em mais nenhum item. Por isso a lista de status de conclusão abrange todas as etapas pós-desenvolvimento, e <b>"Concluído" e "Entregue (amplo)" são hoje o mesmo predicado</b> (<span class="mono">broadlyDeliveredStatuses === doneStatuses</span>, zero divergências em 16.912 itens) — não são duas definições concorrentes de pronto, como já foram. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
       </ul>
@@ -1579,7 +1579,7 @@ const TIPO_COLOR = {'Épico':'#333333','História':'#CE0058','Sub-task':'#9AA0A6
 const TAB_HELP = {
   exec:'Consolida volume, esforço, tempos e distribuição do recorte. Métricas de entrega respeitam o período de conclusão; estados atuais, como pendentes e WIP, ignoram esse período.',
   throughput:'Conta itens com status classificado como concluído e usa a data de conclusão para posicioná-los no período. Os gráficos respondem aos filtros globais.',
-  sp:'Compara Story Points planejados dos itens não cancelados com Story Points concluídos dentro do período selecionado. O card de tempo por Story Point cruza a estimativa com o Cycle Time real dos itens concluídos, em dias corridos, e considera só itens de entrega.',
+  sp:'Compara Story Points planejados dos itens não cancelados com Story Points concluídos dentro do período selecionado. O card de tempo por Story Point cruza a estimativa com o Cycle Time real dos itens concluídos, em dias corridos, e segue o filtro de Tipo — sub-itens entram quando selecionados, e a legenda avisa quando o recorte mistura níveis.',
   flow:'Lead Time vai da criação à conclusão. Cycle Time vai do início real ao fim real. Datas ausentes ou invertidas ficam fora dessas métricas. O gráfico de tempo por status decompõe o Lead Time usando o changelog do Jira; nele o filtro de Status escolhe quais status aparecem, não quais itens entram.',
   wip:'Mostra entregas, trabalho ainda aberto e Aging. Os KPIs do topo ignoram o filtro de Tipo (cada card já recorta o seu tipo); os gráficos de entrega seguem o filtro. Aging conta do início real até hoje apenas para itens em WIP.',
   block:'Considera itens do tipo Sub-block. Bloqueios resolvidos usam Cycle Time; bloqueios abertos contam da criação até hoje.',
@@ -3143,10 +3143,25 @@ function renderSP(f, atual){
  *    terceira definição de tempo, e comparar uma com a outra aqui é justamente
  *    onde o tempo de espera aparece.
  *
- * 2. SÓ ITENS DE ENTREGA (`isStandard`). Épicos, subitens e Dependência ficam
- *    fora sempre, mesmo que o filtro de Tipo os inclua: o SP de uma sub-task é
- *    herdado do pai, não uma estimativa própria — na base há 8.095 sub-tasks
- *    concluídas com SP, que sozinhas afogariam a leitura.
+ * 2. QUEM ENTRA É O FILTRO DE TIPO, NÃO UMA TRAVA DAQUI. Sub-itens têm
+ *    estimativa PRÓPRIA: o time pontua cada um com 0,5 ou 1 SP de propósito, e
+ *    a base confirma (92,3% dos 8.228 sub-itens concluídos com SP estão nesses
+ *    dois valores). Então eles aparecem normalmente quando o filtro de Tipo os
+ *    inclui. A única exclusão fixa é `Dependência`, e ela vem de uma regra do
+ *    time — dependência é acordo entre squads, não trabalho de entrega —, não
+ *    de um receio de leitura desta visão.
+ *
+ *    O RISCO fica declarado em vez de travado: sub-item e item de entrega são
+ *    níveis diferentes e a mesma pontuação vale durações diferentes (1 SP roda
+ *    em 2,1 dias no sub-item contra 5,2 no item de entrega, medido na base).
+ *    Quando o recorte tem os dois, as barras somam os dois — e a legenda diz a
+ *    composição, para quem lê saber o que tem na mão.
+ *
+ *    ATENÇÃO: com uma SPRINT selecionada, sub-itens não chegam aqui de jeito
+ *    nenhum. A base de sprint é montada lá em cima no `renderSP` com
+ *    `isStandard`, porque naquele modo SP é capacidade e somar filho com pai
+ *    duplicaria o esforço. Isso é decisão da aba, não deste card — a legenda
+ *    avisa para o gráfico vazio não parecer defeito.
  *
  * 3. TAMANHO COM AMOSTRA PEQUENA NÃO VIRA BARRA. Fora da escala usada pelos
  *    times (0,5 · 1 · 2 · 3 · 5 · 8 · 13) aparecem valores avulsos com um ou
@@ -3271,8 +3286,29 @@ function agregarTempoPorSP(base, valor){
   return Array.from(porSp.values()).sort((a,b)=>a.sp-b.sp);
 }
 
-/** "0,5" · "3" · "13" — o mesmo formato de SP usado nos rótulos de barra. */
-function spLabel(sp){ return (Math.round(sp*10)/10).toLocaleString('pt-BR'); }
+/**
+ * "0,5" · "0,75" · "3" · "13" — rótulo do tamanho.
+ *
+ * Duas casas decimais, e não uma: arredondar para uma casa COLAPSAVA baldes
+ * distintos no mesmo rótulo. Com sub-itens no recorte aparecem 0,25 e 0,75 na
+ * base, que viravam "0,3" e "0,8" — os mesmos rótulos de 0,3 e 0,8, que também
+ * existem. Duas barras com o mesmo nome, e a legenda listando "0,8" duas vezes.
+ */
+function spLabel(sp){
+  return Number(sp).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+
+/**
+ * Nível de trabalho do item, para a legenda declarar a composição do recorte.
+ * Não recorta nada — só nomeia, porque misturar níveis é permitido (ver
+ * decisão 2) desde que quem lê saiba que aconteceu.
+ */
+function nivelDoItem(d){
+  const grupo = d['Tipo Agrupado'];
+  if(grupo === 'Sub-task') return 'sub-itens';
+  if(grupo === 'Épico') return 'épicos';
+  return 'itens de entrega';
+}
 
 function renderSpTempoPorSP(base){
   if(!document.getElementById('chart-sp-time')) return;
@@ -3280,7 +3316,11 @@ function renderSpTempoPorSP(base){
   const tbody = document.querySelector('#sp-time-table tbody');
   const medida = SP_TIME_MEASURES[spTimeMetric] || SP_TIME_MEASURES.cycle;
 
-  const elegiveis = (base||[]).filter(d=>isStandard(d) && (d['Story Points']||0)>0);
+  /* Quem entra é o filtro de Tipo — ver decisão (2). A única exclusão fixa é
+     Dependência, por regra do time: é acordo entre squads, não entrega da
+     squad, e o filtro de Tipo não a protege em todos os caminhos. */
+  const elegiveis = (base||[]).filter(d=>d['Tipo Agrupado'] !== 'Dependência'
+    && (d['Story Points']||0)>0);
   const grupos = agregarTempoPorSP(elegiveis, medida.valor);
   const comAmostra = grupos.filter(g=>g.medidos.length >= SP_TIME_MIN_AMOSTRA);
   const semAmostra = grupos.filter(g=>g.medidos.length > 0 && g.medidos.length < SP_TIME_MIN_AMOSTRA);
@@ -3304,17 +3344,40 @@ function renderSpTempoPorSP(base){
   const medidos = grupos.reduce((a,g)=>a+g.medidos.length, 0);
   const cobertura = elegiveis.length ? (medidos/elegiveis.length*100) : 0;
 
+  /* Composição por nível. Misturar é permitido, então a legenda declara o que
+     entrou — é isso que substitui a trava que esta visão tinha antes. */
+  const porNivel = new Map();
+  elegiveis.forEach(d=>{ const n = nivelDoItem(d); porNivel.set(n, (porNivel.get(n)||0)+1); });
+  const niveis = Array.from(porNivel.entries()).sort((a,b)=>b[1]-a[1]);
+
   /* Legenda: régua usada, cobertura e o que ficou de fora. Um recorte pode não
-     ter nenhum item medido (filtro de Tipo só com épicos, período sem
+     ter nenhum item medido (filtro de Tipo só com Dependência, período sem
      conclusões), e nesse caso a legenda diz isso em vez de a tela ficar muda. */
   if(caption){
     if(!elegiveis.length){
-      caption.innerHTML = 'Nenhum item de entrega concluído com Story Points no recorte atual. '
-        + 'Épicos, subitens e Dependência não entram nesta visão.';
+      /* Com Sprint escolhida, a base já chegou aqui sem sub-itens (ver decisão
+         2). Sem esta frase, filtrar um subtipo com sprint ativa devolve um
+         gráfico vazio que parece defeito. */
+      caption.innerHTML = selections.Sprint.size>0
+        ? 'Nenhum item concluído com Story Points neste recorte. Com uma <b>sprint selecionada</b>, '
+          + 'a aba mede capacidade e considera apenas itens de entrega — sub-itens não entram, '
+          + 'porque o esforço deles já está no item pai. Limpe a sprint para analisar sub-itens.'
+        : 'Nenhum item concluído com Story Points no recorte atual. Dependência não entra nesta visão.';
     } else {
       const partes = ['Régua: <b>'+medida.rotulo+'</b> — '+medida.regra+'.'];
       partes.push('Medida disponível em <b>'+fmt0(medidos)+'</b> de '+fmt0(elegiveis.length)
-        +' itens de entrega concluídos com SP ('+cobertura.toFixed(0)+'%).');
+        +' itens concluídos com SP ('+cobertura.toFixed(0)+'%).');
+      if(niveis.length>1){
+        // Podem ser TRÊS níveis (sub-item + entrega + épico), então nem a lista
+        // nem o texto podem assumir dois — "os dois" mentiria nesse caso.
+        const lista = niveis.map(([n,q])=>fmt0(q)+' '+n);
+        const composicao = lista.length===2 ? lista.join(' e ')
+          : lista.slice(0,-1).join(', ')+' e '+lista[lista.length-1];
+        partes.push('⚠️ <b>O recorte mistura níveis de trabalho</b> ('+composicao
+          +'): as barras somam todos. A mesma pontuação vale durações diferentes — '
+          +'na base, 1 SP roda em <b>2,1</b> dias no sub-item contra <b>5,2</b> no item de entrega. '
+          +'Para comparar, filtre um nível por vez.');
+      }
       if(semAmostra.length){
         const itens = semAmostra.reduce((a,g)=>a+g.medidos.length, 0);
         partes.push('Fora do gráfico por amostra menor que '+SP_TIME_MIN_AMOSTRA+' itens: '

@@ -21,9 +21,11 @@
  *      o Cycle Time depende de dois campos manuais e cobre 83% da base, e é por
  *      isso que a legenda sempre declara em quantos itens a medida existe.
  *
- *   3. SÓ ITENS DE ENTREGA. Épicos, subitens e Dependência ficam fora mesmo
- *      quando o filtro de Tipo os inclui — o SP de uma sub-task é herdado do
- *      pai, e na base real há 8.095 sub-tasks concluídas com SP.
+ *   3. QUEM ENTRA É O FILTRO DE TIPO, NÃO UMA TRAVA DO CARD. Sub-itens têm
+ *      estimativa própria — o time pontua cada um com 0,5 ou 1 SP, e 92,3% dos
+ *      8.228 sub-itens concluídos com SP da base estão nesses dois valores. A
+ *      única exclusão fixa é Dependência, por regra do time. O risco de somar
+ *      níveis diferentes fica DECLARADO na legenda, não travado.
  *
  *   4. O CORTE DE AMOSTRA ESTÁ EM 3 ITENS, e é baixo de propósito: no recorte
  *      por squad, exigir 5 derrubava squads inteiras para duas barras (medido:
@@ -260,16 +262,66 @@ check('trocar de régua muda a cobertura declarada, porque a base muda', () => {
   trocarMedida('cycle');
 });
 
-console.log('\nDecisão 3 — só itens de entrega entram:');
+console.log('\nDecisão 3 — quem entra é o filtro de Tipo, não uma trava do card:');
 
-check('sub-task, épico e Dependência ficam fora mesmo com SP preenchido', () => {
-  const base = lote(3, 5, 8).concat([
-    item(3, 40, { 'Tipo de item': 'Sub-imp', 'Tipo Agrupado': 'Sub-task' }),
-    item(3, 40, { 'Tipo de item': 'Epic', 'Tipo Agrupado': 'Épico' }),
+check('sub-itens ENTRAM: o time pontua cada um com 0,5 ou 1 SP de propósito', () => {
+  // Regressão da premissa errada que este card já teve ("SP de sub-task é
+  // herdado do pai"). Medido na base: 92,3% dos sub-itens com SP estão em
+  // 0,5 ou 1. Se a trava voltar, o gráfico fica vazio aqui.
+  const subs = lote(1, 4, 2, { 'Tipo de item': 'Sub-imp', 'Tipo Agrupado': 'Sub-task' });
+  const cfg = desenhar(subs);
+  assert.deepStrictEqual(rotulos(cfg), ['1 SP']);
+  assert.deepStrictEqual(serie(cfg, 0), [2]);
+});
+
+check('Sub-block entra como qualquer outro sub-item — é escolha de quem filtra', () => {
+  const cfg = desenhar(lote(0.5, 3, 1, { 'Tipo de item': 'Sub-block', 'Tipo Agrupado': 'Sub-task' }));
+  assert.deepStrictEqual(rotulos(cfg), ['0,5 SP']);
+});
+
+check('épico entra se o filtro de Tipo o incluir', () => {
+  const cfg = desenhar(lote(3, 3, 8, { 'Tipo de item': 'Epic', 'Tipo Agrupado': 'Épico' }));
+  assert.deepStrictEqual(rotulos(cfg), ['3 SP']);
+});
+
+check('Dependência continua fora — é regra do time, não receio desta visão', () => {
+  const base = lote(3, 3, 8).concat([
+    item(3, 40, { 'Tipo de item': 'Dependência', 'Tipo Agrupado': 'Dependência' }),
     item(3, 40, { 'Tipo de item': 'Dependência', 'Tipo Agrupado': 'Dependência' }),
   ]);
-  // Se qualquer um deles entrasse, a média de 8 subiria.
+  // Se entrassem, a média de 8 subiria para 20,8.
   assert.deepStrictEqual(serie(desenhar(base), 0), [8]);
+});
+
+check('recorte com os dois níveis soma tudo, e a legenda declara a composição', () => {
+  const base = [
+    ...lote(1, 3, 2, { 'Tipo de item': 'Sub-imp', 'Tipo Agrupado': 'Sub-task' }),
+    ...lote(1, 3, 8),
+  ];
+  const cfg = desenhar(base);
+  // 3 itens de 2 dias + 3 de 8 -> média 5. Nada é descartado.
+  assert.deepStrictEqual(serie(cfg, 0), [5]);
+  assert.ok(legenda().includes('mistura níveis'), legenda());
+  assert.ok(legenda().includes('3 sub-itens'), legenda());
+  assert.ok(legenda().includes('3 itens de entrega'), legenda());
+});
+
+check('com três níveis a lista fica correta e o texto não diz "os dois"', () => {
+  const base = [
+    ...lote(1, 3, 2, { 'Tipo de item': 'Sub-imp', 'Tipo Agrupado': 'Sub-task' }),
+    ...lote(1, 3, 8),
+    ...lote(1, 3, 9, { 'Tipo de item': 'Epic', 'Tipo Agrupado': 'Épico' }),
+  ];
+  desenhar(base);
+  assert.ok(legenda().includes('somam todos'), legenda());
+  assert.ok(!legenda().includes('somam os dois'), legenda());
+  // lista com vírgula nos primeiros e "e" antes do último
+  assert.ok(/3 [^,]+, 3 [^,]+ e 3 /.test(legenda()), legenda());
+});
+
+check('recorte de um nível só não traz o aviso de mistura', () => {
+  desenhar(lote(1, 3, 2, { 'Tipo de item': 'Sub-imp', 'Tipo Agrupado': 'Sub-task' }));
+  assert.ok(!legenda().includes('mistura níveis'), legenda());
 });
 
 check('Bug, Enabler e Débito Técnico entram — são trabalho estimado do time', () => {
@@ -334,6 +386,16 @@ check('os tamanhos saem em ordem crescente, não na ordem de chegada', () => {
 
 check('SP fracionário mantém o decimal no rótulo (0,5 e não 1)', () => {
   assert.deepStrictEqual(rotulos(desenhar(lote(0.5, 5, 1))), ['0,5 SP']);
+});
+
+check('tamanhos com duas casas não colapsam no mesmo rótulo', () => {
+  // Regressão: arredondar para uma casa fazia 0,25 virar "0,3" e 0,75 virar
+  // "0,8" — os mesmos rótulos de 0,3 e 0,8, que também existem na base. Duas
+  // barras diferentes ficavam com nome idêntico. Só aparece com sub-itens.
+  const base = [...lote(0.25, 3, 1), ...lote(0.3, 3, 2), ...lote(0.75, 3, 3), ...lote(0.8, 3, 4)];
+  const cfg = desenhar(base);
+  assert.deepStrictEqual(rotulos(cfg), ['0,25 SP', '0,3 SP', '0,75 SP', '0,8 SP']);
+  assert.deepStrictEqual(serie(cfg, 0), [1, 2, 3, 4], 'cada rótulo com o seu próprio balde');
 });
 
 console.log('\nDecisão 5 — a referência do comitê é meta, e só vale no Cycle Time:');
@@ -421,10 +483,21 @@ check('clicar numa barra abre exatamente os itens medidos daquele tamanho', () =
   assert.strictEqual(aberto[0].chaves.length, 5);
 });
 
-check('recorte sem nenhum item de entrega concluído avisa, em vez de ficar mudo', () => {
-  desenhar([item(3, 8, { 'Tipo Agrupado': 'Sub-task' })]);
-  assert.ok(legenda().includes('Nenhum item de entrega concluído'), legenda());
+check('recorte sem nenhum item elegível avisa, em vez de ficar mudo', () => {
+  // Só Dependência, que é a única exclusão fixa que restou.
+  desenhar([item(3, 8, { 'Tipo de item': 'Dependência', 'Tipo Agrupado': 'Dependência' })]);
+  assert.ok(legenda().includes('Nenhum item concluído'), legenda());
   assert.deepStrictEqual(rotulos(), []);
+});
+
+check('com sprint selecionada, o vazio explica que sub-itens não entram naquele modo', () => {
+  // A base de sprint é montada com isStandard lá no renderSP, então sub-item
+  // nunca chega aqui. Sem esta frase o gráfico vazio parece defeito.
+  T.selections.Sprint.add('S1');
+  desenhar([]);
+  assert.ok(legenda().includes('sprint selecionada'), legenda());
+  assert.ok(legenda().includes('sub-itens não entram'), legenda());
+  T.selections.Sprint.clear();
 });
 
 check('base vazia não quebra o render', () => {
