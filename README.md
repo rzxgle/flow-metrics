@@ -107,8 +107,8 @@ Os testes não tocam a rede: todos usam fixtures sintéticos. Vários deles
 extraem o `<script>` inline do `public/index.html` e o executam — testar uma
 cópia da lógica não pegaria os defeitos que já apareceram ali. Os de cálculo
 (`test:velocity`, por exemplo) rodam num `vm` do Node com um DOM falso;
-`test:filtros`, `test:bloqueios`, `test:status-time-view` e `test:dependencias`
-usam **jsdom**, porque
+`test:filtros`, `test:bloqueios`, `test:status-time-view`, `test:dependencias`,
+`test:sp-tempo` e `test:burndown` usam **jsdom**, porque
 o que eles verificam é apresentação — o que a tela de fato mostra: se um item some pela cascata de CSS
 (inclusive quando a busca do dropdown escreve `display` inline no elemento), o
 valor que cada KPI exibe, o HTML de uma linha de tabela. Um DOM falso não tem
@@ -386,6 +386,56 @@ ele fica `Não informado` — dizer "mesma VS" por omissão seria inventar o dad
 `Dependência` tem **grupo próprio** em `classification.rules.js`, e não o default
 `Sub-task`: ela é um acordo entre times, não trabalho de entrega. Deixá-la cair
 no default somaria as dependências ao velocity, ao burndown e ao `Incremental`.
+
+## A aba Sprint: burndown de subitens e transbordo
+
+O burndown do card **Burndown de subitens** desce o número de subitens ainda não
+concluídos por dia, usando a **data de entrega da sprint** (entrada no primeiro
+status de Done) — a mesma régua do velocity.
+
+A linha ideal parte do que estava **aberto no primeiro dia**, e não do total de
+subitens. A diferença aparece sempre que um item transborda do ciclo anterior:
+ele chega com subitens já concluídos, e contá-los no ponto de partida da ideal
+dava ao time uma vantagem que ele não conquistou na sprint. Medido na
+`App - Aprender / 26_SQD_APP_Aprender_PI3_4`: a ideal começava em **116** contra
+**83** da linha real, porque **33 dos 116 subitens já estavam em Done na
+abertura** — 28 deles vindos de `APP-825` (15 de 19 subitens prontos) e `APP-767`
+(13 de 17). A linha real nascia abaixo da ideal sem uma linha de código escrita
+na sprint. Partindo do restante do primeiro dia, as duas linhas se encontram na
+abertura, como num burndown clássico.
+
+**Transbordo, aqui, é permanecer na sprint anterior até o fechamento dela**
+(`transbordoDeSprint`). O item transbordado ganha um badge na tabela *Itens
+standard na sprint*, com a sprint de origem e quantos subitens já vieram prontos.
+O texto sai no **tooltip do painel**, não no `title` nativo do navegador — uma
+frase desse tamanho no `title` fica ilegível. Foi por causa dele que
+`showHelpTooltip` passou a aceitar `data-help-title`: o cabeçalho default é
+"Regra", e aqui o tooltip não enuncia critério de cálculo, informa de onde
+aquele item veio.
+
+A definição é estrita de propósito. Ao encerrar uma sprint, o Jira move para a
+próxima apenas os itens **incompletos**; continuar membro até o fim é, portanto,
+o sinal de que a sprint anterior era a dona do item — a mesma leitura da regra 3
+de `atribuirEntregas`, no velocity. A alternativa frouxa ("esteve em alguma
+sprint anterior") marcaria **6 dos 8** itens dessa sprint, incluindo quatro que
+**saíram** da PI3_3 com ela ainda aberta e chegaram com 0 a 2 subitens prontos —
+replanejamento, não transbordo. Na base inteira a regra estrita marca **35 de
+186** itens das 24 sprints ativas: sinal, não ruído. Item sem histórico de sprint
+reconstruído não é marcado — preferimos deixar de marcar a marcar errado.
+
+Nada disso passa pelo backend: `SprintPeriodos` e o catálogo de sprints já
+chegam ao cliente para o velocity, então o payload não cresce.
+
+**Uma distorção continua na tela**, e é deliberado: o total de subitens é a
+contagem de **hoje**, então subitem criado depois do início da sprint é
+retroagido ao dia 1. Nessa sprint são 11 subitens criados em 25 e 26/08 — a
+abertura real tinha 105 subitens, 72 abertos, não 83. Corrigir exige contar o
+escopo por `Criado` e desenhar a linha de escopo total; ficou para depois, para
+não trocar a leitura de "restante" no mesmo passo.
+
+Não confundir com o transbordo de **PI** da aba PI Tracking (`piIsTransbordo`),
+que vem de label (`TransbordoPI2AfyaOne` etc.). Unidades diferentes, mesma
+palavra — o vocabulário é o do time.
 
 ## Fidelidade da transformação
 

@@ -24,7 +24,8 @@
     "test:dependencias": "node test/dependencias.spec.js",
     "test:wip": "node test/wip-kpis.spec.js",
     "test:sp-tempo": "node test/sp-tempo-por-sp.spec.js",
-    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:pi-drill && npm run test:delivery && npm run test:filtros && npm run test:bloqueios && npm run test:drawer && npm run test:status-time && npm run test:status-time-view && npm run test:dependencias && npm run test:wip && npm run test:sp-tempo && npm run test:amplify"
+    "test:burndown": "node test/sprint-burndown.spec.js",
+    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:pi-drill && npm run test:delivery && npm run test:filtros && npm run test:bloqueios && npm run test:drawer && npm run test:status-time && npm run test:status-time-view && npm run test:dependencias && npm run test:wip && npm run test:sp-tempo && npm run test:burndown && npm run test:amplify"
   },
   "engines": {
     "node": ">=18"

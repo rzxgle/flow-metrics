@@ -1346,7 +1346,7 @@
   <div class="grid grid-2" style="margin-top:14px;">
     <div class="card">
       <h3>Burndown de subitens</h3>
-      <div class="cap">Restante = subitens ainda não concluídos por dia (por data de conclusão). Linha tracejada = ideal.</div>
+      <div class="cap">Restante = subitens ainda não concluídos por dia (pela data de entrega da sprint). Linha tracejada = ideal, partindo do que estava <b>aberto no primeiro dia</b> — não do total de subitens: item de transbordo chega com subitens já concluídos, e contá-los daria vantagem grátis ao time. Quem transbordou está marcado na tabela abaixo.</div>
       <div class="chartwrap tall"><canvas id="chart-sprint-burndown"></canvas></div>
     </div>
     <div class="card">
@@ -1532,6 +1532,7 @@
         <li><b>Progresso do épico e status do épico são dimensões independentes.</b> O KPI "Épicos entregues" usa o <b>status do próprio épico no Jira</b>; o "Progresso do PI" usa os <b>filhos</b>. Um épico pode estar 100% nos filhos e ainda não ter sido movido para um status de conclusão — e o contrário também acontece. Divergência entre os dois costuma ser sinal de status desatualizado, não de erro de cálculo.</li>
         <li><b>Data de entrega da sprint ≠ data de conclusão.</b> Neste processo a <b>homologação integrada acontece depois da sprint</b>, então os status finais (<span class="mono">Homologação integrada</span>, <span class="mono">PRONTO PARA PROD</span>, <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span>) e o campo manual <span class="mono">Data de Fim Real</span> refletem o <b>release</b>, não o trabalho do time. Por acordo com as squads, o compromisso da sprint está entregue quando o item <b>entra no primeiro status da categoria Done</b> — hoje <span class="mono">Pronto p/ Deploy STG</span>. Essa data vem do <b>changelog de status</b> do Jira e é a que alimenta velocity, say-do e o burndown da sprint. Quando o changelog não está disponível para um item, cai-se na Data de conclusão (comportamento antigo) e o item é contado na ressalva acima. Lead time, cycle time e as abas de Entregas seguem usando a Data de conclusão, que é a entrega de valor ponta a ponta.</li>
         <li><b>Velocity: o que entra e o que não entra</b>. Só <b>itens standard</b> (exclui Épico, cujo SP é agregado, e Sub-task, que somaria de novo o SP do pai) e não cancelados. <b>Comprometido</b> = era membro da sprint no instante em que ela começou; <b>adicionado</b> = entrou depois do início; <b>entregue</b> = a entrega é atribuída a <b>uma única</b> sprint, por três regras em ordem: (1) a sprint cuja janela contém a data de entrega; (2) senão, a primeira sprint do item que termina em ou depois dela — cobre o item já <b>pronto quando a sprint abriu</b> (trabalho puxado antes do início); (3) senão, a <b>última sprint do item, se ela fechou com o item ainda dentro</b> e a entrega veio em até <b>7 dias</b>. A regra 3 existe porque, ao encerrar uma sprint, o Jira move para a próxima apenas os itens <b>incompletos</b> — quem permanece é quem o board já dava por pronto; é a mesma semântica do Sprint Report nativo, e sem ela um item que entrou em Done um dia após o fim ficava comprometido numa sprint e entregue em nenhuma. O que sobra vai para o KPI <b>"Entregue fora de sprint"</b>, detalhado logo abaixo por motivo (entrou em Done tarde demais × saiu da sprint antes de concluir), tudo clicável. A janela da sprint vai do início até o <b>maior</b> entre o fim planejado e o fechamento real — a maioria das sprints da base foi encerrada depois do <span class="mono">endDate</span>, e ignorar isso descartava as entregas desses dias. As janelas são comparadas em <b>datas</b>, não em horários, para não descartar entregas do último dia da sprint. Sprint <b>em andamento</b> aparece em tom claro e fica fora das médias (está sempre sub-entregue); sprint <b>futura</b> não aparece. Sprint em que a squad não teve nenhum item não entra no gráfico nem na média — itens emprestados entre boards fariam aparecer sprints de outros times zeradas.</li>
+        <li><b>No burndown de subitens, a linha ideal parte do que estava ABERTO no primeiro dia, não do total de subitens</b> — e quem chegou de transbordo está marcado na tabela de itens standard. Um item que <b>transborda</b> do ciclo anterior traz consigo subitens já concluídos, e o burndown os contava no ponto de partida da ideal: na <span class="mono">App - Aprender / 26_SQD_APP_Aprender_PI3_4</span> a ideal começava em <b>116</b> contra <b>83</b> da linha real, porque <b>33 dos 116 subitens já estavam em Done na abertura</b> — 28 deles vindos de dois itens (<span class="mono">APP-825</span>, com 15 de 19 subitens prontos, e <span class="mono">APP-767</span>, com 13 de 17). Isso dava ao time 33 subitens de <b>vantagem grátis</b> no dia 1: a real nascia abaixo da ideal sem que nada tivesse sido feito na sprint. Partindo do restante do primeiro dia, as duas linhas se encontram na abertura, como num burndown clássico. <b>Transbordo aqui significa permanecer na sprint anterior até o fechamento dela</b>, e a definição é estrita de propósito: ao encerrar uma sprint o Jira move para a próxima apenas os itens <b>incompletos</b>, então continuar membro até o fim é o sinal de que a sprint anterior era a dona do item — a mesma leitura da regra 3 do velocity. A versão frouxa ("esteve em alguma sprint anterior") marcaria <b>6 dos 8</b> itens dessa sprint, incluindo quatro que <b>saíram</b> da PI3_3 com ela ainda aberta e chegaram com 0 a 2 subitens prontos — replanejamento, não transbordo. Na base inteira a regra estrita marca <b>35 de 186</b> itens das 24 sprints ativas. Item sem histórico de sprint reconstruído não é marcado. <b>Uma distorção permanece</b>: o total de subitens é a contagem de <b>hoje</b>, então subitem criado depois do início é retroagido ao dia 1 (nessa sprint, 11 subitens criados em 25 e 26/08). Corrigir isso exige contar o escopo por data de criação e desenhar a linha de escopo — decisão adiada. Não confundir com o transbordo de <b>PI</b> da aba PI Tracking, que vem de label (<span class="mono">TransbordoPI2AfyaOne</span> etc.): unidades diferentes, mesma palavra.</li>
         <li><b>Cerca de 4% dos itens standard não têm cronologia de sprint recuperável</b>: o campo Sprint preenchido na criação não gera changelog, e movimentações em massa entre sprints às vezes também não. Nesses casos sabemos o conjunto de sprints, não as datas, e o item é contado como presente desde a criação — o bloco de velocity mostra quantos itens estão nessa condição e permite abrir a lista. Subtarefas são o caso extremo (herdam a sprint do pai sem gerar histórico), mas não afetam o velocity porque não entram no cálculo.</li>
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>A aba Dependências mede um issuetype com regras próprias.</b> Uma <span class="mono">Dependência</span> é aberta pelo time <b>demandante</b> para o time de quem ele depende — o <b>dependente</b>, que é o campo <span class="mono">Team</span>. Quatro coisas ali não seguem o resto do painel. (1) <b>A data de conclusão vem do changelog</b>: o workflow deste tipo não seta resolução — nas 62 dependências concluídas da base, <span class="mono">resolutiondate</span> está vazia em <b>100%</b> delas, e <span class="mono">Data de Fim Real</span> também. A data usada é a <b>entrada na categoria Done</b>, a mesma régua da entrega de sprint. (2) <b>O relógio começa na abertura</b>, como num bloqueio: uma dependência nasce ativa, ninguém "começa a trabalhar" nela. A duração é lead time, e a dependência aberta conta da abertura até hoje, recalculado a cada abertura do painel. <b>Cancelada não soma dias</b> — no processo da Afya, cancelar significa que a dependência <b>deixou de ser necessária</b>, então ela conta como episódio sem duração medida. (3) <b>Os dois campos de time escrevem a mesma squad de dois jeitos</b>: o <span class="mono">Team</span> grava "Squad Core - Core Features" e o <span class="mono">Time Demandante</span>, "Core Features". Os nomes são canonizados antes de cruzar a matriz, senão a mesma squad viraria dois nós. Por isso a aba tem filtros próprios de <b>Squad</b> e <b>Papel</b> na barra, e o filtro <span class="mono">Squad</span> global sai da tela: os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo id canônico e leva o papel em conta. (4) <b>O item impactado depende de link no Jira</b>. Valem os links oficiais <span class="mono">Dependo de</span> / <span class="mono">Depende de mim</span> (in e out VS) e, como aproximação, <span class="mono">Blocks</span> e <span class="mono">Relates</span>; <span class="mono">Cloners</span> fica de fora, porque um clone é cópia da própria dependência e não o item que ficou esperando. Hoje isso cobre <b>41%</b> das dependências (16% se só os oficiais contassem), e a cobertura vai escrita embaixo da tabela — o card <b>Qualidade do preenchimento</b> existe justamente para essa lacuna encolher.</li>
@@ -1638,7 +1639,12 @@ function showHelpTooltip(anchor){
   let tooltip=document.getElementById('__help-tooltip');
   if(!tooltip){tooltip=document.createElement('div');tooltip.id='__help-tooltip';tooltip.setAttribute('role','tooltip');document.body.appendChild(tooltip);}
   tooltip.innerHTML='';
-  const title=document.createElement('div');title.className='help-tooltip-title';title.textContent='Regra';
+  /* O cabeçalho é "Regra" por default porque a esmagadora maioria das âncoras
+     explica um critério de cálculo. `data-help-title` cobre o caso em que o
+     tooltip fala de UM item — o badge de transbordo, por exemplo, não enuncia
+     regra nenhuma: informa de onde aquele item veio. */
+  const title=document.createElement('div');title.className='help-tooltip-title';
+  title.textContent=anchor.dataset.helpTitle||'Regra';
   const body=document.createElement('div');body.className='help-tooltip-body';body.textContent=anchor.dataset.help;
   tooltip.append(title,body);tooltip.style.display='block';tooltip.dataset.anchor='active';
   const rect=anchor.getBoundingClientRect(),box=tooltip.getBoundingClientRect();
@@ -4250,6 +4256,53 @@ function entrouDuranteSprint(d, sprint, iniMs, fimMs){
 function passouPelaSprint(d, sprint){
   return (d.SprintPeriodos||[]).some(p=>p.sprint===sprint) || (d.Sprints||[]).includes(sprint);
 }
+/**
+ * O item TRANSBORDOU do ciclo anterior para esta sprint? Devolve o nome da
+ * sprint de origem, ou null.
+ *
+ * Critério: o item permaneceu numa sprint que começou ANTES desta até o
+ * fechamento dela. É a mesma leitura da regra 3 de `atribuirEntregas` — ao
+ * fechar uma sprint o Jira move para a próxima os itens INCOMPLETOS, então
+ * continuar membro até o fechamento é o sinal de que a sprint anterior era a
+ * dona do item.
+ *
+ * A regra é estrita de propósito. A versão frouxa ("esteve em alguma sprint
+ * anterior") marcaria, na App - Aprender / PI3_4, 6 dos 8 itens: APP-482/483/
+ * 484/521 SAÍRAM da PI3_3 entre 03 e 06/08, com ela ainda aberta — foram
+ * replanejamento, não transbordo, e chegaram com 0 a 2 subitens prontos. A
+ * estrita marca os 2 que de fato vieram acumulados no fechamento (APP-825 e
+ * APP-767, em 24/08 12:20) e que respondem por 28 dos 33 subitens já
+ * concluídos na abertura.
+ *
+ * Não confundir com `piIsTransbordo`: lá o transbordo é de PI e vem de label
+ * (`TransbordoPI2AfyaOne` etc.); aqui é de sprint e vem do histórico de sprint.
+ * Unidades diferentes, mesma palavra — o vocabulário é o do time.
+ *
+ * Item cujo histórico não pôde ser reconstruído não é marcado: preferimos
+ * deixar de marcar a marcar errado.
+ */
+function transbordoDeSprint(d, sprint){
+  const cat = sprintCatalogoOrdenado();
+  const atual = cat.find(s=>s.name===sprint);
+  if(!atual) return null;
+  const iniAtual = Date.parse(atual.startDate);
+  for(const per of (d.SprintPeriodos||[])){
+    if(per.sprint===sprint) continue;
+    const s = cat.find(x=>x.name===per.sprint);
+    if(!s || !(Date.parse(s.startDate) < iniAtual)) continue;
+    const fim = sprintFimMs(s);
+    if(!per.leftAt || (fim!=null && Date.parse(per.leftAt) >= fim)) return per.sprint;
+  }
+  return null;
+}
+/* Texto do tooltip do badge de transbordo. Duas frases, na ordem em que a
+   pergunta aparece: de onde o item veio, e o que ele já trazia pronto. A
+   segunda é a que explica o burndown — é ela que diz por que a linha real
+   nasce abaixo do total de subitens. */
+function textoTransbordo(r){
+  return `Veio de ${r.transbordo}, onde permaneceu até o fechamento.`
+    + ` Chegou aqui com ${r.prontosNaAbertura} de ${r.Y} subitens já concluídos.`;
+}
 /* Janela da sprint em DATAS locais ('YYYY-MM-DD'), inclusive nas duas pontas.
    A data de entrega é uma data sem hora; comparar com o timestamp da sprint (que
    costuma terminar às 03:00 UTC = meia-noite no Brasil) descartava as entregas
@@ -5005,13 +5058,24 @@ function renderSprint(){
     .porSprint.get(sprint) || [];
   const chavesEntregues = new Set(entreguesNaSprint.map(d=>d.Chave));
 
+  /* Primeiro dia da sprint, para medir o que cada item já trazia pronto ao
+     chegar. É o mesmo dia em que o burndown ancora a linha ideal, e é o que
+     explica um item aparecer com completude alta sem trabalho nesta sprint. */
+  const catSprint = sprintCatalogoOrdenado().find(s=>s.name===sprint);
+  const inicioSprint = catSprint ? isoLocalDate(new Date(catSprint.startDate)) : null;
+
   // por item: X de Y subitens; se Y=0 usa o próprio status
   const rows = standardNaSprint.map(p=>{
     const subs = subsOf(p);
     const Y = subs.length;
     const X = subs.filter(s=>s.Concluido).length;
     const pct = Y>0 ? (X/Y*100) : (p.Concluido?100:0);
-    return {p, subs, X, Y, pct, entregue: chavesEntregues.has(p.Chave)};
+    const prontosNaAbertura = inicioSprint ? subs.filter(s=>{
+      const dt = dataEntregaSprint(s);
+      return s.Concluido && dt && String(dt).slice(0,10) <= inicioSprint;
+    }).length : 0;
+    return {p, subs, X, Y, pct, entregue: chavesEntregues.has(p.Chave),
+      transbordo: transbordoDeSprint(p, sprint), prontosNaAbertura};
   }).sort((a,b)=> b.pct - a.pct);
 
   // KPIs
@@ -5060,6 +5124,7 @@ function renderSprint(){
   document.querySelector('#sprint-table tbody').innerHTML = rows.length ? rows.map((r,i)=>`
     <tr data-drill="sprintitem_${i}" style="cursor:pointer;" data-help="Clique para abrir os subitens usados no cálculo de completude.">
       <td><a class="jira" href="${JIRA_BROWSE}${r.p.Chave}" target="_blank" rel="noopener">${r.p.Chave}</a>
+          ${r.transbordo ? `<span class="badge warn" data-help-title="Transbordo" data-help="${escapeHtml(textoTransbordo(r))}" aria-label="${escapeHtml(textoTransbordo(r))}">transbordo</span>` : ''}
           <span style="color:var(--slate-soft);font-size:11px;"> ${escapeHtml((r.p.Resumo||'').slice(0,60))}</span></td>
       <td style="font-size:11.5px;">${r.p.Squad||'—'}</td>
       <td>${r.Y>0 ? `${r.X}/${r.Y}` : '<span style="color:var(--slate-soft);">sem subitens</span>'}</td>
@@ -5436,8 +5501,21 @@ function renderBurndown(sprint, subs){
     }).length;
     return total - done;
   });
-  // ideal: linear de total a 0
-  const ideal = days.map((_,i)=> +(total * (1 - i/(days.length-1||1))).toFixed(1));
+  /* Ideal: linear até 0, partindo do que estava ABERTO no primeiro dia — e não
+     do total de subitens. Um item que transborda do ciclo anterior chega com
+     subitens já concluídos: na App - Aprender / PI3_4 são 33 dos 116 subitens
+     já prontos na abertura (APP-825 com 15/19 e APP-767 com 13/17). Partir do
+     total dava ao time esses 33 subitens de vantagem GRÁTIS no dia 1 — a linha
+     real nascia abaixo da ideal sem que nada tivesse sido feito na sprint, e o
+     gráfico lia como adiantado o que era só trabalho do ciclo passado. Com o
+     restante do dia 1 as duas linhas se encontram na abertura, que é a leitura
+     canônica de um burndown.
+     O que esta correção NÃO resolve: `total` é a contagem de HOJE, então
+     subitem criado depois do início é retroagido ao dia 1 (aqui, 11 subitens
+     criados em 25 e 26/08). Para isso seria preciso contar por `Criado` e
+     desenhar a linha de escopo — decisão adiada de propósito. */
+  const aberto0 = remaining[0];
+  const ideal = days.map((_,i)=> +(aberto0 * (1 - i/(days.length-1||1))).toFixed(1));
   const fmtDay = dt => `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}`;
   upsertChart('chart-sprint-burndown', {
     type:'line',
