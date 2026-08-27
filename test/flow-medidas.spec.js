@@ -100,8 +100,8 @@ const epilogo = `
 ;window.__T = {
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   get DATA(){ return DATA; },
-  selections, SP_TIME_MEASURES, FLOW_MEASURE_COLOR, renderFlow,
-  renderTendenciaMensalTempo, FLOW_TREND_DEFAULT,
+  selections, SP_TIME_MEASURES, FLOW_MEASURE_COLOR, renderFlow, barLabelsPlugin,
+  renderTendenciaMensalTempo, FLOW_TREND_DEFAULT, FLOW_TREND_JANELA,
   renderTempoP85PorSquad, FLOW_SQUAD_DEFAULT, FLOW_SQUAD_TOP,
   get flowTrendMetric(){ return flowTrendMetric; },
   get flowSquadMetric(){ return flowSquadMetric; },
@@ -147,7 +147,12 @@ const desenhar = (base) => {
 const rotulos = (cfg) => Array.from((cfg || charts['chart-flow-lead-trend']).data.labels);
 const serie = (cfg) => Array.from((cfg || charts['chart-flow-lead-trend']).data.datasets[0].data);
 const rotuloSerie = (cfg) => (cfg || charts['chart-flow-lead-trend']).data.datasets[0].label;
-const legenda = () => document.getElementById('flow-trend-caption').textContent;
+/* Dataset 1 é a linha de média móvel; 0 é a barra do mês. */
+const tendencia = (cfg) => Array.from((cfg || charts['chart-flow-lead-trend']).data.datasets[1].data);
+/* Espaço normalizado: a legenda é um template HTML multi-linha, então as quebras
+   são de código, não de conteúdo — sem isso "2 meses" reprova só porque o
+   template reflowou. */
+const legenda = () => document.getElementById('flow-trend-caption').textContent.replace(/\s+/g, ' ').trim();
 const trocarMedida = (valor) => {
   const el = document.getElementById('flowTrendMetric');
   el.value = valor;
@@ -166,7 +171,7 @@ const rotulosSquad = (cfg) => Array.from((cfg || charts['chart-flow-lead-squad']
 // As barras vêm como string (toFixed(1)) — é o formato que o gráfico recebe.
 const barras = (cfg) => Array.from((cfg || charts['chart-flow-lead-squad']).data.datasets[0].data);
 const corDaBarra = (cfg) => (cfg || charts['chart-flow-lead-squad']).data.datasets[0].backgroundColor;
-const legendaSquad = () => document.getElementById('flow-squad-caption').textContent;
+const legendaSquad = () => document.getElementById('flow-squad-caption').textContent.replace(/\s+/g, ' ').trim();
 const trocarMedidaSquad = (valor) => {
   const el = document.getElementById('flowSquadMetric');
   el.value = valor;
@@ -253,7 +258,86 @@ check('o rótulo da série acompanha a medida escolhida', () => {
   assert.ok(rotuloSerie().startsWith('Lead Time'), rotuloSerie());
 });
 
-console.log('\nDecisão 3 — o ponto é o P85 do mês, e o mês é o da CONCLUSÃO:');
+console.log('\nO formato é barra + linha de tendência, com rótulo visível:');
+
+check('é gráfico de barras, com a linha de média móvel sobreposta', () => {
+  // Era área com curva suavizada, e o feedback executivo foi que estava difícil
+  // de ler: a curva inventa movimento entre os meses. Se voltar a ser 'line'
+  // com um dataset só, o card regrediu sem dar erro.
+  const cfg = desenhar([item('2026-03', 20, 4), item('2026-04', 10, 2)]);
+  assert.strictEqual(cfg.type, 'bar');
+  assert.strictEqual(cfg.data.datasets.length, 2);
+  assert.strictEqual(cfg.data.datasets[0].type, 'bar');
+  assert.strictEqual(cfg.data.datasets[1].type, 'line');
+  assert.ok(/tend/i.test(cfg.data.datasets[1].label), cfg.data.datasets[1].label);
+  // A linha desenha POR CIMA da barra: order menor vence no Chart.js.
+  assert.ok(cfg.data.datasets[1].order < cfg.data.datasets[0].order);
+});
+
+check('os rótulos das barras estão ligados, com uma casa decimal', () => {
+  const cfg = desenhar([item('2026-03', 20, 4)]);
+  assert.strictEqual(cfg.options.barLabels, true);
+  assert.strictEqual(cfg.options.barLabelFmt, 'd1');
+  // Sem folga no topo o rótulo da barra mais alta sai cortado.
+  assert.ok(cfg.options.layout.padding.top > 0, 'sem padding para o rótulo');
+});
+
+check('o plugin de rótulo NÃO escreve sobre a linha de tendência', () => {
+  // Rotular a linha põe dois números quase iguais um sobre o outro em cada mês.
+  // O guard vive no plugin; aqui se confere que ele reconhece o tipo 'line'.
+  const desenhados = [];
+  const chartFake = {
+    ctx: { save() {}, restore() {}, fillText: (t) => desenhados.push(t), measureText: () => ({ width: 10 }) },
+    options: { barLabels: true, barLabelFmt: 'd1' },
+    data: { datasets: [{ data: [10] }, { data: [10] }] },
+    getDatasetMeta: (i) => ({ hidden: false, type: i === 1 ? 'line' : 'bar', data: [{ x: 0, y: 0 }] }),
+  };
+  T.barLabelsPlugin.afterDatasetsDraw(chartFake);
+  assert.strictEqual(desenhados.length, 1, `rótulos desenhados: ${desenhados.join(',')}`);
+});
+
+check('a cor da barra segue a medida, como no card de squad', () => {
+  desenhar([item('2026-03', 20, 4)]);
+  assert.strictEqual(charts['chart-flow-lead-trend'].data.datasets[0].backgroundColor,
+    T.FLOW_MEASURE_COLOR.lead);
+  trocarMedida('cycle');
+  assert.strictEqual(charts['chart-flow-lead-trend'].data.datasets[0].backgroundColor,
+    T.FLOW_MEASURE_COLOR.cycle);
+  trocarMedida('lead');
+});
+
+console.log('\nA média móvel é traseira e parcial no começo:');
+
+check('o primeiro mês é ele mesmo e o segundo é a média de dois', () => {
+  // Janela que só começa no 3o mês deixaria a linha nascer no meio do gráfico —
+  // e num recorte de 3 ou 4 meses, que é o padrão da tela, sobraria quase nada.
+  const cfg = desenhar([item('2026-01', 10, 1), item('2026-02', 20, 2), item('2026-03', 30, 3)]);
+  assert.deepStrictEqual(serie(cfg), [10, 20, 30]);
+  assert.deepStrictEqual(tendencia(cfg), [10, 15, 20]);
+});
+
+check('a janela anda com os meses e nunca fica maior que FLOW_TREND_JANELA', () => {
+  const cfg = desenhar([10, 20, 30, 40].map((v, i) => item(`2026-0${i + 1}`, v, v)));
+  // 4o ponto = média de 20, 30 e 40 (os três últimos), não dos quatro.
+  assert.strictEqual(T.FLOW_TREND_JANELA, 3);
+  assert.deepStrictEqual(tendencia(cfg), [10, 15, 20, 30]);
+});
+
+check('clicar na LINHA abre a janela inteira, não só o mês', () => {
+  // O ponto da média móvel não é aquele mês; abrir só o mês entregaria uma
+  // lista que não explica o número que está na tela.
+  const aberturas = [];
+  T.openDrawer = (titulo, issues) => aberturas.push({ titulo, issues });
+  const cfg = desenhar([10, 20, 30, 40].map((v, i) => item(`2026-0${i + 1}`, v, v)));
+  cfg.options.onClick({}, [{ index: 3, datasetIndex: 1 }], cfg);
+  assert.strictEqual(aberturas[0].issues.length, 3, aberturas[0].titulo);
+  assert.ok(aberturas[0].titulo.includes('3 meses'), aberturas[0].titulo);
+  // Na barra, o mesmo índice abre um mês só.
+  cfg.options.onClick({}, [{ index: 3, datasetIndex: 0 }], cfg);
+  assert.strictEqual(aberturas[1].issues.length, 1, aberturas[1].titulo);
+});
+
+console.log('\nDecisão 3 — a barra é o P85 do mês, e o mês é o da CONCLUSÃO:');
 
 check('cada ponto é o P85 do mês, não a média', () => {
   // 1, 2, 3, 4, 100: média 22, P85 42,4 (interpolado entre 4 e 100). Se o

@@ -155,6 +155,22 @@ valor), então localizar a espera antes do início é factualmente falso.
 
 🟢 **Média, não mediana**, como medida central dos indicadores.
 
+🟢 **Série temporal se desenha como barra + linha de média móvel, com o valor
+escrito em cima da barra.** Não é gosto: o card de Tendência mensal do tempo era
+uma área com curva suavizada e voltou de uma **reunião executiva** com o
+feedback de que estava difícil de ler. Curva suavizada **inventa movimento entre
+os meses**; barra é uma medida por mês, discreta, que é o que o número é. Rótulo
+visível porque em sala ninguém lê altura contra a grade. E a **tendência vai
+desenhada**, não deixada por conta do olho: média móvel de **3 meses**, janela
+traseira e parcial no começo — a mesma do gráfico de evolução mensal de SP, para
+o painel não ter duas ideias de "tendência". Quem responde "estamos melhorando?"
+é a linha, não a barra. Ver `chart-flow-lead-trend` e `chart-sp-month`.
+
+Duas consequências no código: `barLabels` **ignora datasets de linha** (rotular
+os dois põe dois números quase iguais um sobre o outro em cada mês), e o clique
+distingue as séries — **barra abre o mês, linha abre a janela inteira** da média
+móvel, porque o ponto da linha não é aquele mês.
+
 🟢 **Cancelado é categoria própria, nunca descarte.** Não pode somar com
 concluído (leria como entrega) nem sumir da tela — ofereça primeiro torná-lo
 visível numa fatia própria. E um bloqueio aberto cujo pai foi cancelado continua

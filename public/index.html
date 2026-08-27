@@ -1568,6 +1568,7 @@
         <li><b>A aba Dependências mede um issuetype com regras próprias.</b> Uma <span class="mono">Dependência</span> é aberta pelo time <b>demandante</b> para o time de quem ele depende — o <b>dependente</b>, que é o campo <span class="mono">Team</span>. Quatro coisas ali não seguem o resto do painel. (1) <b>A data de conclusão vem do changelog</b>: o workflow deste tipo não seta resolução — nas 62 dependências concluídas da base, <span class="mono">resolutiondate</span> está vazia em <b>100%</b> delas, e <span class="mono">Data de Fim Real</span> também. A data usada é a <b>entrada na categoria Done</b>, a mesma régua da entrega de sprint. (2) <b>O relógio começa na abertura</b>, como num bloqueio: uma dependência nasce ativa, ninguém "começa a trabalhar" nela. A duração é lead time, e a dependência aberta conta da abertura até hoje, recalculado a cada abertura do painel. <b>Cancelada não soma dias</b> — no processo da Afya, cancelar significa que a dependência <b>deixou de ser necessária</b>, então ela conta como episódio sem duração medida. (3) <b>Os dois campos de time escrevem a mesma squad de dois jeitos</b>: o <span class="mono">Team</span> grava "Squad Core - Core Features" e o <span class="mono">Time Demandante</span>, "Core Features". Os nomes são canonizados antes de cruzar a matriz, senão a mesma squad viraria dois nós. Por isso a aba tem filtros próprios de <b>Squad</b> e <b>Papel</b> na barra, e o filtro <span class="mono">Squad</span> global sai da tela: os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo id canônico e leva o papel em conta. (4) <b>O item impactado depende de link no Jira</b>. Valem os links oficiais <span class="mono">Dependo de</span> / <span class="mono">Depende de mim</span> (in e out VS) e, como aproximação, <span class="mono">Blocks</span> e <span class="mono">Relates</span>; <span class="mono">Cloners</span> fica de fora, porque um clone é cópia da própria dependência e não o item que ficou esperando. Hoje isso cobre <b>41%</b> das dependências (16% se só os oficiais contassem), e a cobertura vai escrita embaixo da tabela — o card <b>Qualidade do preenchimento</b> existe justamente para essa lacuna encolher.</li>
         <li><b>Eficiência de Fluxo é a razão de dois percentis, não uma média por item.</b> O card da <b>Visão Geral</b> divide o <b>Cycle Time P85</b> pelo <b>Lead Time P85</b> — exatamente os dois números exibidos ao lado dele, para que a conta feche de cabeça. O preço dessa escolha: os dois percentis saem de <b>bases diferentes</b>, porque Cycle Time exige <span class="mono">Data Início Real</span> e Lead Time não. Na base atual são <b>9.151</b> itens com Lead Time contra <b>4.663</b> com Cycle Time, e só <b>4.641</b> têm os dois — o Lead Time P85 cai de 30,1 para 27,9 dias justamente por incluir os itens sem início real. Por isso o indicador é uma <b>referência de tendência</b>, não uma medida exata de tempo tocado: calculada item a item na base comum, a eficiência média fica em <b>36%</b> contra <b>25%</b> na razão dos percentis. A leitura que vale é comparativa — se a razão sobe ou desce entre recortes e períodos —, e ela fica mais fiel à medida que o preenchimento de <span class="mono">Data Início Real</span> avança.</li>
         <li><b>Os dois cards do meio da aba Lead &amp; Cycle Time são agnósticos à medida.</b> Tanto a <b>tendência mensal</b> quanto o <b>P85 por squad</b> têm um seletor no canto que troca entre as <b>mesmas duas réguas</b> do resto do painel — o dashboard não ganha uma terceira definição de tempo. Os dois abrem em <b>Lead Time</b>, que é a medida que ambos sempre mostraram, e os <b>seletores são independentes</b>: ver a tendência em Lead Time e o ranking de squads em Cycle Time responde "o tempo total piorou; a execução de quem?". Ler as duas réguas é o ponto — quando o Lead sobe e o Cycle fica estável, o que cresceu foi a <b>espera</b>, não a execução. Os dois cards mostram <b>P85</b>, e não a média, porque a pergunta que eles respondem é de compromisso: o valor que cabe em 85% dos casos. Três regras valem para os dois. (1) <b>Item sem a data que a medida exige fica de fora</b>, em vez de entrar como zero dia — zero puxaria o número para baixo como se a entrega tivesse sido instantânea, quando o que houve foi ausência de registro. (2) <b>O recorte de cada barra ou ponto sai dos itens que têm a medida escolhida</b>, e como o Cycle Time depende de dois campos manuais e cobre bem menos itens que o Lead Time (na base, <b>4.663</b> contra <b>9.151</b>), <b>trocar de régua muda o que aparece na tela</b>: a linha da tendência pode ficar <b>mais curta</b> — um mês sem nenhum início real preenchido não existe naquela medida — e o ranking pode <b>trocar de squads</b>, porque o "top 12 por volume" conta itens medidos e quem preenche pouco a <span class="mono">Data de Início Real</span> sai do ranking sem ter entregado menos. Isso é cobertura de preenchimento, não queda de entrega, e é por isso que a legenda de cada card declara em quantos itens a medida existe. (3) <b>O clique abre exatamente os itens que formaram o número</b>, não todos os concluídos do mês ou da squad. Na tendência, <b>cada item é posicionado pelo mês em que foi concluído</b> nas duas medidas — posicionar o Cycle Time pelo mês de início jogaria o item num mês em que ele ainda não tinha número. No ranking, a <b>cor da barra segue a medida</b> (rosa para Lead Time, âmbar para Cycle Time, a mesma convenção dos dois histogramas do topo e do card de Value Stream): um ranking é lido de longe, e a cor não pode anunciar a régua errada.</li>
+        <li><b>Na tendência mensal, a barra é o mês e a linha é a tendência — são coisas diferentes.</b> O card era uma área com curva suavizada e foi refeito depois de um feedback de <b>reunião executiva</b>: estava difícil de ler. A curva com suavização <b>inventava movimento entre os meses</b>, subindo e descendo onde não havia dado; barra é uma medida por mês, discreta, que é o que o número é. Cada barra traz o <b>valor escrito em cima</b>, para não depender de ler altura contra a grade. E a leitura de tendência passou a ser <b>explícita</b>: a linha é a <b>média móvel de 3 meses</b> dos P85, a mesma janela do gráfico de evolução mensal de SP — o painel não tem duas ideias de "tendência". A janela é <b>traseira e parcial no começo</b> (o primeiro mês é ele mesmo, o segundo é a média de dois), porque uma janela que só começasse no terceiro mês deixaria a linha nascer no meio do gráfico, e num recorte de três ou quatro meses sobraria quase nada dela. <b>É na linha que se responde "estamos melhorando?"</b>, não na barra: mês a mês o P85 balança demais, ainda mais em mês de pouca amostra. Por isso o tooltip da barra diz <b>quantos itens medidos</b> a sustentam e a legenda declara o mês com menos amostra. <b>Clicar na barra abre o mês; clicar na linha abre a janela inteira</b> da média móvel — o ponto da linha não é aquele mês, e abrir só ele entregaria uma lista que não explica o número na tela.</li>
         <li><b>Tempo por Story Point mede o tempo de EXECUÇÃO, e por isso o padrão do card é o Cycle Time, não o Lead Time.</b> O card da aba <b>Estimativas</b> cruza a estimativa com a duração real dos itens já concluídos do recorte. As duas réguas do seletor são as <b>mesmas já usadas na aba Lead &amp; Cycle Time</b> — o painel não ganha uma terceira definição de tempo. O padrão é o <b>Cycle Time</b> (<span class="mono">Data Início Real</span> → <span class="mono">Data Fim Real</span>) porque é ele que responde "quanto tempo custa um item de 3 pontos": na base, um item de 1 SP leva <b>5,7</b> dias de Cycle Time e <b>18,1</b> de Lead Time, e a diferença é a fila de backlog anterior ao início — que não é esforço do item. Trocar para Lead Time no seletor é justamente como se enxerga esse tempo de espera. Três ressalvas fazem parte da leitura. (1) <b>A cobertura do Cycle Time é menor</b>: ele exige os dois campos manuais de data preenchidos, e na base isso vale para <b>83%</b> dos itens de entrega concluídos com SP (contra 98% do Lead Time). Por isso a legenda do card sempre declara em quantos itens a medida existe, e ela melhora à medida que o preenchimento de <span class="mono">Data Início Real</span> avança. Item sem as datas entra como <b>sem medida</b>, e não como zero dia — zero puxaria a média para baixo como se o item tivesse sido instantâneo. (2) São <b>dias corridos</b>, não dias úteis. (3) <b>Quem entra é o filtro de Tipo, e sub-itens entram</b>. O time pontua cada sub-item com 0,5 ou 1 SP de propósito, e a base confirma: <b>92,3%</b> dos 8.228 sub-itens concluídos com SP estão nesses dois valores, com aderência alta em todos os subtipos. Não é valor herdado do pai. A única exclusão fixa é <span class="mono">Dependência</span>, por ser acordo entre squads e não entrega da squad. Em troca, o <b>risco fica declarado em vez de travado</b>: sub-item e item de entrega são níveis diferentes e a mesma pontuação vale durações diferentes — <b>1 SP roda em 2,1 dias no sub-item contra 5,2 no item de entrega</b>, e como os sub-itens são muito mais numerosos, num recorte misturado são eles que mandam na média. Quando os dois níveis aparecem juntos, a legenda do card diz a composição. Duas consequências práticas: a cobertura de Cycle Time cai bastante nos sub-itens (<b>39%</b> contra 84% nos itens de entrega, porque muitos não têm as datas reais preenchidas), e a referência do comitê de <b>1 SP = 1 dia</b> bate bem melhor neste nível (2,1x) do que no nível história (5,2x) — indício de que ela foi calibrada pensando em sub-item. Vale ainda que, com uma <b>sprint selecionada</b>, sub-itens não chegam ao card: naquele modo a aba mede capacidade e usa só itens de entrega, para não somar o esforço do filho com o do pai. Por fim, <b>tamanho com menos de 3 itens não vira barra</b>, e esse corte é baixo de propósito. Na base inteira ele quase não importa — subir de 3 para 5 tira uma única barra. No <b>recorte por squad</b>, que é como o card é usado de verdade, ele decide muito: medido nas 18 squads com 20+ itens, o corte em 5 deixa <b>64</b> barras contra <b>76</b> no corte em 3, e squads inteiras caem para duas barras — o que não é um gráfico. O preço está aceito e é real: com 3 ou 4 itens a média oscila cerca de <b>30%</b> se um único item entrar ou sair, e o <b>P85 deixa de ser um percentil</b> — em três valores ele cai a 70% do caminho até o maior deles, ou seja, é praticamente "o pior dos três" com nome de estatística. Por isso a tabela traz a coluna <b>Itens medidos</b> e o tooltip repete a contagem: é ela que diz o quanto pesar cada barra. Abaixo do corte o tamanho não some em silêncio — vai para a última linha da tabela e para a legenda, com a contagem.</li>
         <li><b>A referência por Story Point vem de um comitê, e por isso é uma META, não uma medição.</b> O time de agilidade definiu uma duração de referência por tamanho — <b>0,5 e 1 SP</b>: 1 dia; <b>2</b>: 2; <b>3</b>: 3; <b>5</b>: 5; <b>8</b>: 8; <b>13</b>: 15; <b>21</b>: 20 —, desenhada no card como linha tracejada. Quatro coisas definem como ela é lida. (1) <b>Só vale no Cycle Time.</b> Ela foi definida para tempo de execução; medida contra o Lead Time o descolamento chega a <b>18x</b> na base, porque o Lead carrega a fila de backlog anterior ao início — então a linha e as colunas de referência <b>somem</b> ao trocar de régua, e a legenda avisa que sumiram. (2) <b>Story Point fora da escala Fibonacci entra com referência ZERO</b>, não com "sem referência". Existem na base itens de 4, 6, 7, 9, 10, 12, 14 e 20 SP; como Story Points seguem Fibonacci, esses valores são <b>erro de cadastro</b>, e a decisão do time foi não conceder prazo a eles — aparecem sempre com 0% dentro da referência, o que é exatamente o sinal desejado. Se um tamanho Fibonacci novo passar a ser usado (34, 55…), ele precisa ser <b>acrescentado à tabela em <span class="mono">SP_REFERENCIA_COMITE</span></b>, senão cai no zero por omissão. (3) <b>As unidades não são as mesmas, e isso está aceito conscientemente.</b> A referência é de esforço, provavelmente em dias úteis; o card mede dias corridos de calendário. O time optou por manter assim e ajustar depois se precisar. (4) <b>A leitura que vale é o percentual, não a razão.</b> Medido na base, a média fica <b>5,7x</b> acima da referência em 1 SP e <b>1,1x</b> em 13 SP — ou seja, a régua é bem calibrada para itens grandes e otimista para os pequenos. Mas "a média está 2,9x acima" convida a discutir a régua, enquanto <b>"25% dos itens de 3 SP ficam dentro da referência"</b> é acionável e não depende de as unidades baterem. Por isso a tabela traz as três colunas — referência, razão e percentual dentro — e o gráfico traz só a linha.</li>
         <li><b>Semântica de "concluído" varia por tipo</b>: nestes projetos, Épicos e Histórias raramente recebem o status literal <span class="mono">Concluído</span> — eles terminam em etapas como <span class="mono">Deploy em PROD</span>, <span class="mono">Ativação de valor</span> ou <span class="mono">Measure &amp; Learn</span>. Na base atual o status literal <span class="mono">Concluído</span> aparece em 110 Bugs e em mais nenhum item. Por isso a lista de status de conclusão abrange todas as etapas pós-desenvolvimento, e <b>"Concluído" e "Entregue (amplo)" são hoje o mesmo predicado</b> (<span class="mono">broadlyDeliveredStatuses === doneStatuses</span>, zero divergências em 16.912 itens) — não são duas definições concorrentes de pronto, como já foram. Recomenda-se alinhar com os times qual definição de "pronto" (DoD) deve ser a oficial para o dashboard executivo.</li>
@@ -1611,7 +1612,7 @@ const TAB_HELP = {
   exec:'Consolida volume, esforço, tempos e distribuição do recorte. Métricas de entrega respeitam o período de conclusão; estados atuais, como pendentes e WIP, ignoram esse período.',
   throughput:'Conta itens com status classificado como concluído e usa a data de conclusão para posicioná-los no período. Os gráficos respondem aos filtros globais.',
   sp:'Compara Story Points planejados dos itens não cancelados com Story Points concluídos dentro do período selecionado. O card de tempo por Story Point cruza a estimativa com o Cycle Time real dos itens concluídos, em dias corridos, e segue o filtro de Tipo — sub-itens entram quando selecionados, e a legenda avisa quando o recorte mistura níveis.',
-  flow:'Lead Time vai da criação à conclusão. Cycle Time vai do início real ao fim real. Datas ausentes ou invertidas ficam fora dessas métricas. O gráfico de tempo por status decompõe o Lead Time usando o changelog do Jira; nele o filtro de Status escolhe quais status aparecem, não quais itens entram. A tendência mensal e o P85 por squad seguem a medida escolhida no próprio card, com seletores independentes; a tendência posiciona cada item pelo mês de conclusão, e o top 12 do ranking conta itens que têm a medida.',
+  flow:'Lead Time vai da criação à conclusão. Cycle Time vai do início real ao fim real. Datas ausentes ou invertidas ficam fora dessas métricas. O gráfico de tempo por status decompõe o Lead Time usando o changelog do Jira; nele o filtro de Status escolhe quais status aparecem, não quais itens entram. A tendência mensal e o P85 por squad seguem a medida escolhida no próprio card, com seletores independentes; a tendência posiciona cada item pelo mês de conclusão e traz a barra do mês com a média móvel de 3 meses por cima, e o top 12 do ranking conta itens que têm a medida.',
   wip:'Mostra entregas, trabalho ainda aberto e Aging. Os KPIs do topo ignoram o filtro de Tipo (cada card já recorta o seu tipo); os gráficos de entrega seguem o filtro. Aging conta do início real até hoje apenas para itens em WIP.',
   block:'Considera itens do tipo Sub-block. Bloqueios resolvidos usam Cycle Time; bloqueios abertos contam da criação até hoje.',
   sprint:'A associação usa o histórico de sprints do Jira. Completude é subitens concluídos dividido pelo total de subitens do item.',
@@ -2330,6 +2331,11 @@ const barLabelsPlugin = {
     chart.data.datasets.forEach((ds,di)=>{
       const meta = chart.getDatasetMeta(di);
       if(meta.hidden) return;
+      // Só BARRA ganha rótulo. Num gráfico misto (barras + linha de tendência),
+      // rotular também a linha põe dois números quase iguais um sobre o outro em
+      // cada mês — e o de cima é a média móvel, que ninguém pediu para ler ponto
+      // a ponto. Nenhum gráfico com barLabels tinha linha antes disto.
+      if(meta.type === 'line') return;
       meta.data.forEach((bar,i)=>{
         let v = ds.data[i];
         if(v && typeof v==='object') v = (v.x!=null? v.x : v.y); // dado parseado {x,y}
@@ -3798,6 +3804,18 @@ const FLOW_MEASURE_COLOR = { lead:'#CE0058', cycle:'#D98E3B' };
 /* ---------------------------------------------------------------------------
    TENDÊNCIA MENSAL DO TEMPO (P85)
 
+   BARRA POR MÊS + LINHA DE MÉDIA MÓVEL, com o valor escrito em cima da barra.
+   Era uma área com curva suavizada, e o feedback veio de uma reunião executiva:
+   estava difícil de ler. Três problemas concretos, e o formato novo responde aos
+   três. (a) A curva com `tension` INVENTA movimento entre os meses — sobe e
+   desce onde não há dado —, enquanto barra é uma medida por mês, discreta, que é
+   o que o número é. (b) Sem rótulo, ler a altura contra a grade é trabalho, e em
+   sala ninguém faz. (c) Mês a mês o P85 balança demais para responder "estamos
+   melhorando?"; quem responde isso é a média móvel, e agora ela está desenhada
+   em vez de ficar por conta do olho de quem vê. O formato é o mesmo já usado na
+   evolução mensal de SP — barra com tendência sobreposta —, então não é padrão
+   novo no painel.
+
    O card era fixo em Lead Time. Virou agnóstico à medida pelo mesmo motivo do
    card de Tempo por Story Point: "o tempo está piorando?" tem duas respostas
    legítimas, e só o Lead Time esconde o caso em que a execução ficou estável e
@@ -3822,6 +3840,9 @@ const FLOW_MEASURE_COLOR = { lead:'#CE0058', cycle:'#D98E3B' };
    por isso que a legenda declara a cobertura — sem ela, a linha mais curta
    pareceria queda de volume de entrega, que é outra coisa. */
 const FLOW_TREND_DEFAULT = 'lead';
+/* Janela da média móvel, em meses. Três é o mesmo da evolução mensal de SP —
+   o painel não deve ter duas ideias diferentes de "tendência". */
+const FLOW_TREND_JANELA = 3;
 let flowTrendMetric = FLOW_TREND_DEFAULT;
 
 /* Base do último render. Vive fora dele porque trocar de medida não deve
@@ -3853,26 +3874,59 @@ function renderTendenciaMensalTempo(base){
   const doMes = (m)=> medidos.filter(d=>d.AnoMesConclusao===m);
   const serie = months.map(m=> percentile(doMes(m).map(d=>medida.valor(d)), 85));
 
+  /* Média móvel dos P85, com janela TRASEIRA e PARCIAL no começo — o primeiro
+     mês é ele mesmo, o segundo é a média de dois. É a mesma conta do gráfico de
+     SP mensal, e a escolha importa: uma janela que só começa no terceiro mês
+     deixaria a linha nascer no meio do gráfico, e num recorte de 3 ou 4 meses
+     (o padrão da tela) sobraria quase nada dela. */
+  const tendencia = serie.map((_,i)=> mean(serie.slice(Math.max(0,i-(FLOW_TREND_JANELA-1)), i+1)));
+
   upsertChart('chart-flow-lead-trend', {
-    type:'line',
-    data:{labels:months.map(monthLabel), datasets:[{label:medida.rotulo+' P85 (dias)', data:serie, borderColor:'#333333', backgroundColor:'rgba(61,76,91,.1)', fill:true, tension:.35, pointRadius:3}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}},
-      // O drill abre exatamente os itens que formaram o ponto — os medidos do
-      // mês, não todos os concluídos dele. Com Cycle Time os dois conjuntos
-      // são bem diferentes, e a lista precisa fechar com o número.
-      onClick: drillClick((idx)=>{ const m=months[idx];
-        return {title:`${medida.rotulo} · concluídos em ${monthLabel(m)}`, issues: doMes(m)}; })}
+    type:'bar',
+    data:{labels:months.map(monthLabel), datasets:[
+      {type:'bar', label:medida.rotulo+' P85 (dias)', data:serie, backgroundColor:FLOW_MEASURE_COLOR[flowTrendMetric], borderRadius:4, order:2},
+      {type:'line', label:`Tendência (méd. móvel ${FLOW_TREND_JANELA}m)`, data:tendencia, borderColor:'#333333', backgroundColor:'#333333', tension:.3, pointRadius:2, order:1},
+    ]},
+    options:{responsive:true, maintainAspectRatio:false, barLabels:true, barLabelFmt:'d1',
+      layout:{padding:{top:22}}, plugins:{legend:{display:true},
+        tooltip:{callbacks:{afterLabel:(ctx)=>(ctx.datasetIndex===0
+          // Quantos itens sustentam a barra. Mês com poucos itens balança muito,
+          // e o P85 sozinho não deixa isso ver — em três valores ele é
+          // praticamente "o pior dos três" com nome de estatística.
+          ? `${fmt0(doMes(months[ctx.dataIndex]).length)} itens medidos`
+          : `média dos últimos ${FLOW_TREND_JANELA} meses`)}}},
+      scales:{y:{beginAtZero:true,grid:{color:'#ECECEC'}, title:{display:true, text:'Dias'}}, x:{grid:{display:false}}},
+      // O drill abre exatamente os itens que formaram o número — os medidos do
+      // mês, não todos os concluídos dele. Com Cycle Time os dois conjuntos são
+      // bem diferentes, e a lista precisa fechar com a barra. Clicar na LINHA
+      // abre a janela inteira da média móvel: o ponto dela não é aquele mês, e
+      // abrir só o mês entregaria uma lista que não explica o número.
+      onClick: drillClick((idx, ds)=>{
+        if(ds === 1){
+          const janela = months.slice(Math.max(0, idx-(FLOW_TREND_JANELA-1)), idx+1);
+          return {title:`${medida.rotulo} · tendência até ${monthLabel(months[idx])} (${janela.length} ${janela.length===1?'mês':'meses'})`,
+            issues: medidos.filter(d=>janela.includes(d.AnoMesConclusao))};
+        }
+        const m=months[idx];
+        return {title:`${medida.rotulo} · concluídos em ${monthLabel(m)}`, issues: doMes(m)};
+      })}
   });
 
   const cap = document.getElementById('flow-trend-caption');
   if(!cap) return;
   if(!concl.length){ cap.textContent = 'Sem itens concluídos no recorte.'; return; }
   const cobertura = medidos.length/concl.length*100;
-  cap.innerHTML = `P85 do <b>${medida.rotulo}</b> (${medida.regra}) dos itens concluídos em cada mês,
-    em <b>dias corridos</b>. A medida existe em <b>${fmt0(medidos.length)}</b> dos
-    ${fmt0(concl.length)} itens concluídos do recorte (${fmt0(cobertura)}%), distribuídos em
-    ${fmt0(months.length)} ${months.length===1?'mês':'meses'} — trocar de medida pode encurtar a
-    linha por cobertura, não por queda de entrega. Clique num ponto para ver os itens do mês.`;
+  // Menor mês do recorte: é ele que diz o quanto pesar a barra mais alta.
+  const menor = months.reduce((a,m)=>Math.min(a, doMes(m).length), Infinity);
+  cap.innerHTML = `Cada barra é o P85 do <b>${medida.rotulo}</b> (${medida.regra}) dos itens
+    concluídos naquele mês, em <b>dias corridos</b>; a linha é a <b>média móvel de
+    ${FLOW_TREND_JANELA} meses</b>, que é onde se lê a tendência — mês a mês o número balança
+    demais para isso. A medida existe em <b>${fmt0(medidos.length)}</b> dos ${fmt0(concl.length)}
+    itens concluídos do recorte (${fmt0(cobertura)}%), distribuídos em ${fmt0(months.length)}
+    ${months.length===1?'mês':'meses'} — trocar de medida pode encurtar a série por cobertura, não
+    por queda de entrega. O mês com menos amostra tem <b>${fmt0(menor)}</b>
+    ${menor===1?'item medido':'itens medidos'}: passe o mouse para ver a contagem de cada um, e
+    clique para abrir os itens.`;
 }
 
 /* ---------------------------------------------------------------------------
