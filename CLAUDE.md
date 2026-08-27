@@ -184,6 +184,24 @@ filtrar e colocar no balde, podemos trabalhar isso como processo". Levantar o
 risco medido continua sendo desejado; o que ele recusa é a trava. Isso não
 desfaz exclusões que ele mesmo determinou, como Dependência.
 
+🟢 **Atalho pode; substituir o controle granular, não.** O filtro de Tipo tem
+chips de grupo no topo do painel (`Nível história`, `Sub-itens`, `Bugs`,
+`Épicos`, `Dependências`) que escrevem na **mesma** seleção de tipos crus. Eles
+existem porque trocar o recorte para sub-itens custava ~11 cliques. **Não são a
+volta do filtro "Tipo Agrupado"**: não há uma segunda seleção, de grupos,
+concorrendo com a de tipos, e os checkboxes seguem à vista para marcação um a
+um. A pergunta que ele fez ao aprovar foi exatamente essa — "a pessoa ainda pode
+selecionar os tipos isolados?" —, então acelerar o caminho comum é bem-vindo
+desde que o caminho fino continue disponível. Os grupos saem do dado
+(`Tipo Agrupado`), não de lista mantida à mão. Os chips se somam, e com seleção
+parcial o clique **completa** o grupo em vez de limpar.
+
+🟢 **`Sub-block` entra no balde de sub-itens.** Ao recortar por nível de
+trabalho, bloqueio é sub-item como qualquer outro — a leitura própria dele vive
+na aba de Bloqueios. Decisão do usuário. Medido, tirá-lo quase não move os
+números (Lead P85 de sub-itens vai de 21,8 para 22,1 dias; Cycle de 3,4 para
+3,7), então a escolha é conceitual, não numérica.
+
 ### Cards agnósticos à medida (seletor de Lead × Cycle Time)
 
 🟢 **É um padrão, e ele deve se repetir.** Um card que mostra tempo não escolhe

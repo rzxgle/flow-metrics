@@ -207,6 +207,134 @@ check('o recorte da aba não mudou: Tipo segue valendo para o nível pai', () =>
   assert.strictEqual(T.matchesSprintTabFilters(de('Sub-imp')), true);
 });
 
+/* ===================================================================
+   ATALHOS DE GRUPO NO FILTRO DE TIPO
+
+   Vieram de um feedback: para trocar o recorte para sub-itens era preciso
+   desmarcar 4 tipos e marcar 7 num dropdown de 16 opções, e ainda saber de cor
+   quais são subs.
+
+   O compromisso central, e o que estes testes existem para travar: OS CHIPS NÃO
+   SÃO UM SEGUNDO FILTRO. Continua havendo uma seleção só, de tipos crus, e o
+   chip apenas escreve nela em bloco — marcar e desmarcar tipo a tipo continua
+   valendo, inclusive depois de usar um chip. Se alguém transformar isso num
+   filtro paralelo (uma seleção de grupos separada da de tipos), o painel volta a
+   ter duas verdades sobre o mesmo recorte e estes testes reprovam.
+   =================================================================== */
+const chips = () => Array.from(dropdown('Tipo de item').querySelectorAll('.dd-chip'));
+const chip = (rotulo) => chips().find((c) => c.textContent.trim() === rotulo);
+const estado = (rotulo) => {
+  const c = chip(rotulo);
+  return c.classList.contains('on') ? 'on' : (c.classList.contains('partial') ? 'partial' : 'off');
+};
+const marcados = () => Array.from(dropdown('Tipo de item')
+  .querySelectorAll('.dd-item input[type=checkbox]')).filter((cb) => cb.checked)
+  .map((cb) => cb.value).sort();
+const SUBS = ['Sub-block', 'Sub-bug', 'Sub-design', 'Sub-imp', 'Sub-script', 'Sub-task', 'Sub-test'];
+const HISTORIA = ['Enabler', 'Melhoria', 'Story', 'Technical Debt'];
+const limparTipo = () => clicar(dropdown('Tipo de item').querySelector('[data-act="none"]'));
+
+console.log('\nAtalhos de grupo no filtro de Tipo:');
+
+check('os chips existem só no filtro de Tipo', () => {
+  assert.ok(chips().length >= 2, 'sem chips no filtro de Tipo');
+  for (const key of ['Programa', 'VS', 'Squad', 'PI', 'Sprint', 'Status']) {
+    assert.strictEqual(dropdown(key).querySelectorAll('.dd-chip').length, 0, key);
+  }
+});
+
+check('os grupos saem do DADO — grupo sem item na base não vira chip', () => {
+  // Nesta base sintética não há Dependência, então o chip dela não existe. É o
+  // que garante que a lista de chips acompanhe o Jira sem manutenção aqui.
+  const rotulos = chips().map((c) => c.textContent.trim());
+  assert.deepStrictEqual(rotulos, ['Nível história', 'Sub-itens', 'Bugs', 'Épicos']);
+});
+
+check('um clique marca o grupo inteiro — 7 subtipos de uma vez', () => {
+  limparTipo();
+  clicar(chip('Sub-itens'));
+  assert.deepStrictEqual(selecionados(), SUBS.slice().sort());
+  assert.strictEqual(estado('Sub-itens'), 'on');
+});
+
+check('a lista de checkboxes é a verdade e acompanha o chip', () => {
+  // Se os dois divergirem, o dropdown passa a mostrar um recorte e a tela outro.
+  assert.deepStrictEqual(marcados(), SUBS.slice().sort());
+});
+
+check('clicar de novo limpa só aquele grupo, sem tocar no resto', () => {
+  limparTipo();
+  clicar(chip('Nível história'));
+  clicar(chip('Sub-itens'));
+  assert.strictEqual(selecionados().length, 11);
+  clicar(chip('Sub-itens'));
+  assert.deepStrictEqual(selecionados(), HISTORIA.slice().sort(), 'o nível história ficou intacto');
+});
+
+check('os grupos se somam: dá para ver história e sub-itens ao mesmo tempo', () => {
+  limparTipo();
+  clicar(chip('Nível história'));
+  clicar(chip('Sub-itens'));
+  assert.strictEqual(estado('Nível história'), 'on');
+  assert.strictEqual(estado('Sub-itens'), 'on');
+  assert.strictEqual(estado('Bugs'), 'off');
+});
+
+check('seleção parcial mostra estado próprio, e clicar COMPLETA em vez de limpar', () => {
+  // Quem marcou 3 subtipos à mão está tentando montar um recorte; se o clique
+  // limpasse, ele perderia o que já tinha feito.
+  limparTipo();
+  ['Sub-imp', 'Sub-test', 'Sub-bug'].forEach((t) => {
+    const cb = itensDe('Tipo de item').map((el) => el.querySelector('input')).find((i) => i.value === t);
+    cb.checked = true;
+    cb.dispatchEvent(new window.Event('change', { bubbles: true }));
+  });
+  assert.strictEqual(estado('Sub-itens'), 'partial');
+  clicar(chip('Sub-itens'));
+  assert.deepStrictEqual(selecionados(), SUBS.slice().sort());
+  assert.strictEqual(estado('Sub-itens'), 'on');
+});
+
+check('o chip não substitui o filtro: desmarcar um tipo à mão continua valendo', () => {
+  // É a resposta à pergunta "a pessoa ainda pode selecionar os tipos isolados?".
+  limparTipo();
+  clicar(chip('Sub-itens'));
+  const cb = itensDe('Tipo de item').map((el) => el.querySelector('input')).find((i) => i.value === 'Sub-test');
+  cb.checked = false;
+  cb.dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.ok(!selecionados().includes('Sub-test'), 'o tipo saiu da seleção');
+  assert.strictEqual(selecionados().length, 6);
+  assert.strictEqual(estado('Sub-itens'), 'partial', 'e o chip passa a anunciar que o grupo está incompleto');
+});
+
+check('"Limpar" e "Todos" do painel ressincronizam os chips', () => {
+  limparTipo();
+  assert.strictEqual(estado('Sub-itens'), 'off');
+  assert.strictEqual(estado('Nível história'), 'off');
+  clicar(dropdown('Tipo de item').querySelector('[data-act="all"]'));
+  assert.strictEqual(estado('Sub-itens'), 'on');
+  assert.strictEqual(estado('Bugs'), 'on');
+});
+
+check('na aba Sprint somem os chips cujos tipos todos saem da lista', () => {
+  // Mesma regra dos .dd-item, e aqui vale a cascata real: um chip que só
+  // seleciona tipos invisíveis naquela aba não pode ficar clicável.
+  abrir('sprint');
+  const visiveis = chips().filter((c) => !escondido(c)).map((c) => c.textContent.trim());
+  assert.deepStrictEqual(visiveis, ['Nível história', 'Bugs']);
+  abrir('exec');
+  assert.strictEqual(chips().filter((c) => !escondido(c)).length, 4, 'e voltam ao sair da aba');
+});
+
+check('o "Limpar" geral da barra também zera os chips', () => {
+  limparTipo(); // o teste anterior terminou com tudo marcado pelo "Todos"
+  clicar(chip('Sub-itens'));
+  assert.strictEqual(estado('Sub-itens'), 'on');
+  clicar(Array.from(document.querySelectorAll('.clear-btn')).find((b) => /Limpar/.test(b.textContent)));
+  assert.strictEqual(estado('Sub-itens'), 'off');
+  assert.deepStrictEqual(selecionados(), []);
+});
+
 check('a página não registrou erro em nenhuma dessas interações', () => {
   assert.deepStrictEqual(erros, []);
 });

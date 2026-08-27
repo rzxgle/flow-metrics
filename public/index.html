@@ -186,6 +186,24 @@
   .dd-item.single.selected::after{content:'✓';margin-left:auto;font-size:12px;}
   .dd-btn .dd-val{font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .dd-empty{padding:8px 6px;font-size:12px;color:var(--slate-soft);}
+  /* Atalhos de grupo do filtro de Tipo. Escrevem na MESMA seleção de tipos
+     crus — não são um segundo filtro —, por isso ficam acima da lista, que
+     continua marcável um a um. */
+  .dd-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;}
+  .dd-chip{
+    background:#F4F4F5;border:1px solid var(--line);color:var(--slate);
+    padding:4px 9px;border-radius:999px;font-size:11px;font-weight:600;
+    cursor:pointer;font-family:'Inter',sans-serif;line-height:1.5;white-space:nowrap;
+  }
+  .dd-chip:hover{border-color:#F0A6C6;}
+  .dd-chip.on{background:var(--teal-light);border-color:var(--teal-d);color:var(--teal-d);}
+  /* Parcial: parte do grupo está marcada — clicar completa, não limpa. O
+     tracejado distingue de "cheio" sem inventar uma terceira cor. */
+  .dd-chip.partial{border-style:dashed;border-color:var(--teal-d);color:var(--teal-d);}
+  .dd-chips-hint{font-size:10.5px;color:var(--slate-soft);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line);}
+  /* Mesma regra dos .dd-item: grupo cujos tipos todos ficam fora da aba Sprint
+     não aparece lá. O !important acompanha o do .dd-item, pelo mesmo motivo. */
+  #filterBar.sprint-only #dd-Tipo_de_item .dd-chip[data-no-sprint]{display:none!important;}
   .dd-actions{display:flex;justify-content:space-between;padding:5px 6px 2px;border-top:1px solid var(--line);margin-top:4px;}
   .dd-actions button{background:none;border:none;color:var(--teal-d);font-size:11px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
   .clear-btn{
@@ -1553,6 +1571,7 @@
         <li><b>Velocity / Capacidade por Sprint não calculável</b> — pela ausência do campo Sprint. Como proxy, este dashboard apresenta SP concluído por PI e por mês.</li>
         <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados) <b>e com Data de início real preenchida</b> — da Data de início real até hoje. Itens em aberto que nunca foram iniciados ficam fora do indicador (não há fallback para a Criação), pois tempo em fila não é envelhecimento em execução. O planejamento do quarter cria itens em lote, e um item só é considerado em andamento quando foi efetivamente puxado — ou seja, quando ganhou Data de início real. O valor é recalculado a cada abertura do dashboard, em dias corridos até a data de hoje, mesmo que os dados venham do cache local.</li>
         <li><b>A aba PI Tracking usa outras regras — de propósito.</b> Ela replica o painel de quarter que o time já usa nas cerimônias de PI, para os dois números não divergirem. Três diferenças em relação às demais abas: (1) <b>sub-tarefas e o próprio épico ficam fora do denominador</b>, porque contá-los soma o mesmo trabalho duas vezes (a história e cada um dos seus subitens) e infla o progresso de quem quebra muito o trabalho; (2) <b>itens cancelados saem do denominador</b> em vez de contarem como não feitos; (3) a comparação de status é <b>normalizada</b> (maiúsculas/minúsculas não importam) e <span class="mono">Em Homologação</span>, <span class="mono">Pronto para Staging</span> e <span class="mono">Staging</span> contam como concluído. No dataset atual, essas diferenças valem 15 pontos percentuais nos épicos de PI3 - Afya One: 51,1% pela regra do PI (499 itens) contra 66,2% pela regra das outras abas (3.465 membros, dos quais 3.336 são sub-tarefas). As regras vivem em <span class="mono">src/config/quarter.rules.js</span> no servidor e viajam com os dados — não há uma segunda cópia no navegador.</li>
+        <li><b>Os atalhos de grupo do filtro de Tipo são um atalho, não um segundo filtro.</b> O painel tem <b>um</b> filtro de Tipo, e ele seleciona <b>tipos crus do Jira</b>. Os chips no topo do painel — <b>Nível história</b>, <b>Sub-itens</b>, <b>Bugs</b>, <b>Épicos</b>, <b>Dependências</b> — apenas escrevem nessa mesma seleção em bloco, e por isso <b>os tipos continuam marcáveis um a um</b>, inclusive depois de usar um chip: quem quiser só <span class="mono">Sub-test</span> e <span class="mono">Sub-imp</span> segue podendo. Isso não é a volta do antigo filtro "Tipo Agrupado", que foi retirado da barra — não existe uma segunda seleção, de grupos, concorrendo com a de tipos. A origem foi um feedback de uso: para trocar o recorte para sub-itens era preciso <b>desmarcar 4 tipos e marcar 7</b> (<span class="mono">Sub-imp</span>, <span class="mono">Sub-test</span>, <span class="mono">Sub-task</span>, <span class="mono">Sub-bug</span>, <span class="mono">Sub-block</span>, <span class="mono">Sub-script</span>, <span class="mono">Sub-design</span>) num dropdown de 16 opções, e ainda saber de cor quais são subs. Três regras definem o comportamento. (1) <b>Os grupos saem do dado</b>, do campo <span class="mono">Tipo Agrupado</span> que já chega em cada item — um subtipo novo no Jira entra sozinho em "Sub-itens", sem lista para manter, e grupo sem item no recorte não vira chip. (2) <b>Os chips se somam</b>: marcar "Nível história" e "Sub-itens" mostra os dois níveis juntos, e clicar de novo num chip cheio limpa só aquele grupo. Com seleção parcial, o clique <b>completa</b> o grupo em vez de limpar — quem marcou três subtipos à mão está montando um recorte, não desfazendo um. (3) Na <b>aba Sprint</b>, os chips que só selecionariam tipos ocultos ali (Sub-itens, Épicos, Dependências) somem junto com esses tipos, pela mesma regra que já vale para a lista. <b>Nenhum cálculo mudou</b>: o que os chips fazem, o usuário já podia fazer clicando um por um.</li>
         <li><b>Quais filtros valem na aba PI Tracking.</b> Ela usa <b>PI, Programa, Value Stream e Squad</b>. Os filtros de <b>Tipo, Status e o intervalo de conclusão saem da tela</b> nessa aba, porque não fazem sentido ali: mexeriam no <b>denominador</b> do progresso em vez de no recorte — filtrar por "Status = Done" faria todo épico aparecer com 100%. A seleção que você fez neles em outras abas continua guardada e volta a valer ao sair daqui. O <b>PI é o filtro do topo</b>, o mesmo de sempre: vazio significa todos. Como "quanto do quarter já passou" não tem resposta para dois quarters somados, os KPIs <b>Quarter percorrido</b>, <b>Gap plano × tempo</b> e <b>Squads abaixo do esperado</b> só aparecem com <b>um</b> PI selecionado; com mais de um, eles avisam em vez de somar quarters diferentes.</li>
         <li><b>Os filhos não herdam o PI do épico.</b> As labels de PI ficam no épico; um item filho pode não ter nenhuma. Dos 3.465 filhos dos épicos de PI3 - Afya One, <b>1.430 têm PI "Não informado"</b>. Por isso a aba PI Tracking seleciona os <b>épicos</b> pela label e depois puxa <b>todos</b> os filhos pela cadeia de parent, ignorando o PI do filho — filtrar filhos por PI cortaria 40% da base sem avisar. Consequência: o progresso do PI mede o trabalho dos épicos daquele ciclo, não o conjunto de itens que carregam a label.</li>
         <li><b>Labels de transbordo entram no PI de destino.</b> Um item com <span class="mono">TransbordoPI2AfyaOne</span> transbordou do PI2 e é cobrado no PI3, então é ali que ele aparece — mesmo mantendo a label <span class="mono">PI2AfyaOne</span>. O mesmo vale para <span class="mono">NOVOPI3AfyaOne</span>, <span class="mono">LegadoTransbordoP126</span> e <span class="mono">LegadoTransbordoP226</span>. A label <span class="mono">DESPRIORIZADOPI3AfyaOne</span> não classifica mais o item como parte do PI3.</li>
@@ -1628,7 +1647,7 @@ const FILTER_HELP = {
   'dd-Sprint':'Na aba Estimativas, planejado é o escopo standard da sprint e concluído usa a mesma atribuição do velocity.',
   'dd-AnoCriacao':'Filtra pelo ano de criação da issue, não pelo ano de conclusão.',
   'dd-Mes':'Filtra pelo mês de criação da issue, não pelo mês de conclusão.',
-  'dd-Tipo_de_item':'Filtra pelo tipo bruto do Jira, como Story, Enabler, Bug ou Sub-task.',
+  'dd-Tipo_de_item':'Filtra pelo tipo bruto do Jira, como Story, Enabler, Bug ou Sub-task. Os atalhos no topo do painel marcam um grupo inteiro de uma vez (Nível história, Sub-itens, Bugs, Épicos) e se somam entre si; eles escrevem nesta mesma seleção, então os tipos continuam marcáveis um a um.',
   'dd-Status':'Filtra pelo status atual da issue. Na aba PI Tracking ele é ocultado para não alterar artificialmente o denominador.',
   'dd-sprintPick':'Seleciona uma sprint da squad escolhida. A associação considera o histórico de participação no Jira.',
   'dd-velocityRange':'Define quantas sprints anteriores entram na série de velocity.'
@@ -1857,6 +1876,111 @@ function uniqueVals(key){
   return arr;
 }
 
+/* ---------------------------------------------------------------------------
+   ATALHOS DE GRUPO NO FILTRO DE TIPO
+
+   A dor relatada pelos usuários: para trocar o recorte para sub-itens era
+   preciso DESMARCAR os 4 tipos do padrão e MARCAR 7 (`Sub-imp`, `Sub-test`,
+   `Sub-task`, `Sub-bug`, `Sub-block`, `Sub-script`, `Sub-design`) num dropdown
+   de 16 opções — e ainda saber de cor quais são subs. São ~11 cliques para ir,
+   e outros 11 para voltar.
+
+   ISTO NÃO É A VOLTA DO FILTRO "TIPO AGRUPADO" que saiu da barra. Continua
+   existindo UM filtro de Tipo, com UMA seleção, de tipos crus. O chip só
+   escreve nessa seleção em bloco: marcar e desmarcar tipo a tipo continua
+   valendo, inclusive depois de usar um chip, e é por isso que os checkboxes
+   seguem à vista logo abaixo — a lista é a verdade, o chip é o atalho.
+
+   Os grupos saem do DADO (`Tipo Agrupado`, que chega em cada item), não de uma
+   lista mantida aqui: um subtipo novo no Jira entra sozinho em "Sub-itens", do
+   mesmo jeito que já entra nos cálculos.
+
+   O chip é TRI-ESTADO, e a regra de clique é assimétrica de propósito: cheio
+   limpa o grupo; vazio OU PARCIAL completa. Se parcial também limpasse, quem
+   marcou 3 subtipos à mão perderia a seleção ao tentar completá-la. */
+const TIPO_ATALHOS = [
+  {label:'Nível história', grupos:GRUPOS_NIVEL_HISTORIA},
+  // Sub-block entra aqui por decisão do time: o balde é o nível de trabalho, e
+  // um bloqueio é sub-item como qualquer outro para efeito de recorte. A aba de
+  // Bloqueios continua tendo a leitura própria dele.
+  {label:'Sub-itens', grupos:['Sub-task']},
+  {label:'Bugs', grupos:['Bug']},
+  {label:'Épicos', grupos:['Épico']},
+  {label:'Dependências', grupos:['Dependência']},
+];
+
+/** Tipos crus PRESENTES na base, por grupo. Grupo sem item não vira chip. */
+function tiposPorGrupo(){
+  const m = new Map();
+  DATA.forEach(d=>{
+    const g = d['Tipo Agrupado'], t = d['Tipo de item'];
+    if(!g || !t) return;
+    if(!m.has(g)) m.set(g, new Set());
+    m.get(g).add(t);
+  });
+  return m;
+}
+
+/**
+ * Monta a linha de chips no slot reservado no topo do painel de Tipo.
+ * @returns função que ressincroniza o estado visual dos chips — precisa ser
+ *          chamada por QUEM MAIS mexe na seleção (checkbox, Todos, Limpar e o
+ *          Limpar geral da barra), senão o chip fica anunciando um recorte que
+ *          não é mais o vigente.
+ */
+function construirAtalhosDeTipo(slot, list, btn, key){
+  const porGrupo = tiposPorGrupo();
+  const defs = TIPO_ATALHOS
+    .map(a=>({label:a.label, tipos:[...new Set(a.grupos.flatMap(g=>[...(porGrupo.get(g)||[])]))]}))
+    .filter(a=>a.tipos.length);
+  // Com menos de dois grupos não há o que atalhar, e a linha só tomaria espaço.
+  if(defs.length < 2) return ()=>{};
+
+  const row = document.createElement('div');
+  row.className = 'dd-chips';
+  const chips = defs.map(def=>{
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.className = 'dd-chip';
+    c.textContent = def.label;
+    c.title = `${def.tipos.length} ${def.tipos.length===1?'tipo':'tipos'}: ${def.tipos.join(', ')}`;
+    if(def.tipos.every(t=>TIPOS_FORA_DA_ABA_SPRINT.has(t))) c.dataset.noSprint='';
+    c.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const cheio = def.tipos.every(t=>selections[key].has(t));
+      def.tipos.forEach(t=> cheio ? selections[key].delete(t) : selections[key].add(t));
+      // A lista é a verdade: os checkboxes são reescritos a partir da seleção,
+      // e não o contrário.
+      list.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked = selections[key].has(cb.value); });
+      updateFilterBtn(key, btn);
+      sincronizar();
+      renderAll();
+    });
+    row.appendChild(c);
+    return {c, def};
+  });
+
+  const dica = document.createElement('div');
+  dica.className = 'dd-chips-hint';
+  dica.textContent = 'Atalhos de grupo — os tipos seguem marcáveis um a um abaixo.';
+  slot.appendChild(row);
+  slot.appendChild(dica);
+
+  function sincronizar(){
+    chips.forEach(({c, def})=>{
+      const n = def.tipos.filter(t=>selections[key].has(t)).length;
+      c.classList.toggle('on', n === def.tipos.length);
+      c.classList.toggle('partial', n > 0 && n < def.tipos.length);
+    });
+  }
+  sincronizar();
+  return sincronizar;
+}
+
+/* O 'Limpar' geral da barra vive fora do laço que monta cada dropdown, então
+   precisa desta referência para ressincronizar os chips junto. */
+let sincronizarChipsDeTipo = ()=>{};
+
 function buildFilterBar(){
   const bar = document.getElementById('filterBar');
   // A carga progressiva reconstrói as opções a cada lote. Limpar primeiro torna
@@ -1879,6 +2003,16 @@ function buildFilterBar(){
     btn.innerHTML = `<span>${f.label}</span><span class="count" style="display:none">0</span>`;
     const panel = document.createElement('div');
     panel.className = 'dd-panel';
+
+    /* Espaço dos atalhos de grupo, criado ANTES da busca para os chips ficarem
+       no topo do painel usando só appendChild — o DOM falso de alguns specs
+       (test/pi-tracking.spec.js) não implementa insertBefore. Só o filtro de
+       Tipo ganha o slot; nas outras dimensões não haveria o que pendurar. */
+    let chipsSlot = null;
+    if(f.key==='Tipo de item'){
+      chipsSlot = document.createElement('div');
+      panel.appendChild(chipsSlot);
+    }
 
     const search = document.createElement('input');
     search.className = 'dd-search';
@@ -1908,6 +2042,12 @@ function buildFilterBar(){
     controls.appendChild(wrap);
     updateFilterBtn(f.key, btn);
 
+    // Só o filtro de Tipo tem agrupamento no dado; as outras dimensões não têm
+    // o que atalhar. `sincronizarChips` é no-op nelas.
+    const sincronizarChips = chipsSlot
+      ? construirAtalhosDeTipo(chipsSlot, list, btn, f.key) : ()=>{};
+    if(chipsSlot) sincronizarChipsDeTipo = sincronizarChips;
+
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       document.querySelectorAll('.dd-panel.open').forEach(p=>{ if(p!==panel) p.classList.remove('open'); });
@@ -1926,6 +2066,7 @@ function buildFilterBar(){
         if(cb.checked) selections[f.key].add(cb.value);
         else selections[f.key].delete(cb.value);
         updateFilterBtn(f.key, btn);
+        sincronizarChips();
         renderAll();
       });
     });
@@ -1937,13 +2078,13 @@ function buildFilterBar(){
       const soVisiveis = f.key==='Tipo de item' && bar.classList.contains('sprint-only');
       const alvo = soVisiveis ? '.dd-item:not([data-no-sprint]) input[type=checkbox]' : 'input[type=checkbox]';
       list.querySelectorAll(alvo).forEach(cb=>{ cb.checked=true; selections[f.key].add(cb.value); });
-      updateFilterBtn(f.key, btn); renderAll();
+      updateFilterBtn(f.key, btn); sincronizarChips(); renderAll();
     });
     actions.querySelector('[data-act="none"]').addEventListener('click', (e)=>{
       e.stopPropagation();
       list.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked=false; });
       selections[f.key].clear();
-      updateFilterBtn(f.key, btn); renderAll();
+      updateFilterBtn(f.key, btn); sincronizarChips(); renderAll();
     });
   });
 
@@ -1962,6 +2103,7 @@ function buildFilterBar(){
       wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
       updateFilterBtn(f.key, wrap.querySelector('.dd-btn'));
     });
+    sincronizarChipsDeTipo();
     // e o filtro de Squad da aba de Dependências, que vive na mesma barra
     depSquads.clear();
     const ddSquad = document.getElementById('dd-depSquad');
