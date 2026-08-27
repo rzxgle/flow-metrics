@@ -15,6 +15,7 @@
     "test:progressive": "node test/progressive.spec.js",
     "test:pi": "node test/pi-tracking.spec.js",
     "test:pi-drill": "node test/pi-progress-drill.spec.js",
+    "test:pi-vs": "node test/pi-value-stream.spec.js",
     "test:delivery": "node test/sprint-delivery.spec.js",
     "test:filtros": "node test/filtros.spec.js",
     "test:bloqueios": "node test/bloqueios.spec.js",
@@ -26,7 +27,7 @@
     "test:sp-tempo": "node test/sp-tempo-por-sp.spec.js",
     "test:flow-medidas": "node test/flow-medidas.spec.js",
     "test:burndown": "node test/sprint-burndown.spec.js",
-    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:pi-drill && npm run test:delivery && npm run test:filtros && npm run test:bloqueios && npm run test:drawer && npm run test:status-time && npm run test:status-time-view && npm run test:dependencias && npm run test:wip && npm run test:sp-tempo && npm run test:flow-medidas && npm run test:burndown && npm run test:amplify"
+    "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:pi-drill && npm run test:pi-vs && npm run test:delivery && npm run test:filtros && npm run test:bloqueios && npm run test:drawer && npm run test:status-time && npm run test:status-time-view && npm run test:dependencias && npm run test:wip && npm run test:sp-tempo && npm run test:flow-medidas && npm run test:burndown && npm run test:amplify"
   },
   "engines": {
     "node": ">=18"

@@ -63,7 +63,7 @@ Quando ele pedir "garanta que nada vá quebrar", isso é parte do pedido, não
 formalidade — já apareceu assim um vazamento real de dados de um issuetype novo
 para outras abas. O que funciona:
 
-1. `npm test` (18 specs).
+1. `npm test` (19 specs).
 2. **Render diferencial**: renderizar `public/index.html` da versão anterior
    (`git show HEAD:public/index.html`) e da atual com o mesmo dataset do cache,
    e comparar dados de todos os gráficos, KPIs, tabelas e legendas. O que mudar
@@ -82,7 +82,7 @@ para outras abas. O que funciona:
 ## Testes
 
 ```bash
-npm test          # tudo (18 specs)
+npm test          # tudo (19 specs)
 npm run test:sp-tempo   # uma spec isolada
 ```
 

@@ -473,16 +473,16 @@ check('Conclusão não força display inline sobre a regra da aba Sprint', () =>
 
 console.log('\nEficiência de Fluxo (Visão Geral):');
 
-/* O card é a divisão dos dois P85 exibidos ao lado dele. O que estes testes
-   protegem é exatamente essa amarração: se um dia o percentil for recalculado
-   dentro de cada card, os três números divergem e a conta de cabeça do leitor
-   deixa de fechar — defeito que não quebra nada e ninguém percebe. O cenário
-   inclui de propósito um item SEM Cycle Time, porque as duas bases são
-   diferentes na realidade (metade dos concluídos não tem Data Início Real). */
-const tempoItem = (chave, lead, cycle) => {
+/* Numerador e denominador vêm da mesma cronologia de status. */
+const tempoItem = (chave, valor, total) => {
   const d = item({ chave, sp:1, concl:true, conclusao:'2026-07-10' });
   d.PI = 'PI3'; d.FaseFluxo = 'Concluído'; d.AnoMesConclusao = '2026-07';
-  d.LeadTimeDias = lead; d.CycleTimeDias = cycle;
+  d.LeadTimeDias = total; d.CycleTimeDias = valor;
+  d.StatusHistoricoOk = true;
+  d.TempoPorStatus = [
+    {status:'Desenvolvimento',dias:valor},
+    {status:'PRONTO PARA DESENVOLVIMENTO',dias:total-valor},
+  ];
   return d;
 };
 const cardsExec = (issues) => {
@@ -498,21 +498,15 @@ const cardsExec = (issues) => {
 };
 const acharCard = (cards, label) => cards.find((c)=>c.label===label);
 
-// leads [10,20,30] -> P85 27,0 | cycles [2,6] -> P85 5,4 | 5,4/27,0 = 20,0%
-const baseTempos = [tempoItem('T-1',10,2), tempoItem('T-2',20,null), tempoItem('T-3',30,6)];
+const baseTempos = [tempoItem('T-1',2,10), tempoItem('T-2',4,20), tempoItem('T-3',6,30)];
 
-check('o card divide o Cycle Time P85 pelo Lead Time P85 exibidos ao lado', () => {
+check('o card divide a soma do valor agregado pela soma do tempo total', () => {
   const cards = cardsExec(baseTempos);
   assert.strictEqual(acharCard(cards,'Lead Time (P85)').valor, '27.0');
   assert.strictEqual(acharCard(cards,'Cycle Time (P85)').valor, '5.4');
   const efic = acharCard(cards,'Eficiência de Fluxo');
   assert.strictEqual(efic.valor, '20.0');
   assert.strictEqual(efic.unidade, '%');
-  // A amarração: o valor do card é a razão dos dois números ao lado, não um
-  // percentil recalculado sobre outra base.
-  const lead = parseFloat(acharCard(cards,'Lead Time (P85)').valor);
-  const cycle = parseFloat(acharCard(cards,'Cycle Time (P85)').valor);
-  assert.strictEqual(parseFloat(efic.valor).toFixed(1), (cycle/lead*100).toFixed(1));
 });
 
 check('o card fica ao lado dos dois P85, no fim da linha de KPIs', () => {
@@ -526,26 +520,30 @@ check('o complemento declara a fatia de espera', () => {
   assert.strictEqual(efic.delta, '80.0% em espera');
 });
 
-check('sem Cycle Time em nenhum item o card mostra travessão, não 0%', () => {
-  const efic = acharCard(cardsExec([tempoItem('S-1',10,null)]), 'Eficiência de Fluxo');
+check('sem histórico de status o card mostra travessão, não 0%', () => {
+  const d=tempoItem('S-1',2,10); d.TempoPorStatus=[];
+  const efic = acharCard(cardsExec([d]), 'Eficiência de Fluxo');
   assert.strictEqual(efic.valor, '—');
   assert.strictEqual(efic.delta, null, 'sem base não há espera a declarar');
 });
 
-check('Lead Time P85 zerado não gera Infinity nem NaN', () => {
-  // Item criado e concluído no mesmo instante: a razão não existe.
-  const efic = acharCard(cardsExec([tempoItem('Z-1',0,0)]), 'Eficiência de Fluxo');
+check('tempo total zerado não gera Infinity nem NaN', () => {
+  const d=tempoItem('Z-1',0,0); d.TempoPorStatus=[];
+  const efic = acharCard(cardsExec([d]), 'Eficiência de Fluxo');
   assert.strictEqual(efic.valor, '—');
 });
 
-check('eficiência acima de 100% aparece sem trava, e sem complemento', () => {
-  // Recorte estreito em que só o item longo tem Data Início Real: leads [1,2]
-  // -> P85 1,85 e cycles [10] -> P85 10. O número absurdo é o sinal de que as
-  // bases divergiram; truncar em 100% esconderia justamente esse recorte.
-  const efic = acharCard(cardsExec([tempoItem('X-1',1,null), tempoItem('X-2',2,10)]),
-    'Eficiência de Fluxo');
-  assert.ok(parseFloat(efic.valor) > 100, `esperado acima de 100%, veio ${efic.valor}`);
-  assert.strictEqual(efic.delta, null, 'espera negativa não é exibida');
+check('variação de caixa e acento não tira status de valor agregado', () => {
+  const d=tempoItem('X-1',0,10);
+  d.TempoPorStatus=[{status:'DEPLOY EM PROD',dias:4},{status:'PRONTO PARA PROD',dias:6}];
+  assert.strictEqual(acharCard(cardsExec([d]),'Eficiência de Fluxo').valor,'40.0');
+});
+
+check('Backlog fica fora do numerador, denominador e decomposição', () => {
+  const d=tempoItem('B-1',2,10);
+  d.TempoPorStatus=[{status:'BACKLOG',dias:90},{status:'Desenvolvimento',dias:2},
+    {status:'PRONTO PARA DESENVOLVIMENTO',dias:8}];
+  assert.strictEqual(acharCard(cardsExec([d]),'Eficiência de Fluxo').valor,'20.0');
 });
 
 check('a regra do card cabe no limite de 170 caracteres do tooltip', () => {
@@ -554,12 +552,12 @@ check('a regra do card cabe no limite de 170 caracteres do tooltip', () => {
   const efic = acharCard(cardsExec(baseTempos), 'Eficiência de Fluxo');
   assert.ok(efic.regra && efic.regra.length > 0, 'card sem data-kpi-rule');
   assert.ok(efic.regra.length <= 170, `${efic.regra.length} caracteres`);
-  assert.match(efic.regra, /Data Início Real/);
+  assert.match(efic.regra, /changelog/);
 });
 
-check('o card não é clicável: nenhuma lista de issues reproduz a razão', () => {
+check('o card é clicável para auditar a conta por item e status', () => {
   const cards = cardsExec(baseTempos);
-  assert.strictEqual(acharCard(cards,'Eficiência de Fluxo').clicavel, false);
+  assert.strictEqual(acharCard(cards,'Eficiência de Fluxo').clicavel, true);
   assert.strictEqual(acharCard(cards,'Cycle Time (P85)').clicavel, true);
 });
 

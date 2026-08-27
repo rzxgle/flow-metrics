@@ -179,6 +179,15 @@ KPIs: Progresso do PI, Épicos entregues, Quarter percorrido, Gap plano × tempo
 Total de épicos, Épicos vazios e Squads abaixo do esperado — todos clicáveis,
 abrindo as issues por trás do número.
 
+**Agrupamento.** Os épicos vêm em dois guarda-chuvas: **Value Stream** (o
+projeto Jira do épico, campo `VS`) e, dentro dela, **squad**. Os dois níveis
+agregam por **soma de itens**, nunca por média de percentuais, e ordenam pior
+primeiro. Os dois níveis nascem **recolhidos**: a página abre no ranking das
+Value Streams e o detalhe vem por escolha. O agrupamento
+usa o VS do **épico**: uma squad com épicos em dois projetos aparece dentro de
+cada Value Stream com os épicos daquela — mas os KPIs contam squads
+**distintas**, para uma squad partida não virar duas.
+
 **Filtros.** A aba usa **PI, Programa, Value Stream e Squad** da barra do topo.
 Ano, Mês, Tipo, Status e o intervalo de conclusão **saem da tela** aqui: eles
 mexeriam no *denominador* do progresso em vez do recorte (com "Status = Done",
@@ -187,8 +196,18 @@ guardada. Como "quanto do quarter já passou" não tem resposta para dois quarte
 somados, os KPIs temporais só aparecem com **um** PI selecionado; com mais de um,
 avisam em vez de somar quarters.
 
-Rode `npm run test:pi` para validar as regras — o teste executa o script da
-própria página num `vm`, não uma cópia.
+**Programa vem marcado em Afya One ao entrar na aba**, e a marcação é desfeita
+ao sair. Programa é filtro *global*: deixá-lo marcado permanentemente tiraria
+Afya Bridge (19,8% da base) do número de abertura de todas as outras abas.
+Marcando na entrada e desmarcando na saída, a barra diz a verdade sobre o
+recorte enquanto você está aqui e as demais abas seguem abrindo com a base
+inteira. A aba não sobrescreve nem apaga um Programa que o usuário já tenha
+escolhido, e **não há recorte por dentro** — desmarcar Afya One aqui tem efeito
+de verdade.
+
+Rode `npm run test:pi`, `npm run test:pi-drill` e `npm run test:pi-vs` para
+validar as regras — os testes executam o script da própria página num `vm`, não
+uma cópia.
 
 ## Tempo por status (aba Lead & Cycle Time)
 

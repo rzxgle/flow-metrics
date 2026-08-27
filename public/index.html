@@ -396,6 +396,25 @@
   .pi-meter i[role="button"]:hover{filter:brightness(1.15);}
   .pi-meter i[role="button"]:focus-visible{outline:none;box-shadow:inset 0 0 0 2px #FFF;filter:brightness(1.15);}
 
+  /* Guarda-chuva de Value Stream. Ele é o cartão com sombra; a squad dentro
+     dele perde a sombra e vira uma faixa, senão a tela ficaria com cartão dentro
+     de cartão e dois níveis de elevação disputando a atenção. */
+  .pi-vs{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);
+    box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden;}
+  .pi-vs-head{display:grid;grid-template-columns:1fr 230px 118px;gap:16px;align-items:center;
+    padding:14px 16px;cursor:pointer;background:#F7F7F8;transition:background .12s ease;}
+  .pi-vs-head:hover{background:#F0F0F2;}
+  .pi-vs-name{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;color:var(--ink);
+    display:flex;align-items:center;gap:9px;letter-spacing:.01em;}
+  .pi-vs.collapsed > .pi-vs-head .pi-caret{transform:rotate(-90deg);}
+  .pi-vs.collapsed > .pi-vs-body{display:none;}
+  .pi-vs-body{border-top:1px solid var(--line);padding:10px 12px 12px;}
+  /* A squad dentro do VS: sem sombra, sem margem inferior no último item, e o
+     nome recuado para a hierarquia aparecer na indentação, não só no tamanho. */
+  .pi-vs-body .pi-squad{box-shadow:none;margin-bottom:8px;}
+  .pi-vs-body .pi-squad:last-child{margin-bottom:0;}
+  .pi-vs-body .pi-squad-head{padding-left:26px;}
+
   .pi-squad{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);
     box-shadow:var(--shadow);margin-bottom:12px;overflow:hidden;}
   .pi-squad-head{display:grid;grid-template-columns:1fr 230px 118px;gap:16px;align-items:center;
@@ -418,8 +437,10 @@
   .pi-kids:hover{border-color:var(--primary);color:var(--primary);}
   .pi-empty-state{text-align:center;padding:40px 20px;}
   @media (max-width:980px){
-    .pi-squad-head{grid-template-columns:1fr;gap:9px;}
+    .pi-squad-head,.pi-vs-head{grid-template-columns:1fr;gap:9px;}
     .pi-pct{text-align:left;}
+    .pi-vs-body{padding:8px;}
+    .pi-vs-body .pi-squad-head{padding-left:16px;}
   }
 
   footer{padding:30px 28px 60px;max-width:1520px;margin:0 auto;color:var(--slate-soft);font-size:12px;}
@@ -1572,7 +1593,8 @@
         <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados) <b>e com Data de início real preenchida</b> — da Data de início real até hoje. Itens em aberto que nunca foram iniciados ficam fora do indicador (não há fallback para a Criação), pois tempo em fila não é envelhecimento em execução. O planejamento do quarter cria itens em lote, e um item só é considerado em andamento quando foi efetivamente puxado — ou seja, quando ganhou Data de início real. O valor é recalculado a cada abertura do dashboard, em dias corridos até a data de hoje, mesmo que os dados venham do cache local.</li>
         <li><b>A aba PI Tracking usa outras regras — de propósito.</b> Ela replica o painel de quarter que o time já usa nas cerimônias de PI, para os dois números não divergirem. Três diferenças em relação às demais abas: (1) <b>sub-tarefas e o próprio épico ficam fora do denominador</b>, porque contá-los soma o mesmo trabalho duas vezes (a história e cada um dos seus subitens) e infla o progresso de quem quebra muito o trabalho; (2) <b>itens cancelados saem do denominador</b> em vez de contarem como não feitos; (3) a comparação de status é <b>normalizada</b> (maiúsculas/minúsculas não importam) e <span class="mono">Em Homologação</span>, <span class="mono">Pronto para Staging</span> e <span class="mono">Staging</span> contam como concluído. No dataset atual, essas diferenças valem 15 pontos percentuais nos épicos de PI3 - Afya One: 51,1% pela regra do PI (499 itens) contra 66,2% pela regra das outras abas (3.465 membros, dos quais 3.336 são sub-tarefas). As regras vivem em <span class="mono">src/config/quarter.rules.js</span> no servidor e viajam com os dados — não há uma segunda cópia no navegador.</li>
         <li><b>Os atalhos de grupo do filtro de Tipo são um atalho, não um segundo filtro.</b> O painel tem <b>um</b> filtro de Tipo, e ele seleciona <b>tipos crus do Jira</b>. Os chips no topo do painel — <b>Nível história</b>, <b>Sub-itens</b>, <b>Bugs</b>, <b>Épicos</b>, <b>Dependências</b> — apenas escrevem nessa mesma seleção em bloco, e por isso <b>os tipos continuam marcáveis um a um</b>, inclusive depois de usar um chip: quem quiser só <span class="mono">Sub-test</span> e <span class="mono">Sub-imp</span> segue podendo. Isso não é a volta do antigo filtro "Tipo Agrupado", que foi retirado da barra — não existe uma segunda seleção, de grupos, concorrendo com a de tipos. A origem foi um feedback de uso: para trocar o recorte para sub-itens era preciso <b>desmarcar 4 tipos e marcar 7</b> (<span class="mono">Sub-imp</span>, <span class="mono">Sub-test</span>, <span class="mono">Sub-task</span>, <span class="mono">Sub-bug</span>, <span class="mono">Sub-block</span>, <span class="mono">Sub-script</span>, <span class="mono">Sub-design</span>) num dropdown de 16 opções, e ainda saber de cor quais são subs. Três regras definem o comportamento. (1) <b>Os grupos saem do dado</b>, do campo <span class="mono">Tipo Agrupado</span> que já chega em cada item — um subtipo novo no Jira entra sozinho em "Sub-itens", sem lista para manter, e grupo sem item no recorte não vira chip. (2) <b>Os chips se somam</b>: marcar "Nível história" e "Sub-itens" mostra os dois níveis juntos, e clicar de novo num chip cheio limpa só aquele grupo. Com seleção parcial, o clique <b>completa</b> o grupo em vez de limpar — quem marcou três subtipos à mão está montando um recorte, não desfazendo um. (3) Na <b>aba Sprint</b>, os chips que só selecionariam tipos ocultos ali (Sub-itens, Épicos, Dependências) somem junto com esses tipos, pela mesma regra que já vale para a lista. <b>Nenhum cálculo mudou</b>: o que os chips fazem, o usuário já podia fazer clicando um por um.</li>
-        <li><b>Quais filtros valem na aba PI Tracking.</b> Ela usa <b>PI, Programa, Value Stream e Squad</b>. Os filtros de <b>Tipo, Status e o intervalo de conclusão saem da tela</b> nessa aba, porque não fazem sentido ali: mexeriam no <b>denominador</b> do progresso em vez de no recorte — filtrar por "Status = Done" faria todo épico aparecer com 100%. A seleção que você fez neles em outras abas continua guardada e volta a valer ao sair daqui. O <b>PI é o filtro do topo</b>, o mesmo de sempre: vazio significa todos. Como "quanto do quarter já passou" não tem resposta para dois quarters somados, os KPIs <b>Quarter percorrido</b>, <b>Gap plano × tempo</b> e <b>Squads abaixo do esperado</b> só aparecem com <b>um</b> PI selecionado; com mais de um, eles avisam em vez de somar quarters diferentes.</li>
+        <li><b>Quais filtros valem na aba PI Tracking.</b> Ela usa <b>PI, Programa, Value Stream e Squad</b>. Os filtros de <b>Tipo, Status e o intervalo de conclusão saem da tela</b> nessa aba, porque não fazem sentido ali: mexeriam no <b>denominador</b> do progresso em vez de no recorte — filtrar por "Status = Done" faria todo épico aparecer com 100%. A seleção que você fez neles em outras abas continua guardada e volta a valer ao sair daqui. O <b>PI é o filtro do topo</b>, o mesmo de sempre: vazio significa todos. Como "quanto do quarter já passou" não tem resposta para dois quarters somados, os KPIs <b>Quarter percorrido</b>, <b>Gap plano × tempo</b> e <b>Squads abaixo do esperado</b> só aparecem com <b>um</b> PI selecionado; com mais de um, eles avisam em vez de somar quarters diferentes. <b>O filtro de Programa vem marcado em Afya One ao entrar nesta aba</b>, e a marcação é desfeita ao sair dela. Programa é filtro <b>global</b>: deixá-lo marcado de forma permanente tiraria Afya Bridge (3.406 dos 17.236 itens da base, 19,8%) do número de abertura de todas as outras abas. Marcando ao entrar e desmarcando ao sair, a barra diz a verdade sobre o recorte enquanto você está aqui, e as demais abas continuam abrindo com a base inteira. A aba nunca passa por cima de você: se já houver um Programa escolhido, ela não sobrescreve nem apaga; e desmarcar Afya One aqui dentro tem efeito de verdade, porque <b>não existe nenhum recorte por dentro</b> — a barra é a única fonte do recorte. Na prática a marcação quase não muda o que já se via nesta aba: label de PI e Programa são redundantes na base — <span class="mono">PI* - Afya One</span> só aparece em épicos de Afya One (144 dos 166 com PI reconhecido) e <span class="mono">PI* - Legado</span> só em Afya Bridge (22) —, então com um PI escolhido ela não move número nenhum; ela age quando o filtro de PI está vazio.</li>
+        <li><b>Os épicos do PI vêm agrupados por Value Stream e, dentro dela, por squad.</b> São dois guarda-chuvas: o de cima é a Value Stream, que no dado é o <b>projeto Jira</b> do épico (campo <span class="mono">VS</span>), e o de baixo é a squad, como já era. Os dois níveis agregam por <b>soma de itens</b>, nunca por média de percentuais — uma Value Stream com cinco squads não é a média dos cinco percentuais, do mesmo jeito que uma squad com um épico de 40 itens e outro de 2 não pode ter os dois pesando igual. A ordem é <b>pior primeiro</b> nos dois níveis. Os dois níveis nascem <b>recolhidos</b>: a página abre no ranking das Value Streams e o detalhe vem por escolha, um nível de cada vez. <b>O agrupamento é feito pelo VS do épico, não da squad</b>: como o VS é o projeto de cada issue, uma squad pode em tese ter épicos em dois projetos, e nesse caso ela aparece dentro de cada Value Stream com apenas os épicos daquela — os totais continuam certos porque tudo é somado a partir do épico. No dataset atual isso não acontece: entre os <b>166 épicos com PI reconhecido</b>, nenhuma das 23 squads aparece sob duas Value Streams. Na base inteira, porém, <b>21 das 45 squads</b> têm itens em mais de um projeto, então o caso não é impossível.</li>
         <li><b>Os filhos não herdam o PI do épico.</b> As labels de PI ficam no épico; um item filho pode não ter nenhuma. Dos 3.465 filhos dos épicos de PI3 - Afya One, <b>1.430 têm PI "Não informado"</b>. Por isso a aba PI Tracking seleciona os <b>épicos</b> pela label e depois puxa <b>todos</b> os filhos pela cadeia de parent, ignorando o PI do filho — filtrar filhos por PI cortaria 40% da base sem avisar. Consequência: o progresso do PI mede o trabalho dos épicos daquele ciclo, não o conjunto de itens que carregam a label.</li>
         <li><b>Labels de transbordo entram no PI de destino.</b> Um item com <span class="mono">TransbordoPI2AfyaOne</span> transbordou do PI2 e é cobrado no PI3, então é ali que ele aparece — mesmo mantendo a label <span class="mono">PI2AfyaOne</span>. O mesmo vale para <span class="mono">NOVOPI3AfyaOne</span>, <span class="mono">LegadoTransbordoP126</span> e <span class="mono">LegadoTransbordoP226</span>. A label <span class="mono">DESPRIORIZADOPI3AfyaOne</span> não classifica mais o item como parte do PI3.</li>
         <li><b>O PI Tracking tem uma coleta própria.</b> A consulta geral continua usando <span class="mono">created &gt;= startOfYear()</span>, mas esta aba busca os épicos diretamente pelas labels configuradas, sem corte por data de criação, e depois busca seus filhos. Assim, épicos antigos planejados para o quarter entram no PI sem alterar as métricas das outras abas.</li>
@@ -1585,7 +1607,7 @@
         <li><b>Cerca de 4% dos itens standard não têm cronologia de sprint recuperável</b>: o campo Sprint preenchido na criação não gera changelog, e movimentações em massa entre sprints às vezes também não. Nesses casos sabemos o conjunto de sprints, não as datas, e o item é contado como presente desde a criação — o bloco de velocity mostra quantos itens estão nessa condição e permite abrir a lista. Subtarefas são o caso extremo (herdam a sprint do pai sem gerar histórico), mas não afetam o velocity porque não entram no cálculo.</li>
         <li><b>Bloqueios em aberto seguem regra própria</b>: o tempo em aberto de um Sub-block conta da <b>Criação</b> até hoje, não do início real. Um bloqueio nasce no momento em que é registrado e precisa ser tratado de imediato, então aqui não há o pressuposto de "item criado mas não puxado" que justifica a regra do Aging.</li>
         <li><b>A aba Dependências mede um issuetype com regras próprias.</b> Uma <span class="mono">Dependência</span> é aberta pelo time <b>demandante</b> para o time de quem ele depende — o <b>dependente</b>, que é o campo <span class="mono">Team</span>. Quatro coisas ali não seguem o resto do painel. (1) <b>A data de conclusão vem do changelog</b>: o workflow deste tipo não seta resolução — nas 62 dependências concluídas da base, <span class="mono">resolutiondate</span> está vazia em <b>100%</b> delas, e <span class="mono">Data de Fim Real</span> também. A data usada é a <b>entrada na categoria Done</b>, a mesma régua da entrega de sprint. (2) <b>O relógio começa na abertura</b>, como num bloqueio: uma dependência nasce ativa, ninguém "começa a trabalhar" nela. A duração é lead time, e a dependência aberta conta da abertura até hoje, recalculado a cada abertura do painel. <b>Cancelada não soma dias</b> — no processo da Afya, cancelar significa que a dependência <b>deixou de ser necessária</b>, então ela conta como episódio sem duração medida. (3) <b>Os dois campos de time escrevem a mesma squad de dois jeitos</b>: o <span class="mono">Team</span> grava "Squad Core - Core Features" e o <span class="mono">Time Demandante</span>, "Core Features". Os nomes são canonizados antes de cruzar a matriz, senão a mesma squad viraria dois nós. Por isso a aba tem filtros próprios de <b>Squad</b> e <b>Papel</b> na barra, e o filtro <span class="mono">Squad</span> global sai da tela: os dois se chamam igual porque são o mesmo conceito, mas o da aba compara pelo id canônico e leva o papel em conta. (4) <b>O item impactado depende de link no Jira</b>. Valem os links oficiais <span class="mono">Dependo de</span> / <span class="mono">Depende de mim</span> (in e out VS) e, como aproximação, <span class="mono">Blocks</span> e <span class="mono">Relates</span>; <span class="mono">Cloners</span> fica de fora, porque um clone é cópia da própria dependência e não o item que ficou esperando. Hoje isso cobre <b>41%</b> das dependências (16% se só os oficiais contassem), e a cobertura vai escrita embaixo da tabela — o card <b>Qualidade do preenchimento</b> existe justamente para essa lacuna encolher.</li>
-        <li><b>Eficiência de Fluxo é a razão de dois percentis, não uma média por item.</b> O card da <b>Visão Geral</b> divide o <b>Cycle Time P85</b> pelo <b>Lead Time P85</b> — exatamente os dois números exibidos ao lado dele, para que a conta feche de cabeça. O preço dessa escolha: os dois percentis saem de <b>bases diferentes</b>, porque Cycle Time exige <span class="mono">Data Início Real</span> e Lead Time não. Na base atual são <b>9.151</b> itens com Lead Time contra <b>4.663</b> com Cycle Time, e só <b>4.641</b> têm os dois — o Lead Time P85 cai de 30,1 para 27,9 dias justamente por incluir os itens sem início real. Por isso o indicador é uma <b>referência de tendência</b>, não uma medida exata de tempo tocado: calculada item a item na base comum, a eficiência média fica em <b>36%</b> contra <b>25%</b> na razão dos percentis. A leitura que vale é comparativa — se a razão sobe ou desce entre recortes e períodos —, e ela fica mais fiel à medida que o preenchimento de <span class="mono">Data Início Real</span> avança.</li>
+        <li><b>Eficiência de Fluxo vem do changelog de Status.</b> O card da <b>Visão Geral</b> soma o tempo encerrado nos status definidos como valor agregado e divide pela soma do tempo reconstruído dos mesmos itens <b>depois do Backlog</b>; por decisão de negócio, Backlog fica fora tanto do numerador quanto do denominador. É uma <b>razão de somas</b>: itens longos pesam pelos dias que ocuparam o fluxo, em vez de cada item receber o mesmo peso. Os status de valor agregado são Revisão design, Refinamento de negócio, Refinamento técnico, Desenvolvimento, EM ANDAMENTO, Deploy em Staging, Homologação integrada e Deploy em PROD; caixa e acentos não alteram o casamento. Só itens concluídos com histórico utilizável entram. O card é clicável e abre a auditoria por item com numerador, denominador, percentual, qualidade do histórico e a decomposição completa por status; a mesma tabela pode ser exportada em CSV.</li>
         <li><b>Os dois cards do meio da aba Lead &amp; Cycle Time são agnósticos à medida.</b> Tanto a <b>tendência mensal</b> quanto o <b>P85 por squad</b> têm um seletor no canto que troca entre as <b>mesmas duas réguas</b> do resto do painel — o dashboard não ganha uma terceira definição de tempo. Os dois abrem em <b>Lead Time</b>, que é a medida que ambos sempre mostraram, e os <b>seletores são independentes</b>: ver a tendência em Lead Time e o ranking de squads em Cycle Time responde "o tempo total piorou; a execução de quem?". Ler as duas réguas é o ponto — quando o Lead sobe e o Cycle fica estável, o que cresceu foi a <b>espera</b>, não a execução. Os dois cards mostram <b>P85</b>, e não a média, porque a pergunta que eles respondem é de compromisso: o valor que cabe em 85% dos casos. Três regras valem para os dois. (1) <b>Item sem a data que a medida exige fica de fora</b>, em vez de entrar como zero dia — zero puxaria o número para baixo como se a entrega tivesse sido instantânea, quando o que houve foi ausência de registro. (2) <b>O recorte de cada barra ou ponto sai dos itens que têm a medida escolhida</b>, e como o Cycle Time depende de dois campos manuais e cobre bem menos itens que o Lead Time (na base, <b>4.663</b> contra <b>9.151</b>), <b>trocar de régua muda o que aparece na tela</b>: a linha da tendência pode ficar <b>mais curta</b> — um mês sem nenhum início real preenchido não existe naquela medida — e o ranking pode <b>trocar de squads</b>, porque o "top 12 por volume" conta itens medidos e quem preenche pouco a <span class="mono">Data de Início Real</span> sai do ranking sem ter entregado menos. Isso é cobertura de preenchimento, não queda de entrega, e é por isso que a legenda de cada card declara em quantos itens a medida existe. (3) <b>O clique abre exatamente os itens que formaram o número</b>, não todos os concluídos do mês ou da squad. Na tendência, <b>cada item é posicionado pelo mês em que foi concluído</b> nas duas medidas — posicionar o Cycle Time pelo mês de início jogaria o item num mês em que ele ainda não tinha número. No ranking, a <b>cor da barra segue a medida</b> (rosa para Lead Time, âmbar para Cycle Time, a mesma convenção dos dois histogramas do topo e do card de Value Stream): um ranking é lido de longe, e a cor não pode anunciar a régua errada.</li>
         <li><b>Na tendência mensal, a barra é o mês e a linha é a tendência — são coisas diferentes.</b> O card era uma área com curva suavizada e foi refeito depois de um feedback de <b>reunião executiva</b>: estava difícil de ler. A curva com suavização <b>inventava movimento entre os meses</b>, subindo e descendo onde não havia dado; barra é uma medida por mês, discreta, que é o que o número é. Cada barra traz o <b>valor escrito em cima</b>, para não depender de ler altura contra a grade. E a leitura de tendência passou a ser <b>explícita</b>: a linha é a <b>média móvel de 3 meses</b> dos P85, a mesma janela do gráfico de evolução mensal de SP — o painel não tem duas ideias de "tendência". A janela é <b>traseira e parcial no começo</b> (o primeiro mês é ele mesmo, o segundo é a média de dois), porque uma janela que só começasse no terceiro mês deixaria a linha nascer no meio do gráfico, e num recorte de três ou quatro meses sobraria quase nada dela. <b>É na linha que se responde "estamos melhorando?"</b>, não na barra: mês a mês o P85 balança demais, ainda mais em mês de pouca amostra. Por isso o tooltip da barra diz <b>quantos itens medidos</b> a sustentam e a legenda declara o mês com menos amostra. <b>Clicar na barra abre o mês; clicar na linha abre a janela inteira</b> da média móvel — o ponto da linha não é aquele mês, e abrir só ele entregaria uma lista que não explica o número na tela.</li>
         <li><b>Tempo por Story Point mede o tempo de EXECUÇÃO, e por isso o padrão do card é o Cycle Time, não o Lead Time.</b> O card da aba <b>Estimativas</b> cruza a estimativa com a duração real dos itens já concluídos do recorte. As duas réguas do seletor são as <b>mesmas já usadas na aba Lead &amp; Cycle Time</b> — o painel não ganha uma terceira definição de tempo. O padrão é o <b>Cycle Time</b> (<span class="mono">Data Início Real</span> → <span class="mono">Data Fim Real</span>) porque é ele que responde "quanto tempo custa um item de 3 pontos": na base, um item de 1 SP leva <b>5,7</b> dias de Cycle Time e <b>18,1</b> de Lead Time, e a diferença é a fila de backlog anterior ao início — que não é esforço do item. Trocar para Lead Time no seletor é justamente como se enxerga esse tempo de espera. Três ressalvas fazem parte da leitura. (1) <b>A cobertura do Cycle Time é menor</b>: ele exige os dois campos manuais de data preenchidos, e na base isso vale para <b>83%</b> dos itens de entrega concluídos com SP (contra 98% do Lead Time). Por isso a legenda do card sempre declara em quantos itens a medida existe, e ela melhora à medida que o preenchimento de <span class="mono">Data Início Real</span> avança. Item sem as datas entra como <b>sem medida</b>, e não como zero dia — zero puxaria a média para baixo como se o item tivesse sido instantâneo. (2) São <b>dias corridos</b>, não dias úteis. (3) <b>Quem entra é o filtro de Tipo, e sub-itens entram</b>. O time pontua cada sub-item com 0,5 ou 1 SP de propósito, e a base confirma: <b>92,3%</b> dos 8.228 sub-itens concluídos com SP estão nesses dois valores, com aderência alta em todos os subtipos. Não é valor herdado do pai. A única exclusão fixa é <span class="mono">Dependência</span>, por ser acordo entre squads e não entrega da squad. Em troca, o <b>risco fica declarado em vez de travado</b>: sub-item e item de entrega são níveis diferentes e a mesma pontuação vale durações diferentes — <b>1 SP roda em 2,1 dias no sub-item contra 5,2 no item de entrega</b>, e como os sub-itens são muito mais numerosos, num recorte misturado são eles que mandam na média. Quando os dois níveis aparecem juntos, a legenda do card diz a composição. Duas consequências práticas: a cobertura de Cycle Time cai bastante nos sub-itens (<b>39%</b> contra 84% nos itens de entrega, porque muitos não têm as datas reais preenchidas), e a referência do comitê de <b>1 SP = 1 dia</b> bate bem melhor neste nível (2,1x) do que no nível história (5,2x) — indício de que ela foi calibrada pensando em sub-item. Vale ainda que, com uma <b>sprint selecionada</b>, sub-itens não chegam ao card: naquele modo a aba mede capacidade e usa só itens de entrega, para não somar o esforço do filho com o do pai. Por fim, <b>tamanho com menos de 3 itens não vira barra</b>, e esse corte é baixo de propósito. Na base inteira ele quase não importa — subir de 3 para 5 tira uma única barra. No <b>recorte por squad</b>, que é como o card é usado de verdade, ele decide muito: medido nas 18 squads com 20+ itens, o corte em 5 deixa <b>64</b> barras contra <b>76</b> no corte em 3, e squads inteiras caem para duas barras — o que não é um gráfico. O preço está aceito e é real: com 3 ou 4 itens a média oscila cerca de <b>30%</b> se um único item entrar ou sair, e o <b>P85 deixa de ser um percentil</b> — em três valores ele cai a 70% do caminho até o maior deles, ou seja, é praticamente "o pior dos três" com nome de estatística. Por isso a tabela traz a coluna <b>Itens medidos</b> e o tooltip repete a contagem: é ela que diz o quanto pesar cada barra. Abaixo do corte o tamanho não some em silêncio — vai para a última linha da tabela e para a legenda, com a contagem.</li>
@@ -1635,7 +1657,7 @@ const TAB_HELP = {
   wip:'Mostra entregas, trabalho ainda aberto e Aging. Os KPIs do topo ignoram o filtro de Tipo (cada card já recorta o seu tipo); os gráficos de entrega seguem o filtro. Aging conta do início real até hoje apenas para itens em WIP.',
   block:'Considera itens do tipo Sub-block. Bloqueios resolvidos usam Cycle Time; bloqueios abertos contam da criação até hoje.',
   sprint:'A associação usa o histórico de sprints do Jira. Completude é subitens concluídos dividido pelo total de subitens do item.',
-  pi:'Agrupa épicos do PI por squad. O progresso usa os filhos elegíveis, exclui cancelados do denominador e não duplica épicos ou subtarefas.',
+  pi:'Agrupa épicos do PI por Value Stream e, dentro dela, por squad — os dois níveis nascem recolhidos. O progresso usa os filhos elegíveis, exclui cancelados do denominador e não duplica épicos ou subtarefas. Ao entrar nesta aba o filtro de Programa vem marcado em Afya One; ao sair, a marcação é desfeita.',
   dep:'Considera issues do tipo Dependência. O time DEPENDENTE vem do campo Team; o DEMANDANTE, do campo Time Demandante. A duração conta da abertura até a entrada em Done, lida do changelog — o workflow deste tipo não preenche resolução. Dependência cancelada deixou de ser necessária: conta como episódio, sem somar dias.',
   notas:'Documenta origem dos campos, regras de cálculo, limitações e decisões metodológicas do dashboard.'
 };
@@ -1982,6 +2004,10 @@ function construirAtalhosDeTipo(slot, list, btn, key){
 let sincronizarChipsDeTipo = ()=>{};
 
 function buildFilterBar(){
+  // Antes de desenhar os checkboxes: assim o Programa padrão da aba PI já nasce
+  // marcado na barra, em vez de aparecer só no render seguinte. A barra é
+  // reconstruída a cada lote da carga progressiva, e a função é idempotente.
+  piSincronizarProgramaPadrao();
   const bar = document.getElementById('filterBar');
   // A carga progressiva reconstrói as opções a cada lote. Limpar primeiro torna
   // esta função idempotente e impede a duplicação dos controles.
@@ -2065,6 +2091,9 @@ function buildFilterBar(){
       cb.addEventListener('change', ()=>{
         if(cb.checked) selections[f.key].add(cb.value);
         else selections[f.key].delete(cb.value);
+        // A partir daqui a seleção é DELE: a aba não pode mais apagá-la ao sair,
+        // nem reescrevê-la ao voltar.
+        if(f.key==='Programa') piProgramaPadraoAtivo = false;
         updateFilterBtn(f.key, btn);
         sincronizarChips();
         renderAll();
@@ -2078,12 +2107,14 @@ function buildFilterBar(){
       const soVisiveis = f.key==='Tipo de item' && bar.classList.contains('sprint-only');
       const alvo = soVisiveis ? '.dd-item:not([data-no-sprint]) input[type=checkbox]' : 'input[type=checkbox]';
       list.querySelectorAll(alvo).forEach(cb=>{ cb.checked=true; selections[f.key].add(cb.value); });
+      if(f.key==='Programa') piProgramaPadraoAtivo = false;
       updateFilterBtn(f.key, btn); sincronizarChips(); renderAll();
     });
     actions.querySelector('[data-act="none"]').addEventListener('click', (e)=>{
       e.stopPropagation();
       list.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked=false; });
       selections[f.key].clear();
+      if(f.key==='Programa') piProgramaPadraoAtivo = false;
       updateFilterBtn(f.key, btn); sincronizarChips(); renderAll();
     });
   });
@@ -2097,6 +2128,9 @@ function buildFilterBar(){
   clearAll.className = 'clear-btn';
   clearAll.textContent = '↺ Limpar';
   clearAll.addEventListener('click', ()=>{
+    // "Limpar" limpa mesmo, inclusive o padrão da aba PI: reescrevê-lo aqui
+    // faria o botão parecer quebrado.
+    piProgramaPadraoAtivo = false;
     FILTER_DIMS.forEach(f=>{
       selections[f.key].clear();
       const wrap = document.getElementById('dd-'+f.key.replace(/\s/g,'_'));
@@ -2562,6 +2596,7 @@ const DRAWER_COLS = [
   {k:'Data Fim Real', label:'Fim real'},
   {k:'Data Conclusao', label:'Conclusão'},
 ];
+let __drawerCols = DRAWER_COLS;
 
 function ensureDrawer(){
   if(document.getElementById('__drawer')) return;
@@ -2681,7 +2716,7 @@ function drawerStatusTone(item, status){
 function filterDrawerIssues(query){
   const term=String(query||'').trim().toLocaleLowerCase('pt-BR');
   if(!term) return __drawerIssues;
-  return __drawerIssues.filter(issue=>DRAWER_COLS.some(col=>{
+  return __drawerIssues.filter(issue=>__drawerCols.some(col=>{
     const value=issue[col.k];
     return String(Array.isArray(value)?value.join(' '):(value??'')).toLocaleLowerCase('pt-BR').includes(term);
   }));
@@ -2697,9 +2732,9 @@ function renderDrawerTable(issues){
     body.innerHTML=`<div class="empty">${searching?'Nenhuma issue encontrada para esta busca.':'Nenhuma issue neste recorte.'}</div>`;
     return;
   }
-  const head=DRAWER_COLS.map(c=>`<th scope="col">${c.label}</th>`).join('');
+  const head=__drawerCols.map(c=>`<th scope="col">${c.label}</th>`).join('');
   const rows=visible.map(d=>{
-    const tds=DRAWER_COLS.map(c=>{
+    const tds=__drawerCols.map(c=>{
       let v=d[c.k];
       if(v===null||v===undefined) v='';
       if(Array.isArray(v)) v=v.join(', ');
@@ -2717,8 +2752,9 @@ function renderDrawerTable(issues){
   body.innerHTML=`<table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-function openDrawer(title, issues){
+function openDrawer(title, issues, columns){
   ensureDrawer();
+  __drawerCols = columns || DRAWER_COLS;
   __drawerIssues = issues || [];
   __drawerTitle = title || 'Issues';
   document.getElementById('__drawer-title').textContent = __drawerTitle;
@@ -2742,8 +2778,8 @@ function escapeHtml(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;',
 function exportDrawerCsv(){
   if(!__drawerIssues.length) return;
   const sep=';';
-  const header = DRAWER_COLS.map(c=>c.label).join(sep);
-  const lines = __drawerIssues.map(d=> DRAWER_COLS.map(c=>{
+  const header = __drawerCols.map(c=>c.label).join(sep);
+  const lines = __drawerIssues.map(d=> __drawerCols.map(c=>{
     let v = d[c.k]; if(v===null||v===undefined) v='';
     if(Array.isArray(v)) v = v.join(', ');
     v = String(v).replace(/"/g,'""');
@@ -2775,7 +2811,7 @@ document.addEventListener('click', (e)=>{
   const card = e.target.closest('[data-drill]');
   if(!card) return;
   const d = __cardDrills[card.getAttribute('data-drill')];
-  if(d) openDrawer(d.title, d.issues);
+  if(d) openDrawer(d.title, d.issues, d.columns);
 });
 
 /* ===================== Tabs ===================== */
@@ -2842,6 +2878,13 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
   activeTab = btn.dataset.tab;
+  // Entrar na aba PI escreve o Programa padrão na barra; sair apaga. Quando
+  // isso acontece o recorte muda para TODAS as abas, e trocar de aba não
+  // re-renderiza nada por conta própria — os painéis já estão no DOM.
+  if(piSincronizarProgramaPadrao()){
+    sincronizarFiltroNaTela('Programa');
+    renderAll();
+  }
   syncFilterBarForTab();
   closeMobileSidebar();
   // Gráficos criados enquanto o painel estava oculto (display:none) nascem com
@@ -2935,6 +2978,54 @@ function comparisonCard(kind, previousLabel, currentLabel, previousValue, curren
 }
 
 /* ===================== TAB: EXEC ===================== */
+/* Status em que existe trabalho ativo/valor agregado. A comparação ignora
+   caixa, acentos e espaços nas pontas para sobreviver às variações de cadastro
+   do Jira (por exemplo, "Deploy em prod" x "Deploy em PROD"). */
+const FLOW_VALUE_STATUSES = [
+  'Revisão design', 'Refinamento de negócio', 'Refinamento técnico',
+  'Desenvolvimento', 'EM ANDAMENTO', 'Deploy em staging',
+  'Homologação integrada', 'Deploy em prod',
+];
+const flowStatusNorm = value=>String(value||'').normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase('pt-BR');
+const FLOW_VALUE_STATUS_SET = new Set(FLOW_VALUE_STATUSES.map(flowStatusNorm));
+/* Backlog fica fora dos dois lados por decisão de negócio: o relógio desta
+   eficiência começa quando o item deixa o estoque inicial do fluxo. */
+const FLOW_EFFICIENCY_EXCLUDED_STATUS_SET = new Set(['Backlog'].map(flowStatusNorm));
+
+function flowEfficiencyRows(base){
+  return (base||[]).filter(d=>d.Concluido && (d.TempoPorStatus||[]).length).map(d=>{
+    let valor=0, total=0;
+    const partes=[];
+    (d.TempoPorStatus||[]).forEach(p=>{
+      const dias=Number(p&&p.dias);
+      const status=p&&String(p.status||'').trim();
+      if(!status || !(dias>0)) return;
+      if(FLOW_EFFICIENCY_EXCLUDED_STATUS_SET.has(flowStatusNorm(status))) return;
+      const agrega=FLOW_VALUE_STATUS_SET.has(flowStatusNorm(status));
+      total+=dias;
+      if(agrega) valor+=dias;
+      partes.push(`${status}: ${fmt1(dias)} d (${agrega?'valor agregado':'espera'})`);
+    });
+    if(!(total>0)) return null;
+    return Object.assign({},d,{
+      _TempoValor:Number(valor.toFixed(2)),
+      _TempoTotal:Number(total.toFixed(2)),
+      _Eficiencia:Number((valor/total*100).toFixed(1)),
+      _Historico:d.StatusHistoricoOk===false?'Parcial':'Completo',
+      _Decomposicao:partes.join(' · '),
+    });
+  }).filter(Boolean);
+}
+
+const FLOW_EFFICIENCY_DRAWER_COLS = [
+  {k:'Chave',label:'Chave',link:true}, {k:'Resumo',label:'Resumo'},
+  {k:'Squad',label:'Team'}, {k:'PI',label:'PI'},
+  {k:'_TempoValor',label:'Valor agregado (d)'}, {k:'_TempoTotal',label:'Tempo total (d)'},
+  {k:'_Eficiencia',label:'Eficiência (%)'}, {k:'_Historico',label:'Histórico'},
+  {k:'_Decomposicao',label:'Decomposição por status'},
+];
+
 function renderExec(f, atual){
   // f = concluídos no período; atual = recorte completo (estado atual/planejamento).
   const concl = f.filter(d=>d.Concluido);
@@ -2947,21 +3038,15 @@ function renderExec(f, atual){
   const naoCancel = atual.filter(d=>!d.Cancelado);
   const leadVals = f.filter(d=>d.LeadTimeDias!=null).map(d=>d.LeadTimeDias);
   const cycleVals = f.filter(d=>d.CycleTimeDias!=null).map(d=>d.CycleTimeDias);
-  // Os dois P85 são calculados UMA vez e reaproveitados pelos três cards de
-  // tempo. A Eficiência de Fluxo é a divisão exata dos dois números exibidos ao
-  // lado dela — é essa conta que o leitor confere de cabeça, e recalcular o
-  // percentil por card abriria espaço para os três divergirem.
   const leadP85 = percentile(leadVals, 85);
   const cycleP85 = percentile(cycleVals, 85);
-  // Eficiência de fluxo = tempo de execução sobre o tempo total do fluxo.
-  // Lead Time nulo (recorte sem concluídos) ou zerado (item criado e concluído
-  // no mesmo instante) não tem razão a exibir: fmt1 imprime '—' para null.
-  // Não há trava em 100%: o Cycle Time exige Data Início Real e por isso sai de
-  // uma base menor que o Lead Time, então num recorte estreito onde só os itens
-  // longos têm essa data a razão pode passar de 100%. Truncar esconderia
-  // justamente o recorte em que o indicador não deve ser lido.
-  const eficFluxo = (leadP85 && cycleP85!=null) ? (cycleP85/leadP85*100) : null;
-  const eficEspera = (eficFluxo!=null && eficFluxo>=0 && eficFluxo<=100)
+  // Razão de somas: todos os itens pesam pelos dias que efetivamente ocuparam o
+  // fluxo. Numerador e denominador vêm da mesma cronologia de status.
+  const eficRows=flowEfficiencyRows(f);
+  const tempoValor=sum(eficRows,d=>d._TempoValor);
+  const tempoTotal=sum(eficRows,d=>d._TempoTotal);
+  const eficFluxo=tempoTotal>0 ? tempoValor/tempoTotal*100 : null;
+  const eficEspera = eficFluxo!=null
     ? {cls:'flat', text:`${fmt1(100-eficFluxo)}% em espera`} : null;
 
   // Pendentes e Em andamento refletem o ESTADO ATUAL (ignoram o filtro de data,
@@ -2981,6 +3066,10 @@ function renderExec(f, atual){
     concluidos: {title: temPeriodo?'Concluídos no período':'Concluídos', issues: concl},
     lead: {title:'Itens com Lead Time (concluídos)', issues: f.filter(d=>d.LeadTimeDias!=null)},
     cycle: {title:'Itens com Cycle Time', issues: f.filter(d=>d.CycleTimeDias!=null)},
+    eficiencia: {
+      title:`Eficiência de Fluxo · ${fmt1(tempoValor)} d de valor / ${fmt1(tempoTotal)} d totais`,
+      issues:eficRows, columns:FLOW_EFFICIENCY_DRAWER_COLS,
+    },
   });
 
   document.getElementById('exec-kpis').innerHTML = [
@@ -2992,10 +3081,8 @@ function renderExec(f, atual){
       {cls:'up', text: temPeriodo ? 'no período filtrado' : pct.toFixed(0)+'% dos itens ativos'}, null, 'concluidos'),
     kpiCard('Lead Time (P85)', fmt1(leadP85), 'dias', 'amber', null, null, 'lead'),
     kpiCard('Cycle Time (P85)', fmt1(cycleP85), 'dias', 'amber', null, null, 'cycle'),
-    // Sem drill: nenhum conjunto de issues reproduz a razão de dois percentis,
-    // e os dois cards ao lado já abrem cada uma das bases.
     kpiCard('Eficiência de Fluxo', fmt1(eficFluxo), '%', 'amber', eficEspera,
-      'Cycle Time P85 dividido pelo Lead Time P85, os dois cards ao lado. O Cycle exige Data Início Real, ausente em parte dos concluídos, então as bases não são as mesmas.', null),
+      'Tempo nos status de valor agregado dividido pelo tempo do changelog após o Backlog. Clique para auditar itens e status.', 'eficiencia'),
   ].join('');
 
   // Throughput mensal
@@ -6017,6 +6104,17 @@ function renderBurndown(sprint, subs){
    squad que ele abriu tem de continuar aberta. */
 const piExpandedSquads = new Set();
 
+/* Value Streams que o usuário ABRIU — mesma mecânica do conjunto acima, e pelo
+   mesmo motivo: guardar o que foi aberto preserva a escolha entre renders (a
+   lista é reconstruída a cada mudança de filtro) e faz o conjunto vazio
+   significar "tudo como nasce".
+
+   Os dois níveis nascem RECOLHIDOS. Decisão do usuário depois de ver a tela
+   pronta: a página abre no ranking das Value Streams — 6 linhas — e o detalhe
+   vem por escolha, um nível de cada vez. É a mesma leitura de entrada que as
+   squads já tinham, um andar acima. */
+const piExpandedVs = new Set();
+
 /* O PI vem do filtro do topo — é a MESMA dimensão (label do Jira), então um
    seletor próprio aqui seria uma segunda fonte de verdade para a mesma pergunta.
    Vazio significa "todos", como em qualquer filtro da barra.
@@ -6064,6 +6162,44 @@ function piIsTransbordo(item){
 /** Filtros do topo que se aplicam aqui. Tipo/Status/período ficam de fora
     porque mexeriam no denominador do progresso, não no recorte. */
 const PI_TAB_FILTER_KEYS = ['Programa','VS','Squad'];
+
+/* Programa que a aba pré-seleciona AO ENTRAR nela.
+
+   Decisão do usuário: ele quer ver o filtro marcado de verdade na barra, e não
+   um padrão agindo só por dentro — mas sem que Afya Bridge (3.406 dos 17.236
+   itens da base, 19,8%) suma do número de abertura das outras abas. Daí o
+   meio-termo: a aba ESCREVE 'Afya One' na seleção global ao ser aberta e APAGA
+   ao ser deixada. Enquanto ele está aqui, a barra diz a verdade sobre o
+   recorte; nas outras abas, nada muda.
+
+   Duas condições para não passar por cima do usuário: o padrão só entra se a
+   seleção de Programa estiver VAZIA (quem escolheu um programa mantém o dele) e
+   só sai se ainda for ele que está lá. Mexer no filtro de Programa desliga o
+   padrão — `piProgramaPadraoAtivo` vira false —, senão desmarcar Afya One aqui
+   dentro não teria efeito nenhum e o filtro viraria uma trava.
+
+   Na prática o recorte quase não muda o que já se via nesta aba, porque label
+   de PI e Programa são redundantes na base: `PI* - Afya One` só aparece em
+   épicos de Afya One (144 dos 166 com PI reconhecido) e `PI* - Legado` só em
+   Afya Bridge (22). Com um PI escolhido, o padrão não move número nenhum; ele
+   age quando o filtro de PI está vazio. */
+const PI_DEFAULT_PROGRAMA = 'Afya One';
+
+/* true enquanto a seleção de Programa for a que ESTA aba escreveu. É o que
+   autoriza apagá-la ao sair — sem isso, a saída levaria junto uma escolha do
+   usuário. */
+let piProgramaPadraoAtivo = false;
+
+/** O recorte de Programa em vigor, e se ele é o padrão escrito pela aba — o que
+    a linha de recorte declara, para o filtro não aparecer marcado sem
+    explicação. Não existe conjunto sintético aqui: a barra é a única fonte de
+    verdade do recorte. */
+function piProgramaDoRecorte(){
+  const sel = selections['Programa'];
+  if(!sel || !sel.size) return null;
+  return {set:sel, padrao:piProgramaPadraoAtivo};
+}
+
 function matchesPiTabFilters(d){
   for(const key of PI_TAB_FILTER_KEYS){
     const sel = selections[key];
@@ -6073,6 +6209,38 @@ function matchesPiTabFilters(d){
     if(!sel.has(String(v))) return false;
   }
   return true;
+}
+
+/**
+ * Escreve/apaga o Programa padrão conforme a aba ativa. Devolve true quando
+ * mexeu na seleção — quem chama precisa saber, porque trocar de aba não
+ * re-renderiza nada por conta própria (os painéis já estão no DOM) e o recorte
+ * acabou de mudar para TODAS elas.
+ */
+function piSincronizarProgramaPadrao(){
+  if(activeTab==='pi'){
+    if(piProgramaPadraoAtivo || selections['Programa'].size) return false;
+    // Só entra se existir nos dados: numa base sem Afya One a aba abriria vazia.
+    const existe = PI_DATA.some(d=>d['Tipo Agrupado']==='Épico' && d.Programa===PI_DEFAULT_PROGRAMA);
+    if(!existe) return false;
+    selections['Programa'].add(PI_DEFAULT_PROGRAMA);
+    piProgramaPadraoAtivo = true;
+    return true;
+  }
+  if(!piProgramaPadraoAtivo) return false;
+  selections['Programa'].delete(PI_DEFAULT_PROGRAMA);
+  piProgramaPadraoAtivo = false;
+  return true;
+}
+
+/** Reflete na barra uma seleção mudada por código (o padrão acima): os
+    checkboxes só se atualizam sozinhos quando é o usuário quem clica. */
+function sincronizarFiltroNaTela(key){
+  const wrap = document.getElementById('dd-'+key.replace(/\s/g,'_'));
+  if(!wrap) return;
+  wrap.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked = selections[key].has(cb.value); });
+  const btn = wrap.querySelector('.dd-btn');
+  if(btn) updateFilterBtn(key, btn);
 }
 
 /** PIs presentes nos dados que têm janela de quarter conhecida, do mais recente
@@ -6120,13 +6288,15 @@ function piTimeProgress(win){
 }
 
 /**
- * Monta a árvore squad -> épicos -> filhos do PI selecionado.
+ * Monta a árvore Value Stream -> squad -> épicos -> filhos do PI selecionado.
  * Agregação por SOMA de itens (não média de percentuais): uma squad com um
- * épico de 40 itens e outro de 2 não pode ter os dois pesando igual.
+ * épico de 40 itens e outro de 2 não pode ter os dois pesando igual, e o mesmo
+ * vale um nível acima — um VS com 5 squads não é a média dos 5 percentuais.
  */
 function piBuildTracking(){
   const pis = piSelectedPis();
   const piSet = new Set(pis);
+  const programa = piProgramaDoRecorte();
   const epics = PI_DATA.filter(d=>
     d['Tipo Agrupado']==='Épico'
     && piSet.has(d.PI)
@@ -6142,7 +6312,14 @@ function piBuildTracking(){
     childrenByEpic.get(key).push(d);
   });
 
-  const bySquad = new Map();
+  /* VS -> squad -> épicos. O agrupamento é feito pelo VS do ÉPICO, não da
+     squad: o VS é o projeto Jira de cada issue, então uma squad pode, em tese,
+     ter épicos em dois projetos. Nesse caso ela aparece dentro de cada VS com
+     apenas os épicos daquele VS, e os totais continuam certos porque tudo é
+     somado a partir do épico. Medido: entre os 166 épicos com PI reconhecido,
+     nenhuma das 23 squads aparece sob dois VS — mas na base inteira 21 das 45
+     squads têm itens em mais de um projeto, então o caso não é impossível. */
+  const byVs = new Map();
   epics.forEach(epic=>{
     const countable = (childrenByEpic.get(epic.Chave)||[]).filter(piIsCountableChild);
     const cancelled = countable.filter(c=>piIsIgnored(c.Status));
@@ -6171,22 +6348,53 @@ function piBuildTracking(){
       byPhase: { done, inProgress, todo },
     };
 
+    const vs = epic.VS || 'Não informado';
     const squad = epic.Squad || 'Não informado';
-    if(!bySquad.has(squad)) bySquad.set(squad, {squad, epics:[], total:0, done:0, inProgress:0, todo:0});
-    const bucket = bySquad.get(squad);
+    if(!byVs.has(vs)) byVs.set(vs, {vs, squadMap:new Map(), total:0, done:0, inProgress:0, todo:0});
+    const vsBucket = byVs.get(vs);
+    if(!vsBucket.squadMap.has(squad)) vsBucket.squadMap.set(squad, {squad, vs, epics:[], total:0, done:0, inProgress:0, todo:0});
+    const bucket = vsBucket.squadMap.get(squad);
+    [bucket, vsBucket].forEach(b=>{
+      b.total += row.total;
+      b.done += row.done;
+      b.inProgress += row.inProgress;
+      b.todo += row.todo;
+    });
     bucket.epics.push(row);
-    bucket.total += row.total;
-    bucket.done += row.done;
-    bucket.inProgress += row.inProgress;
-    bucket.todo += row.todo;
   });
 
-  const squads = Array.from(bySquad.values()).map(s=>({
-    ...s,
-    pct: s.total ? s.done/s.total*100 : 0,
-    // pior primeiro: a squad que precisa de atenção não deveria exigir rolagem
-    epics: s.epics.sort((a,b)=> a.pct-b.pct || String(a.epic.Chave).localeCompare(String(b.epic.Chave))),
-  })).sort((a,b)=> a.pct-b.pct || String(a.squad).localeCompare(String(b.squad),'pt'));
+  // pior primeiro nos dois níveis: quem precisa de atenção não deveria exigir
+  // rolagem. Desempate por nome para a ordem não depender da ordem de chegada.
+  const piorPrimeiro = (campo)=>(a,b)=> a.pct-b.pct || String(a[campo]).localeCompare(String(b[campo]),'pt');
+
+  const vsGroups = Array.from(byVs.values()).map(v=>({
+    vs: v.vs, total:v.total, done:v.done, inProgress:v.inProgress, todo:v.todo,
+    pct: v.total ? v.done/v.total*100 : 0,
+    squads: Array.from(v.squadMap.values()).map(s=>({
+      ...s,
+      pct: s.total ? s.done/s.total*100 : 0,
+      epics: s.epics.sort((a,b)=> a.pct-b.pct || String(a.epic.Chave).localeCompare(String(b.epic.Chave))),
+    })).sort(piorPrimeiro('squad')),
+  })).sort(piorPrimeiro('vs'));
+
+  /* Lista plana das FAIXAS desenhadas (uma por squad dentro de cada VS), na
+     ordem da tela: VS pior primeiro, squad pior primeiro dentro dele. É o que
+     os drills percorrem. */
+  const squads = vsGroups.flatMap(v=>v.squads);
+
+  /* Squads DISTINTAS, somando os pedaços de quem tiver épicos em dois VS. Os
+     KPIs contam squad como time, não como faixa na tela: com a lista plana, uma
+     squad partida entre dois VS seria contada duas vezes e "abaixo do esperado"
+     poderia marcá-la e não marcá-la ao mesmo tempo. Fazer a conta por nome
+     mantém o KPI com o mesmo significado que tinha antes do agrupamento. */
+  const porNome = new Map();
+  squads.forEach(s=>{
+    if(!porNome.has(s.squad)) porNome.set(s.squad, {squad:s.squad, total:0, done:0});
+    const b = porNome.get(s.squad);
+    b.total += s.total; b.done += s.done;
+  });
+  const squadsDistintas = Array.from(porNome.values())
+    .map(s=>({...s, pct: s.total ? s.done/s.total*100 : 0}));
 
   const totalItems = squads.reduce((sum,s)=>sum+s.total,0);
   const doneItems = squads.reduce((sum,s)=>sum+s.done,0);
@@ -6200,17 +6408,21 @@ function piBuildTracking(){
   return {
     pis,
     window: win,
+    programa,
+    vsGroups,
     squads,
     epics: allEpics,
     kpis: {
       clusterProgress, totalItems, doneItems,
+      totalVs: vsGroups.length,
       timeProgress,
       gap: timeProgress===null ? null : clusterProgress-timeProgress,
       totalEpics: allEpics.length,
       epicsDone: epicsDone.length,
       epicsDonePct: allEpics.length ? epicsDone.length/allEpics.length*100 : 0,
       emptyEpics: allEpics.filter(e=>e.isEmpty).length,
-      squadsBehind: timeProgress===null ? null : squads.filter(s=>s.pct<timeProgress).length,
+      totalSquads: squadsDistintas.length,
+      squadsBehind: timeProgress===null ? null : squadsDistintas.filter(s=>s.pct<timeProgress).length,
     },
     drills: {
       items: squads.flatMap(s=>s.epics.flatMap(e=>e.validChildren)),
@@ -6280,11 +6492,17 @@ function renderPiTracking(){
   // Diz de onde vem o recorte: sem isto, "3 PIs" some e o número dos KPIs fica
   // sem contexto quando o filtro do topo está aberto.
   if(recorteEl){
-    recorteEl.innerHTML = t.pis.length
+    // O filtro já aparece marcado na barra, mas quem não viu a marcação
+    // acontecer não sabe de onde ela veio — nem que ela some ao sair da aba.
+    // Esta linha é o que explica a marcação.
+    const padraoPrograma = t.programa && t.programa.padrao
+      ? ` · Programa <b>${escapeHtml(PI_DEFAULT_PROGRAMA)}</b> <span class="pi-sub">(padrão da aba — desmarque no filtro <b>Programa</b> para ver todos)</span>`
+      : '';
+    recorteEl.innerHTML = (t.pis.length
       ? (umPi
           ? `<b>${escapeHtml(t.pis[0])}</b> · quarter ${win ? `${win.label}, ${piFmtBr(win.start)} a ${piFmtBr(win.end)}` : 'desconhecido'}`
           : `${t.pis.length} PIs no recorte — selecione um só no filtro <b>PI</b> para ver o progresso no tempo`)
-      : 'Nenhum PI reconhecido nos dados';
+      : 'Nenhum PI reconhecido nos dados') + padraoPrograma;
   }
 
   __cardDrills['pi-items'] = {title:`Itens de ${rotulo} (denominador do progresso)`, issues:t.drills.items};
@@ -6315,7 +6533,7 @@ function renderPiTracking(){
       {cls:gapCls, text:gapTxt},
       'Progresso de entrega menos progresso no tempo. Negativo = entregando mais devagar que o calendário')
     + kpiCard('Total de épicos', k.totalEpics.toLocaleString('pt-BR'), '', 'slate',
-      {cls:'flat', text:`${t.squads.length} squad(s)`},
+      {cls:'flat', text:`${k.totalVs} VS · ${k.totalSquads} squad(s)`},
       'Épicos não cancelados no recorte', 'pi-epics')
     + kpiCard('Épicos vazios', k.emptyEpics.toLocaleString('pt-BR'), '',
       k.emptyEpics>0?'amber':'slate',
@@ -6323,21 +6541,26 @@ function renderPiTracking(){
       'Épico cadastrado no PI sem nenhum filho entregável — planejamento incompleto', 'pi-empty')
     + kpiCard('Squads abaixo do esperado', k.squadsBehind===null?'—':String(k.squadsBehind), '',
       k.squadsBehind>0?'amber':'slate',
-      k.squadsBehind===null ? semPi : {cls:'flat', text:`de ${t.squads.length} squad(s)`},
+      k.squadsBehind===null ? semPi : {cls:'flat', text:`de ${k.totalSquads} squad(s)`},
       'Squads cujo progresso está abaixo do percentual do quarter já decorrido');
 
   if(!t.squads.length){
+    const comoPrograma = t.programa
+      ? (t.programa.padrao
+          ? `<b>${escapeHtml(PI_DEFAULT_PROGRAMA)}</b> (padrão da aba)`
+          : `<b>${Array.from(t.programa.set).map(escapeHtml).join(', ')}</b>`)
+      : 'todos os programas';
     squadsEl.innerHTML = `<div class="card pi-empty-state">
       <div style="font-size:30px;line-height:1;margin-bottom:10px;">🎯</div>
       <h3 style="margin-bottom:6px;">Nenhum épico neste recorte</h3>
       <div class="cap" style="max-width:560px;margin:0 auto;">
         ${t.pis.length
-          ? `Não há épicos de <b>${escapeHtml(rotulo)}</b> nos filtros atuais de Programa, Value Stream e Squad.`
+          ? `Não há épicos de <b>${escapeHtml(rotulo)}</b> em ${comoPrograma}, nos filtros atuais de Value Stream e Squad.`
           : 'Nenhum épico com label de PI reconhecida nos dados carregados.'}</div></div>`;
     return;
   }
 
-  squadsEl.innerHTML = t.squads.map(s=>{
+  const squadCard = s=>{
     const collapsed = piExpandedSquads.has(s.squad) ? '' : ' collapsed';
     const rows = s.epics.map(e=>{
       const badges = [
@@ -6382,6 +6605,34 @@ function renderPiTracking(){
         </table></div>
       </div>
     </div>`;
+  };
+
+  /* Guarda-chuva de Value Stream por cima das squads. O cabeçalho usa as MESMAS
+     três colunas do cabeçalho de squad (1fr 230px 118px), então o medidor e o
+     percentual dos dois níveis caem alinhados na vertical — é isso que deixa
+     ler "o VS está em 61% e esta squad dentro dele está em 38%" de relance.
+
+     Como na squad, o cabeçalho inteiro é o alvo de recolher/expandir e o
+     medidor do VS não é clicável: só a barra da linha do épico abre lista, para
+     o clique no medidor significar sempre a mesma coisa. */
+  squadsEl.innerHTML = t.vsGroups.map(v=>{
+    const collapsed = piExpandedVs.has(v.vs) ? '' : ' collapsed';
+    const squads = v.squads.length;
+    const epicos = v.squads.reduce((n,s)=>n+s.epics.length,0);
+    return `<div class="pi-vs${collapsed}" data-pi-vs="${escapeHtml(v.vs)}">
+      <div class="pi-vs-head">
+        <div class="pi-vs-name">
+          <span class="pi-caret">▾</span>
+          <span>${escapeHtml(v.vs)}</span>
+          <span class="pi-sub">${squads} squad(s) · ${epicos} épico(s)</span>
+        </div>
+        <div>${piMeter(v.done, v.inProgress, v.todo)}
+          <div class="pi-sub" style="margin-top:4px;">${v.done}/${v.total} itens · ${v.todo} pendentes</div>
+        </div>
+        <div class="pi-pct">${piFmtPct(v.pct)}%</div>
+      </div>
+      <div class="pi-vs-body">${v.squads.map(squadCard).join('')}</div>
+    </div>`;
   }).join('');
 
   // Guarda os filhos por épico para o drill-down (fora do HTML, sem serializar).
@@ -6419,6 +6670,18 @@ document.addEventListener('click', (e)=>{
     card.classList.toggle('collapsed');
     if(card.classList.contains('collapsed')) piExpandedSquads.delete(squad);
     else piExpandedSquads.add(squad);
+    return;
+  }
+  /* O cabeçalho do VS não é alcançado pelo bloco acima: a barra da squad vive
+     em .pi-vs-body, que é IRMÃO de .pi-vs-head, então nenhum closest de dentro
+     de uma squad chega aqui. */
+  const vsHead = e.target.closest('.pi-vs-head');
+  if(vsHead){
+    const card = vsHead.closest('.pi-vs');
+    const vs = card.getAttribute('data-pi-vs');
+    card.classList.toggle('collapsed');
+    if(card.classList.contains('collapsed')) piExpandedVs.delete(vs);
+    else piExpandedVs.add(vs);
   }
 });
 
