@@ -2395,6 +2395,24 @@ function percentile(arr, p){
 function mean(arr){ return arr.length ? sum(arr,x=>x)/arr.length : null; }
 function fmt1(n){ const x = typeof n==='number' ? n : parseFloat(n); return (x===null||x===undefined||!isFinite(x)) ? '—' : x.toFixed(1); }
 function fmt0(n){ const x = typeof n==='number' ? n : parseFloat(n); return (x===null||x===undefined||!isFinite(x)) ? '—' : Math.round(x).toLocaleString('pt-BR'); }
+/* Quebra um texto longo em linhas para caber no tooltip do Chart.js, que
+   renderiza array de strings como múltiplas linhas. Sem isso um resumo de
+   história (~60 caracteres) sai numa linha só e o tooltip vira uma tarja que
+   atravessa o card. Quebra por palavra; palavra maior que o limite fica
+   inteira, para não cortar chave ou termo técnico no meio. */
+function quebraTextoTooltip(texto, max){
+  const palavras = String(texto||'').trim().split(/\s+/).filter(Boolean);
+  if(!palavras.length) return [];
+  const linhas = [];
+  let atual = '';
+  palavras.forEach(w=>{
+    if(!atual){ atual = w; return; }
+    if((atual+' '+w).length <= (max||44)) atual += ' '+w;
+    else { linhas.push(atual); atual = w; }
+  });
+  linhas.push(atual);
+  return linhas;
+}
 function groupBy(arr, fn){
   const m = new Map();
   arr.forEach(d=>{
@@ -5732,7 +5750,11 @@ function renderSprint(){
   ].join('');
 
   // registro de drill por item (completude chart + tabela)
-  rows.forEach((r,i)=>{ __cardDrills['sprintitem_'+i] = {title:`Subitens de ${r.p.Chave}`, issues: r.subs.length?r.subs:[r.p]}; });
+  rows.forEach((r,i)=>{ __cardDrills['sprintitem_'+i] = {
+    // Chave + resumo: quem chega pelo gráfico clicou numa barra rotulada só com
+    // a chave e precisa confirmar de qual história é a lista aberta.
+    title:`Subitens de ${r.p.Chave}${r.p.Resumo ? ' · '+r.p.Resumo : ''}`,
+    issues: r.subs.length?r.subs:[r.p]}; });
 
   // Gráfico de completude por item (barra horizontal, maior no topo)
   const topRows = rows.slice(0, 20);
@@ -5740,7 +5762,13 @@ function renderSprint(){
     type:'bar',
     data:{labels:topRows.map(r=>r.p.Chave), datasets:[{data:topRows.map(r=>+r.pct.toFixed(0)), backgroundColor:'#CE0058', borderRadius:4}]},
     options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:(ctx)=>` ${topRows[ctx.dataIndex].X}/${topRows[ctx.dataIndex].Y} subitens (${ctx.parsed.x}%)`}}},
+      /* O título do tooltip é o resumo da história, não a chave: a chave já está
+         escrita no eixo Y, ao lado da barra que o mouse está apontando, então
+         repeti-la gastava a única linha em destaque do tooltip com informação
+         redundante. Sem resumo preenchido, cai de volta na chave. */
+      tooltip:{callbacks:{
+        title:(items)=>{ const r = topRows[items[0].dataIndex]; return r.p.Resumo ? quebraTextoTooltip(r.p.Resumo, 44) : [r.p.Chave]; },
+        label:(ctx)=>` ${topRows[ctx.dataIndex].X}/${topRows[ctx.dataIndex].Y} subitens (${ctx.parsed.x}%)`}}},
       scales:{x:{beginAtZero:true, max:100, grid:{color:'#ECECEC'}, title:{display:true, text:'% concluído'}}, y:{grid:{display:false}, ticks:{font:{size:9.5}}}},
       onClick: drillClick((idx)=> __cardDrills['sprintitem_'+idx])}
   });
