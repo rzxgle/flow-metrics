@@ -105,7 +105,7 @@ const item = (over = {}) => {
   seq += 1;
   return {
     Chave: `TESTE-${seq}`, Resumo: 'item', 'Tipo de item': 'Story', 'Tipo Agrupado': 'História',
-    Programa: 'Programa X', VS: 'VS X', Squad: 'Squad X', PI: 'PI3', Labels: [],
+    Programa: 'Afya One', VS: 'VS X', Squad: 'Squad X', PI: 'PI3', Labels: [],
     Status: 'Pronto p/ Deploy STG', Concluido: true, Cancelado: false, WIP: false,
     FaseFluxo: 'Concluído', EntregueAmplo: true, Incremental: true,
     'Story Points': 1, Sprint: 'S1', Sprints: ['S1'], SprintPeriodos: [], SprintHistoricoOk: true,

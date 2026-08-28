@@ -89,7 +89,7 @@ const epilogo = `
 ;window.__T = {
   set DATA(v){ DATA.length=0; DATA.push(...v); },
   selections, buildFilterBar, syncFilterBarForTab, matchesSprintTabFilters,
-  TIPOS_FORA_DA_ABA_SPRINT, DEFAULT_TIPO, PI_DEFAULT_PROGRAMA,
+  TIPOS_FORA_DA_ABA_SPRINT, DEFAULT_TIPO, DEFAULT_PROGRAMA,
   set PI_DATA(v){ PI_DATA.length=0; PI_DATA.push(...v); },
   set activeTab(v){ activeTab=v; },
 };`;
@@ -102,7 +102,7 @@ const item = (tipo) => {
   seq += 1;
   return {
     Chave: `TESTE-${seq}`, Resumo: `item ${tipo}`, 'Tipo de item': tipo,
-    'Tipo Agrupado': GRUPOS[tipo], Programa: 'Programa X', VS: 'VS X', Squad: 'Squad X',
+    'Tipo Agrupado': GRUPOS[tipo], Programa: 'Afya One', VS: 'VS X', Squad: 'Squad X',
     PI: 'PI3', Labels: [], Status: 'Concluído', Concluido: true, Cancelado: false,
     WIP: false, FaseFluxo: 'Concluído', EntregueAmplo: true, Incremental: true,
     'Story Points': 1, Sprint: 'S1', Sprints: ['S1'], SprintPeriodos: [], SprintHistoricoOk: true,
@@ -139,6 +139,19 @@ const selecionados = () => Array.from(T.selections['Tipo de item']).sort();
 
 let passed = 0;
 const check = (desc, fn) => { fn(); passed += 1; console.log('  ✓', desc); };
+
+/* Os padrões de abertura, verificados ANTES de qualquer teste mexer na barra —
+   o bloco de "Limpar" mais abaixo zera as seleções de propósito. */
+check('Programa = Afya One nasce marcado na barra, em qualquer aba', () => {
+  assert.deepStrictEqual(Array.from(T.selections.Programa), ['Afya One']);
+  // Array.from: a lista vem do realm do jsdom, e sem isso o deepStrictEqual
+  // reprova por protótipo mesmo com o conteúdo igual.
+  assert.deepStrictEqual(Array.from(T.DEFAULT_PROGRAMA), ['Afya One']);
+  const cb = Array.from(dropdown('Programa').querySelectorAll('input[type=checkbox]'))
+    .find((c) => c.value === 'Afya One');
+  assert.strictEqual(cb.checked, true, 'o checkbox tem de nascer marcado');
+  assert.strictEqual(dropdown('Programa').querySelector('.count').textContent, '1');
+});
 
 console.log('\nFiltro de Tipo na aba Sprint (jsdom, cascata de CSS real):');
 
@@ -349,59 +362,103 @@ check('o "Limpar" geral da barra também zera os chips', () => {
   assert.deepStrictEqual(selecionados(), []);
 });
 
-/* ---------- o Programa padrão da aba PI Tracking ----------
-   Programa é filtro GLOBAL: deixá-lo marcado de forma permanente tiraria Afya
-   Bridge do número de abertura de todas as outras abas. A aba PI marca ao
-   entrar e desmarca ao sair, e é isso que este bloco verifica pela tela — pelo
-   clique real na aba, o único caminho em que o efeito acontece. */
+/* ---------- Programa global + PI do quarter na aba PI Tracking ----------
+   Duas coisas diferentes que convivem na mesma barra:
+
+   - `Programa = Afya One` é padrão GLOBAL, como o de Tipo: nasce marcado e vale
+     em toda aba que usa Programa.
+   - o `PI` do quarter corrente é padrão SÓ da aba PI Tracking, marcado ao entrar
+     e apagado ao sair. Ele não pode ser global: o PI é campo de preenchimento
+     manual, e 63,6% dos sub-itens e 57% dos bloqueios da base não têm label —
+     pré-selecioná-lo em todas as abas deixaria 27% da base de pé.
+
+   E a lista de PI acompanha o Programa: com Afya One marcado, só PIs de Afya
+   One aparecem, mais o `Não informado`, que existe nos dois programas.
+
+   Tudo aqui roda pelo clique real na aba, o único caminho em que o efeito
+   acontece. */
+const quarterRules = require('../src/config/quarter.rules');
+window.__QUARTER_RULES = quarterRules;
 T.PI_DATA = [{
   Chave: 'PI-1', Resumo: 'épico', 'Tipo de item': 'Epic', 'Tipo Agrupado': 'Épico',
   Programa: 'Afya One', VS: 'CORE EXPERIENCE', Squad: 'Squad X', PI: 'PI3 - Afya One',
   Labels: [], Status: 'Desenvolvimento', EpicoChave: 'PI-1', parentKey: null,
   Concluido: false, Cancelado: false, 'Story Points': 0,
 }];
-window.__QUARTER_RULES = require('../src/config/quarter.rules');
-T.selections.Programa.clear();
 
 const abaBtn = (aba) => document.querySelector(`.tab-btn[data-tab="${aba}"]`);
-const checkboxPrograma = (valor) => Array.from(dropdown('Programa').querySelectorAll('input[type=checkbox]'))
+const cbDe = (key, valor) => Array.from(dropdown(key).querySelectorAll('input[type=checkbox]'))
   .find((cb) => cb.value === valor);
-const programaSelecionado = () => Array.from(T.selections.Programa).sort();
+const selecaoDe = (key) => Array.from(T.selections[key]).sort();
+const pisNaTela = () => Array.from(dropdown('PI').querySelectorAll('.dd-item'))
+  .filter((el) => !el.hasAttribute('data-pi-fora'))
+  .map((el) => el.querySelector('input[type=checkbox]').value).sort();
 
-check('entrar na aba PI marca Afya One no filtro, de verdade', () => {
-  clicar(abaBtn('pi'));
-  assert.deepStrictEqual(programaSelecionado(), ['Afya One']);
-  assert.strictEqual(checkboxPrograma('Afya One').checked, true, 'o checkbox tem de aparecer marcado');
-  assert.strictEqual(dropdown('Programa').querySelector('.count').textContent, '1',
-    'e o contador do botão tem de anunciar a seleção');
+/* A base sintética tem PI 'PI3' (valor solto, sem correlação). Para exercitar a
+   correlação de verdade, a lista precisa conter PIs dos dois programas e o
+   'Não informado'. */
+T.DATA = BASE.concat([
+  { ...item('Story'), PI: 'PI3 - Afya One' },
+  { ...item('Story'), PI: 'PI2 - Afya One' },
+  { ...item('Story'), PI: 'PI3 - Legado', Programa: 'Afya Bridge' },
+  { ...item('Story'), PI: 'Não informado' },
+]);
+// O teste do "Limpar" geral, acima, zerou as seleções de propósito; o padrão
+// de abertura já foi verificado no topo do arquivo.
+T.selections.Programa.add('Afya One');
+T.buildFilterBar();
+
+check('a lista de PI só mostra os do Programa marcado, mais "Não informado"', () => {
+  assert.deepStrictEqual(pisNaTela(), ['Não informado', 'PI2 - Afya One', 'PI3', 'PI3 - Afya One'],
+    'PI3 - Legado é de outro programa; "PI3" solto não tem correlação e fica');
 });
 
-check('sair da aba PI desmarca — nenhuma outra aba herda o recorte', () => {
+check('entrar na aba PI marca o PI do quarter corrente', () => {
+  clicar(abaBtn('pi'));
+  assert.deepStrictEqual(selecaoDe('PI'), ['PI3 - Afya One'], 'hoje cai no Q3/2026');
+  assert.strictEqual(cbDe('PI', 'PI3 - Afya One').checked, true, 'o checkbox tem de aparecer marcado');
+});
+
+check('sair da aba PI desmarca — nenhuma outra aba herda o recorte de PI', () => {
   clicar(abaBtn('exec'));
-  assert.deepStrictEqual(programaSelecionado(), []);
-  assert.strictEqual(checkboxPrograma('Afya One').checked, false);
-  assert.strictEqual(dropdown('Programa').querySelector('.count').style.display, 'none');
+  assert.deepStrictEqual(selecaoDe('PI'), []);
+  assert.strictEqual(cbDe('PI', 'PI3 - Afya One').checked, false);
+  assert.strictEqual(dropdown('PI').querySelector('.count').style.display, 'none');
 });
 
-check('desmarcar Afya One dentro da aba PI tem efeito — o padrão não é trava', () => {
+check('trocar para Afya Bridge troca a lista e o PI do quarter', () => {
   clicar(abaBtn('pi'));
-  const cb = checkboxPrograma('Afya One');
+  assert.deepStrictEqual(selecaoDe('PI'), ['PI3 - Afya One']);
+  const bridge = cbDe('Programa', 'Afya Bridge');
+  bridge.checked = true;
+  bridge.dispatchEvent(new window.Event('change', { bubbles: true }));
+  const one = cbDe('Programa', 'Afya One');
+  one.checked = false;
+  one.dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.deepStrictEqual(selecaoDe('Programa'), ['Afya Bridge']);
+  assert.deepStrictEqual(pisNaTela(), ['Não informado', 'PI3', 'PI3 - Legado'],
+    'a lista passa a ser a do outro programa');
+  assert.deepStrictEqual(selecaoDe('PI'), ['PI3 - Legado'],
+    'o PI do quarter corrente do novo programa entra no lugar do anterior');
+});
+
+check('desmarcar o PI dentro da aba tem efeito — o padrão não é trava', () => {
+  const cb = cbDe('PI', 'PI3 - Legado');
   cb.checked = false;
   cb.dispatchEvent(new window.Event('change', { bubbles: true }));
-  assert.deepStrictEqual(programaSelecionado(), [], 'a seleção fica vazia, sem padrão invisível');
-  // E, a partir daí, a seleção é do usuário: sair da aba não pode mexer nela.
-  T.selections.Programa.add('Afya Bridge');
+  assert.deepStrictEqual(selecaoDe('PI'), [], 'a seleção fica vazia, sem padrão invisível');
+  // E, a partir daí, a escolha é do usuário: sair da aba não pode reescrevê-la.
+  T.selections.PI.add('PI2 - Afya One');
   clicar(abaBtn('exec'));
-  assert.deepStrictEqual(programaSelecionado(), ['Afya Bridge'],
+  assert.deepStrictEqual(selecaoDe('PI'), ['PI2 - Afya One'],
     'a aba não pode apagar uma escolha do usuário ao sair');
-});
-
-check('a aba PI não sobrescreve o Programa que o usuário já escolheu', () => {
   clicar(abaBtn('pi'));
-  assert.deepStrictEqual(programaSelecionado(), ['Afya Bridge']);
-  clicar(abaBtn('exec'));
-  assert.deepStrictEqual(programaSelecionado(), ['Afya Bridge']);
+  assert.deepStrictEqual(selecaoDe('PI'), ['PI2 - Afya One'],
+    'nem sobrescrevê-la ao voltar');
+  T.selections.PI.clear();
   T.selections.Programa.clear();
+  T.selections.Programa.add('Afya One');
+  T.buildFilterBar();
 });
 
 check('a página não registrou erro em nenhuma dessas interações', () => {

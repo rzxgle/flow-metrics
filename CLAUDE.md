@@ -142,6 +142,21 @@ projeto, não pelo nome — rename no Jira quebraria a classificação em silên
 épicos por label de PI **sem filtro de projeto**; era por aí que um épico do
 Legado (`BOPS-2768`) entrava contado como Afya One.
 
+🟢 **A barra abre com padrões, e o de PI é só da aba PI Tracking.** Tipo de item
+(tipos de produção), Programa (**Afya One**) e Conclusão (**D-30 → hoje**) são
+padrões **globais**. O **PI do quarter corrente** entra ao abrir a aba PI
+Tracking e sai ao deixá-la — nunca global: 🔵 o PI é campo de preenchimento
+manual, 63,6% dos sub-itens e 57% dos bloqueios não têm label, e pré-selecioná-lo
+na barra inteira deixaria 27% da base de pé (Bloqueios de 421 para 61). Na aba
+ele é de graça porque a seleção é feita no épico, que tem a label.
+
+🟢 **A lista de PI acompanha o Programa.** A correlação PI → Programa vive em
+`quarter.rules.js` (`piPeriods[pi].programa`), como dado, nunca por casamento de
+pedaço do nome. `Não informado` fica sempre visível nas duas listas — 🔵 57,8% da
+base não tem label de PI, nos dois programas. Trocar de Programa remove da
+seleção o PI que saiu do recorte e, dentro da aba PI Tracking, põe o PI do
+quarter do novo programa.
+
 ### Tempo
 
 🟢 **A entrega de uma sprint é a primeira transição para `Pronto p/ Deploy STG`**

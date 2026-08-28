@@ -369,6 +369,10 @@
      O !important é necessário: a busca do dropdown escreve display inline nos
      itens, e sem ele digitar "sub" traria os escondidos de volta. */
   #filterBar.sprint-only #dd-Tipo_de_item .dd-item[data-no-sprint]{display:none!important;}
+  /* PI de outro Programa sai da lista. O !important é pelo mesmo motivo da regra
+     acima: a busca do dropdown escreve `display` inline em cada item, e sem ele
+     digitar no campo ressuscitaria a opção escondida. */
+  #dd-PI .dd-item[data-pi-fora]{display:none!important;}
   /* A aba de Dependências é de um tipo só, então o filtro de Tipo esconderia
      tudo (o recorte padrão não inclui Dependência). E "Squad" ali tem DOIS
      papéis — quem pediu e de quem se depende —, resolvidos pelos seletores
@@ -1593,7 +1597,8 @@
         <li><b>Aging</b> foi calculado apenas para itens ainda em WIP (não concluídos, não cancelados) <b>e com Data de início real preenchida</b> — da Data de início real até hoje. Itens em aberto que nunca foram iniciados ficam fora do indicador (não há fallback para a Criação), pois tempo em fila não é envelhecimento em execução. O planejamento do quarter cria itens em lote, e um item só é considerado em andamento quando foi efetivamente puxado — ou seja, quando ganhou Data de início real. O valor é recalculado a cada abertura do dashboard, em dias corridos até a data de hoje, mesmo que os dados venham do cache local.</li>
         <li><b>A aba PI Tracking usa outras regras — de propósito.</b> Ela replica o painel de quarter que o time já usa nas cerimônias de PI, para os dois números não divergirem. Três diferenças em relação às demais abas: (1) <b>sub-tarefas e o próprio épico ficam fora do denominador</b>, porque contá-los soma o mesmo trabalho duas vezes (a história e cada um dos seus subitens) e infla o progresso de quem quebra muito o trabalho; (2) <b>itens cancelados saem do denominador</b> em vez de contarem como não feitos; (3) a comparação de status é <b>normalizada</b> (maiúsculas/minúsculas não importam) e <span class="mono">Em Homologação</span>, <span class="mono">Pronto para Staging</span> e <span class="mono">Staging</span> contam como concluído. No dataset atual, essas diferenças valem 15 pontos percentuais nos épicos de PI3 - Afya One: 51,1% pela regra do PI (499 itens) contra 66,2% pela regra das outras abas (3.465 membros, dos quais 3.336 são sub-tarefas). As regras vivem em <span class="mono">src/config/quarter.rules.js</span> no servidor e viajam com os dados — não há uma segunda cópia no navegador.</li>
         <li><b>Os atalhos de grupo do filtro de Tipo são um atalho, não um segundo filtro.</b> O painel tem <b>um</b> filtro de Tipo, e ele seleciona <b>tipos crus do Jira</b>. Os chips no topo do painel — <b>Nível história</b>, <b>Sub-itens</b>, <b>Bugs</b>, <b>Épicos</b>, <b>Dependências</b> — apenas escrevem nessa mesma seleção em bloco, e por isso <b>os tipos continuam marcáveis um a um</b>, inclusive depois de usar um chip: quem quiser só <span class="mono">Sub-test</span> e <span class="mono">Sub-imp</span> segue podendo. Isso não é a volta do antigo filtro "Tipo Agrupado", que foi retirado da barra — não existe uma segunda seleção, de grupos, concorrendo com a de tipos. A origem foi um feedback de uso: para trocar o recorte para sub-itens era preciso <b>desmarcar 4 tipos e marcar 7</b> (<span class="mono">Sub-imp</span>, <span class="mono">Sub-test</span>, <span class="mono">Sub-task</span>, <span class="mono">Sub-bug</span>, <span class="mono">Sub-block</span>, <span class="mono">Sub-script</span>, <span class="mono">Sub-design</span>) num dropdown de 16 opções, e ainda saber de cor quais são subs. Três regras definem o comportamento. (1) <b>Os grupos saem do dado</b>, do campo <span class="mono">Tipo Agrupado</span> que já chega em cada item — um subtipo novo no Jira entra sozinho em "Sub-itens", sem lista para manter, e grupo sem item no recorte não vira chip. (2) <b>Os chips se somam</b>: marcar "Nível história" e "Sub-itens" mostra os dois níveis juntos, e clicar de novo num chip cheio limpa só aquele grupo. Com seleção parcial, o clique <b>completa</b> o grupo em vez de limpar — quem marcou três subtipos à mão está montando um recorte, não desfazendo um. (3) Na <b>aba Sprint</b>, os chips que só selecionariam tipos ocultos ali (Sub-itens, Épicos, Dependências) somem junto com esses tipos, pela mesma regra que já vale para a lista. <b>Nenhum cálculo mudou</b>: o que os chips fazem, o usuário já podia fazer clicando um por um.</li>
-        <li><b>Quais filtros valem na aba PI Tracking.</b> Ela usa <b>PI, Programa, Value Stream e Squad</b>. Os filtros de <b>Tipo, Status e o intervalo de conclusão saem da tela</b> nessa aba, porque não fazem sentido ali: mexeriam no <b>denominador</b> do progresso em vez de no recorte — filtrar por "Status = Done" faria todo épico aparecer com 100%. A seleção que você fez neles em outras abas continua guardada e volta a valer ao sair daqui. O <b>PI é o filtro do topo</b>, o mesmo de sempre: vazio significa todos. Como "quanto do quarter já passou" não tem resposta para dois quarters somados, os KPIs <b>Quarter percorrido</b>, <b>Gap plano × tempo</b> e <b>Squads abaixo do esperado</b> só aparecem com <b>um</b> PI selecionado; com mais de um, eles avisam em vez de somar quarters diferentes. <b>O filtro de Programa vem marcado em Afya One ao entrar nesta aba</b>, e a marcação é desfeita ao sair dela. Programa é filtro <b>global</b>: deixá-lo marcado de forma permanente tiraria Afya Bridge (3.406 dos 17.236 itens da base, 19,8%) do número de abertura de todas as outras abas. Marcando ao entrar e desmarcando ao sair, a barra diz a verdade sobre o recorte enquanto você está aqui, e as demais abas continuam abrindo com a base inteira. A aba nunca passa por cima de você: se já houver um Programa escolhido, ela não sobrescreve nem apaga; e desmarcar Afya One aqui dentro tem efeito de verdade, porque <b>não existe nenhum recorte por dentro</b> — a barra é a única fonte do recorte. Na prática a marcação quase não muda o que já se via nesta aba: label de PI e Programa são redundantes na base — <span class="mono">PI* - Afya One</span> só aparece em épicos de Afya One (144 dos 166 com PI reconhecido) e <span class="mono">PI* - Legado</span> só em Afya Bridge (22) —, então com um PI escolhido ela não move número nenhum; ela age quando o filtro de PI está vazio.</li>
+        <li><b>Com o que o painel abre, e o filtro de PI que acompanha o Programa.</b> A barra abre com três padrões: <b>Tipo de item</b> nos tipos de produção (Enabler, Melhoria, Story, Technical Debt), <b>Programa</b> em <b>Afya One</b> e o intervalo de <b>Conclusão</b> nos últimos 30 dias. São padrões, não travas — um clique desfaz qualquer um. O de Programa é global e vale em toda aba que usa Programa (a aba Sprint não usa); Afya Bridge são 3.416 dos 17.256 itens da base (19,8%), e continuam a um clique de distância. <b>A lista de PI acompanha o Programa escolhido</b>: com Afya One marcado só aparecem <span class="mono">PI1</span> a <span class="mono">PI4 - Afya One</span>; com Afya Bridge, os <span class="mono">PI* - Legado</span> — a label diz "Legado", o programa chama-se Afya Bridge. A correlação vive como dado em <span class="mono">quarter.rules.js</span>, ao lado da janela de cada quarter, e não num casamento por pedaço do nome: um <span class="mono">PI5 - AfyaOne</span> sem espaço quebraria a regra em silêncio, enquanto uma entrada faltando na tabela aparece na hora — o PI some da lista. <b><span class="mono">Não informado</span> fica sempre visível nas duas listas</b>: são 9.978 dos 17.256 itens (57,8%) sem label de PI, distribuídos nos dois programas, e sumir com a opção tiraria a única forma de perguntar "o que está sem PI?". Ao trocar de Programa, o PI marcado que não pertence mais ao recorte sai da seleção — senão ele continuaria recortando a tela sem aparecer em lugar nenhum.</li>
+        <li><b>Quais filtros valem na aba PI Tracking.</b> Ela usa <b>PI, Programa, Value Stream e Squad</b>. Os filtros de <b>Tipo, Status e o intervalo de conclusão saem da tela</b> nessa aba, porque não fazem sentido ali: mexeriam no <b>denominador</b> do progresso em vez de no recorte — filtrar por "Status = Done" faria todo épico aparecer com 100%. A seleção que você fez neles em outras abas continua guardada e volta a valer ao sair daqui. O <b>PI é o filtro do topo</b>, o mesmo de sempre: vazio significa todos. Como "quanto do quarter já passou" não tem resposta para dois quarters somados, os KPIs <b>Quarter percorrido</b>, <b>Gap plano × tempo</b> e <b>Squads abaixo do esperado</b> só aparecem com <b>um</b> PI selecionado; com mais de um, eles avisam em vez de somar quarters diferentes. <b>O PI do quarter corrente vem marcado ao entrar nesta aba</b> — hoje, <span class="mono">PI3 - Afya One</span> —, e a marcação é desfeita ao sair. Ele não é padrão global de propósito: o PI é um <b>campo de preenchimento manual</b> no item, e <b>63,6% dos sub-itens e 57% dos bloqueios</b> da base não têm label nenhuma, então pré-selecioná-lo na barra inteira deixaria <b>27% da base</b> de pé (a aba de Bloqueios cairia de 421 para 61 itens, Bugs de 420 para 78) — o recorte não diria "o trabalho do quarter", diria "o trabalho que alguém etiquetou". Aqui o mesmo recorte é de graça, porque a seleção é feita no <b>épico</b>, que tem a label, e os filhos entram pela cadeia de parent ignorando o PI deles; e ela liga os três KPIs temporais, que sem PI único abrem em "requer 1 PI selecionado". A aba nunca passa por cima de você: se já houver um PI escolhido ela não sobrescreve nem apaga, e desmarcar aqui dentro tem efeito de verdade, porque <b>não existe recorte de PI por dentro</b> — a barra é a única fonte do recorte.</li>
         <li><b>Os épicos do PI vêm agrupados por Value Stream e, dentro dela, por squad.</b> São dois guarda-chuvas: o de cima é a Value Stream, que no dado é o <b>projeto Jira</b> do épico (campo <span class="mono">VS</span>), e o de baixo é a squad, como já era. Os dois níveis agregam por <b>soma de itens</b>, nunca por média de percentuais — uma Value Stream com cinco squads não é a média dos cinco percentuais, do mesmo jeito que uma squad com um épico de 40 itens e outro de 2 não pode ter os dois pesando igual. A ordem é <b>pior primeiro</b> nos dois níveis. Os dois níveis nascem <b>recolhidos</b>: a página abre no ranking das Value Streams e o detalhe vem por escolha, um nível de cada vez. <b>O agrupamento é feito pelo VS do épico, não da squad</b>: como o VS é o projeto de cada issue, uma squad pode em tese ter épicos em dois projetos, e nesse caso ela aparece dentro de cada Value Stream com apenas os épicos daquela — os totais continuam certos porque tudo é somado a partir do épico. No dataset atual isso não acontece: entre os <b>166 épicos com PI reconhecido</b>, nenhuma das 23 squads aparece sob duas Value Streams. Na base inteira, porém, <b>21 das 45 squads</b> têm itens em mais de um projeto, então o caso não é impossível.</li>
         <li><b>Os filhos não herdam o PI do épico.</b> As labels de PI ficam no épico; um item filho pode não ter nenhuma. Dos 3.465 filhos dos épicos de PI3 - Afya One, <b>1.430 têm PI "Não informado"</b>. Por isso a aba PI Tracking seleciona os <b>épicos</b> pela label e depois puxa <b>todos</b> os filhos pela cadeia de parent, ignorando o PI do filho — filtrar filhos por PI cortaria 40% da base sem avisar. Consequência: o progresso do PI mede o trabalho dos épicos daquele ciclo, não o conjunto de itens que carregam a label.</li>
         <li><b>Labels de transbordo entram no PI de destino.</b> Um item com <span class="mono">TransbordoPI2AfyaOne</span> transbordou do PI2 e é cobrado no PI3, então é ali que ele aparece — mesmo mantendo a label <span class="mono">PI2AfyaOne</span>. O mesmo vale para <span class="mono">NOVOPI3AfyaOne</span>, <span class="mono">LegadoTransbordoP126</span> e <span class="mono">LegadoTransbordoP226</span>. A label <span class="mono">DESPRIORIZADOPI3AfyaOne</span> não classifica mais o item como parte do PI3.</li>
@@ -1796,6 +1801,13 @@ let filterDocumentHandlerBound = false;
 // Filtro padrão de Tipo de item (recorte inicial): tipos crus de produção.
 const DEFAULT_TIPO = ['Enabler','Melhoria','Story','Technical Debt'];
 DEFAULT_TIPO.forEach(t=> selections['Tipo de item'].add(t));
+/* Programa padrão: o painel é orientado ao Afya One. É seleção GLOBAL, como a de
+   Tipo — a barra abre com o filtro marcado e ele vale em toda aba que usa
+   Programa (a Sprint não usa; o PI Tracking usa). Afya Bridge continua a um
+   clique de distância: isto é padrão, não trava.
+   Medido: Afya Bridge são 3.416 dos 17.256 itens da base (19,8%). */
+const DEFAULT_PROGRAMA = ['Afya One'];
+DEFAULT_PROGRAMA.forEach(p=> selections['Programa'].add(p));
 // Abas que NÃO devem sofrer o filtro de Tipo (dependem de Sub-block/Sub-task).
 const SKIP_TIPO = new Set(['Tipo de item']);
 /* Grupos que compõem o KPI "Histórias entregues" (aba Entregas, WIP & Aging).
@@ -2003,11 +2015,73 @@ function construirAtalhosDeTipo(slot, list, btn, key){
    precisa desta referência para ressincronizar os chips junto. */
 let sincronizarChipsDeTipo = ()=>{};
 
+/* ---- Correlação PI <-> Programa ----
+   Cada PI pertence a um programa, e isso vive como DADO em `quarter.rules.js`
+   (`piPeriods[pi].programa`), não num casamento por pedaço do nome: um
+   `PI5 - AfyaOne` sem espaço, ou um rename de label, quebraria a regra em
+   silêncio, enquanto uma entrada faltando na tabela aparece na hora — o PI some
+   da lista.
+
+   Devolve null para quem não pertence a programa nenhum: `Não informado` é o
+   caso real e importante, com 9.978 dos 17.256 itens da base (57,8%). */
+function piProgramaDaLabel(pi){
+  const periods = piRules()?.piPeriods || {};
+  return (periods[pi] && periods[pi].programa) || null;
+}
+
+/** Esconde do filtro de PI as opções de outro Programa. `Não informado` e
+    qualquer PI sem correlação conhecida ficam SEMPRE à vista: eles existem nos
+    dois programas, e sumir com eles tiraria a única forma de perguntar "o que
+    está sem PI?". */
+function sincronizarOpcoesDePi(){
+  const wrap = document.getElementById('dd-PI');
+  if(!wrap) return;
+  const sel = selections['Programa'];
+  wrap.querySelectorAll('.dd-item').forEach(item=>{
+    const cb = item.querySelector('input[type=checkbox]');
+    if(!cb) return;
+    const prog = piProgramaDaLabel(cb.value);
+    if(prog && sel && sel.size && !sel.has(prog)) item.setAttribute('data-pi-fora','');
+    else item.removeAttribute('data-pi-fora');
+  });
+}
+
+/** Ao trocar o Programa, o PI marcado que não pertence mais ao recorte sai da
+    seleção. Sem isso a barra ficaria com um filtro INVISÍVEL recortando a tela:
+    a opção some da lista mas continua valendo, e a aba abre vazia sem dizer por
+    quê. Devolve true quando mexeu na seleção. */
+function limparPisForaDoPrograma(){
+  const sel = selections['Programa'];
+  if(!sel || !sel.size) return false;
+  let mudou = false;
+  Array.from(selections['PI']).forEach(pi=>{
+    const prog = piProgramaDaLabel(pi);
+    if(prog && !sel.has(prog)){ selections['PI'].delete(pi); mudou = true; }
+  });
+  return mudou;
+}
+
+/** O que a troca de Programa dispara no filtro de PI, em ordem: tira da seleção
+    o que saiu do recorte, esconde as opções do outro programa e, se a seleção
+    esvaziou dentro da aba PI Tracking, entra o PI do quarter corrente do NOVO
+    programa — é o comportamento pedido: marcar Afya Bridge traz PI3 - Legado. */
+function aplicarCorrelacaoDePi(){
+  const esvaziou = limparPisForaDoPrograma();
+  sincronizarOpcoesDePi();
+  if(esvaziou){
+    // A seleção antiga era do usuário ou da aba; em ambos os casos ela deixou de
+    // existir, então a aba pode voltar a propor o padrão dela.
+    if(!selections['PI'].size) piPadraoAtivo = false;
+    piSincronizarPiPadrao();
+    sincronizarFiltroNaTela('PI');
+  }
+}
+
 function buildFilterBar(){
-  // Antes de desenhar os checkboxes: assim o Programa padrão da aba PI já nasce
-  // marcado na barra, em vez de aparecer só no render seguinte. A barra é
+  // Antes de desenhar os checkboxes: assim o PI padrão da aba PI Tracking já
+  // nasce marcado na barra, em vez de aparecer só no render seguinte. A barra é
   // reconstruída a cada lote da carga progressiva, e a função é idempotente.
-  piSincronizarProgramaPadrao();
+  piSincronizarPiPadrao();
   const bar = document.getElementById('filterBar');
   // A carga progressiva reconstrói as opções a cada lote. Limpar primeiro torna
   // esta função idempotente e impede a duplicação dos controles.
@@ -2093,7 +2167,8 @@ function buildFilterBar(){
         else selections[f.key].delete(cb.value);
         // A partir daqui a seleção é DELE: a aba não pode mais apagá-la ao sair,
         // nem reescrevê-la ao voltar.
-        if(f.key==='Programa') piProgramaPadraoAtivo = false;
+        if(f.key==='PI') piPadraoAtivo = false;
+        if(f.key==='Programa') aplicarCorrelacaoDePi();
         updateFilterBtn(f.key, btn);
         sincronizarChips();
         renderAll();
@@ -2105,19 +2180,28 @@ function buildFilterBar(){
       // ficam fora da seleção, senão o contador do botão anunciaria 15 tipos
       // com 6 linhas na tela. O que foi marcado em outra aba fica intacto.
       const soVisiveis = f.key==='Tipo de item' && bar.classList.contains('sprint-only');
-      const alvo = soVisiveis ? '.dd-item:not([data-no-sprint]) input[type=checkbox]' : 'input[type=checkbox]';
+      // Mesma ideia no PI: "Todos" não pode marcar PIs de um Programa que nem
+      // está na tela — o contador anunciaria uma seleção invisível.
+      const alvo = soVisiveis ? '.dd-item:not([data-no-sprint]) input[type=checkbox]'
+        : f.key==='PI' ? '.dd-item:not([data-pi-fora]) input[type=checkbox]'
+          : 'input[type=checkbox]';
       list.querySelectorAll(alvo).forEach(cb=>{ cb.checked=true; selections[f.key].add(cb.value); });
-      if(f.key==='Programa') piProgramaPadraoAtivo = false;
+      if(f.key==='PI') piPadraoAtivo = false;
+      if(f.key==='Programa') aplicarCorrelacaoDePi();
       updateFilterBtn(f.key, btn); sincronizarChips(); renderAll();
     });
     actions.querySelector('[data-act="none"]').addEventListener('click', (e)=>{
       e.stopPropagation();
       list.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.checked=false; });
       selections[f.key].clear();
-      if(f.key==='Programa') piProgramaPadraoAtivo = false;
+      if(f.key==='PI') piPadraoAtivo = false;
+      if(f.key==='Programa') aplicarCorrelacaoDePi();
       updateFilterBtn(f.key, btn); sincronizarChips(); renderAll();
     });
   });
+
+  // A lista de PI só pode ser recortada depois de existir.
+  sincronizarOpcoesDePi();
 
   // Filtros próprios da aba de Dependências (Squad e Papel), mesmo padrão.
   buildDepFilters(controls);
@@ -2128,9 +2212,9 @@ function buildFilterBar(){
   clearAll.className = 'clear-btn';
   clearAll.textContent = '↺ Limpar';
   clearAll.addEventListener('click', ()=>{
-    // "Limpar" limpa mesmo, inclusive o padrão da aba PI: reescrevê-lo aqui
-    // faria o botão parecer quebrado.
-    piProgramaPadraoAtivo = false;
+    // "Limpar" limpa mesmo, inclusive os padrões (Tipo, Programa e o PI da aba
+    // PI Tracking): reescrever qualquer um aqui faria o botão parecer quebrado.
+    piPadraoAtivo = false;
     FILTER_DIMS.forEach(f=>{
       selections[f.key].clear();
       const wrap = document.getElementById('dd-'+f.key.replace(/\s/g,'_'));
@@ -2878,11 +2962,11 @@ document.getElementById('tabNav').addEventListener('click', (e)=>{
   document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
   activeTab = btn.dataset.tab;
-  // Entrar na aba PI escreve o Programa padrão na barra; sair apaga. Quando
-  // isso acontece o recorte muda para TODAS as abas, e trocar de aba não
+  // Entrar na aba PI escreve o PI do quarter corrente na barra; sair apaga.
+  // Quando isso acontece o recorte muda para TODAS as abas, e trocar de aba não
   // re-renderiza nada por conta própria — os painéis já estão no DOM.
-  if(piSincronizarProgramaPadrao()){
-    sincronizarFiltroNaTela('Programa');
+  if(piSincronizarPiPadrao()){
+    sincronizarFiltroNaTela('PI');
     renderAll();
   }
   syncFilterBarForTab();
@@ -6163,41 +6247,12 @@ function piIsTransbordo(item){
     porque mexeriam no denominador do progresso, não no recorte. */
 const PI_TAB_FILTER_KEYS = ['Programa','VS','Squad'];
 
-/* Programa que a aba pré-seleciona AO ENTRAR nela.
-
-   Decisão do usuário: ele quer ver o filtro marcado de verdade na barra, e não
-   um padrão agindo só por dentro — mas sem que Afya Bridge (3.406 dos 17.236
-   itens da base, 19,8%) suma do número de abertura das outras abas. Daí o
-   meio-termo: a aba ESCREVE 'Afya One' na seleção global ao ser aberta e APAGA
-   ao ser deixada. Enquanto ele está aqui, a barra diz a verdade sobre o
-   recorte; nas outras abas, nada muda.
-
-   Duas condições para não passar por cima do usuário: o padrão só entra se a
-   seleção de Programa estiver VAZIA (quem escolheu um programa mantém o dele) e
-   só sai se ainda for ele que está lá. Mexer no filtro de Programa desliga o
-   padrão — `piProgramaPadraoAtivo` vira false —, senão desmarcar Afya One aqui
-   dentro não teria efeito nenhum e o filtro viraria uma trava.
-
-   Na prática o recorte quase não muda o que já se via nesta aba, porque label
-   de PI e Programa são redundantes na base: `PI* - Afya One` só aparece em
-   épicos de Afya One (144 dos 166 com PI reconhecido) e `PI* - Legado` só em
-   Afya Bridge (22). Com um PI escolhido, o padrão não move número nenhum; ele
-   age quando o filtro de PI está vazio. */
-const PI_DEFAULT_PROGRAMA = 'Afya One';
-
-/* true enquanto a seleção de Programa for a que ESTA aba escreveu. É o que
-   autoriza apagá-la ao sair — sem isso, a saída levaria junto uma escolha do
-   usuário. */
-let piProgramaPadraoAtivo = false;
-
-/** O recorte de Programa em vigor, e se ele é o padrão escrito pela aba — o que
-    a linha de recorte declara, para o filtro não aparecer marcado sem
-    explicação. Não existe conjunto sintético aqui: a barra é a única fonte de
+/** O recorte de Programa em vigor. O padrão de Programa agora é GLOBAL
+    (`DEFAULT_PROGRAMA`), então aqui basta ler a barra — ela é a única fonte de
     verdade do recorte. */
 function piProgramaDoRecorte(){
   const sel = selections['Programa'];
-  if(!sel || !sel.size) return null;
-  return {set:sel, padrao:piProgramaPadraoAtivo};
+  return (sel && sel.size) ? {set:sel} : null;
 }
 
 function matchesPiTabFilters(d){
@@ -6211,25 +6266,59 @@ function matchesPiTabFilters(d){
   return true;
 }
 
+/* ---- PI do quarter corrente, pré-selecionado só nesta aba ----
+
+   Decisão do usuário, depois de ver a medição: pré-selecionar o PI na barra
+   INTEIRA deixaria 27% da base de pé (Bloqueios cairia de 421 para 61 itens,
+   Bugs de 420 para 78), porque o PI é um campo de preenchimento manual e 63,6%
+   dos sub-itens e 57% dos bloqueios não têm label nenhuma. O recorte não diria
+   "o trabalho do quarter", diria "o trabalho que alguém etiquetou".
+
+   Nesta aba o mesmo recorte é de graça: a seleção é feita no ÉPICO, que tem a
+   label, e os filhos entram pela cadeia de parent ignorando o PI deles. E ela
+   liga os KPIs temporais (Quarter percorrido, Gap, Squads abaixo do esperado),
+   que sem PI único abrem em "requer 1 PI selecionado".
+
+   Daí o padrão entrar ao abrir a aba e sair ao deixá-la — a mesma mecânica que o
+   Programa usava antes de virar padrão global. */
+let piPadraoAtivo = false;
+
+/** PI cujo quarter contém a data de hoje, dentro do Programa do recorte.
+    Devolve null quando não há um — em 2027 sem `piPeriods` atualizado, por
+    exemplo, ou no Q4 do Afya Bridge, que ainda não tem PI4 - Legado. */
+function piDoQuarterAtual(){
+  const periods = piRules()?.piPeriods || {};
+  const programas = selections['Programa'];
+  const hoje = isoToday();
+  const candidatos = Object.keys(periods).filter(pi=>{
+    if(programas && programas.size && !programas.has(periods[pi].programa)) return false;
+    const win = piQuarterWindow(pi);
+    return win && hoje >= win.start && hoje <= win.end;
+  });
+  if(!candidatos.length) return null;
+  // Com mais de um Programa marcado pode haver dois PIs no mesmo quarter; o
+  // painel é orientado ao Afya One, então ele desempata.
+  return candidatos.find(pi=>periods[pi].programa==='Afya One') || candidatos[0];
+}
+
 /**
- * Escreve/apaga o Programa padrão conforme a aba ativa. Devolve true quando
- * mexeu na seleção — quem chama precisa saber, porque trocar de aba não
- * re-renderiza nada por conta própria (os painéis já estão no DOM) e o recorte
- * acabou de mudar para TODAS elas.
+ * Escreve/apaga o PI do quarter conforme a aba ativa. Devolve true quando mexeu
+ * na seleção — quem chama precisa saber, porque trocar de aba não re-renderiza
+ * nada por conta própria (os painéis já estão no DOM) e o filtro de PI vale
+ * também para as outras abas.
  */
-function piSincronizarProgramaPadrao(){
+function piSincronizarPiPadrao(){
   if(activeTab==='pi'){
-    if(piProgramaPadraoAtivo || selections['Programa'].size) return false;
-    // Só entra se existir nos dados: numa base sem Afya One a aba abriria vazia.
-    const existe = PI_DATA.some(d=>d['Tipo Agrupado']==='Épico' && d.Programa===PI_DEFAULT_PROGRAMA);
-    if(!existe) return false;
-    selections['Programa'].add(PI_DEFAULT_PROGRAMA);
-    piProgramaPadraoAtivo = true;
+    if(piPadraoAtivo || selections['PI'].size) return false;
+    const pi = piDoQuarterAtual();
+    if(!pi) return false;
+    selections['PI'].add(pi);
+    piPadraoAtivo = true;
     return true;
   }
-  if(!piProgramaPadraoAtivo) return false;
-  selections['Programa'].delete(PI_DEFAULT_PROGRAMA);
-  piProgramaPadraoAtivo = false;
+  if(!piPadraoAtivo) return false;
+  selections['PI'].clear();
+  piPadraoAtivo = false;
   return true;
 }
 
@@ -6492,17 +6581,20 @@ function renderPiTracking(){
   // Diz de onde vem o recorte: sem isto, "3 PIs" some e o número dos KPIs fica
   // sem contexto quando o filtro do topo está aberto.
   if(recorteEl){
-    // O filtro já aparece marcado na barra, mas quem não viu a marcação
-    // acontecer não sabe de onde ela veio — nem que ela some ao sair da aba.
-    // Esta linha é o que explica a marcação.
-    const padraoPrograma = t.programa && t.programa.padrao
-      ? ` · Programa <b>${escapeHtml(PI_DEFAULT_PROGRAMA)}</b> <span class="pi-sub">(padrão da aba — desmarque no filtro <b>Programa</b> para ver todos)</span>`
+    // O PI já aparece marcado na barra, mas quem não viu a marcação acontecer
+    // não sabe de onde ela veio — nem que ela some ao sair da aba. Esta linha é
+    // o que explica a marcação.
+    const doQuarter = umPi && piPadraoAtivo
+      ? ` <span class="pi-sub">(PI do quarter corrente, marcado ao abrir esta aba)</span>`
+      : '';
+    const programa = t.programa
+      ? ` · Programa <b>${Array.from(t.programa.set).map(escapeHtml).join(', ')}</b>`
       : '';
     recorteEl.innerHTML = (t.pis.length
       ? (umPi
-          ? `<b>${escapeHtml(t.pis[0])}</b> · quarter ${win ? `${win.label}, ${piFmtBr(win.start)} a ${piFmtBr(win.end)}` : 'desconhecido'}`
+          ? `<b>${escapeHtml(t.pis[0])}</b>${doQuarter} · quarter ${win ? `${win.label}, ${piFmtBr(win.start)} a ${piFmtBr(win.end)}` : 'desconhecido'}`
           : `${t.pis.length} PIs no recorte — selecione um só no filtro <b>PI</b> para ver o progresso no tempo`)
-      : 'Nenhum PI reconhecido nos dados') + padraoPrograma;
+      : 'Nenhum PI reconhecido nos dados') + programa;
   }
 
   __cardDrills['pi-items'] = {title:`Itens de ${rotulo} (denominador do progresso)`, issues:t.drills.items};
@@ -6546,9 +6638,7 @@ function renderPiTracking(){
 
   if(!t.squads.length){
     const comoPrograma = t.programa
-      ? (t.programa.padrao
-          ? `<b>${escapeHtml(PI_DEFAULT_PROGRAMA)}</b> (padrão da aba)`
-          : `<b>${Array.from(t.programa.set).map(escapeHtml).join(', ')}</b>`)
+      ? `<b>${Array.from(t.programa.set).map(escapeHtml).join(', ')}</b>`
       : 'todos os programas';
     squadsEl.innerHTML = `<div class="card pi-empty-state">
       <div style="font-size:30px;line-height:1;margin-bottom:10px;">🎯</div>

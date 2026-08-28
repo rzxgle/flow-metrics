@@ -196,14 +196,16 @@ guardada. Como "quanto do quarter já passou" não tem resposta para dois quarte
 somados, os KPIs temporais só aparecem com **um** PI selecionado; com mais de um,
 avisam em vez de somar quarters.
 
-**Programa vem marcado em Afya One ao entrar na aba**, e a marcação é desfeita
-ao sair. Programa é filtro *global*: deixá-lo marcado permanentemente tiraria
-Afya Bridge (19,8% da base) do número de abertura de todas as outras abas.
-Marcando na entrada e desmarcando na saída, a barra diz a verdade sobre o
-recorte enquanto você está aqui e as demais abas seguem abrindo com a base
-inteira. A aba não sobrescreve nem apaga um Programa que o usuário já tenha
-escolhido, e **não há recorte por dentro** — desmarcar Afya One aqui tem efeito
-de verdade.
+**O PI do quarter corrente vem marcado ao entrar na aba** (hoje, `PI3 - Afya
+One`) e é desmarcado ao sair. Ele não é padrão global de propósito: o PI é campo
+de preenchimento manual, e 63,6% dos sub-itens e 57% dos bloqueios da base não
+têm label — pré-selecioná-lo na barra inteira deixaria 27% da base de pé
+(Bloqueios cairia de 421 para 61 itens). Aqui o recorte é de graça, porque a
+seleção é feita no **épico**, que tem a label, e os filhos entram pela cadeia de
+parent; e ela liga os três KPIs temporais, que sem PI único abrem em "requer 1 PI
+selecionado". A aba não sobrescreve nem apaga um PI que o usuário já tenha
+escolhido, e **não há recorte por dentro** — desmarcar aqui tem efeito de
+verdade.
 
 Rode `npm run test:pi`, `npm run test:pi-drill` e `npm run test:pi-vs` para
 validar as regras — os testes executam o script da própria página num `vm`, não
@@ -455,6 +457,27 @@ não trocar a leitura de "restante" no mesmo passo.
 Não confundir com o transbordo de **PI** da aba PI Tracking (`piIsTransbordo`),
 que vem de label (`TransbordoPI2AfyaOne` etc.). Unidades diferentes, mesma
 palavra — o vocabulário é o do time.
+
+## Com o que a barra de filtros abre
+
+Três padrões, todos desfazíveis num clique:
+
+| Filtro | Padrão | Escopo |
+|---|---|---|
+| Tipo de item | Enabler, Melhoria, Story, Technical Debt | global |
+| Programa | Afya One | global (a aba Sprint não usa Programa) |
+| Conclusão | últimos 30 dias (D-30 → hoje) | global; PI Tracking e Sprint ignoram |
+| PI | quarter corrente do Programa marcado | **só** na aba PI Tracking, entra ao abrir e sai ao fechar |
+
+**A lista de PI acompanha o Programa.** Com Afya One marcado aparecem só
+`PI1`–`PI4 - Afya One`; com Afya Bridge, os `PI* - Legado` (a label diz "Legado",
+o programa chama-se Afya Bridge). A correlação vive como dado em
+`config/quarter.rules.js`, ao lado da janela de cada quarter — casar por pedaço
+do nome quebraria em silêncio num `PI5 - AfyaOne` sem espaço. `Não informado`
+fica sempre visível nas duas listas: são 57,8% dos itens da base, nos dois
+programas. Ao trocar de Programa, o PI marcado que saiu do recorte é removido da
+seleção, e dentro da aba PI Tracking o PI do quarter do novo programa entra no
+lugar — marcar Afya Bridge traz `PI3 - Legado`.
 
 ## Programa: de que projeto vem cada item
 

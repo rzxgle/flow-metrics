@@ -98,22 +98,35 @@ const transbordoLabels = [
 ];
 
 /**
- * PI -> janela temporal do quarter. Alimenta o KPI de progresso no tempo
- * (quanto do quarter já passou), que é a régua contra a qual o progresso de
- * entrega é comparado.
+ * PI -> janela temporal do quarter e PROGRAMA a que ele pertence.
+ *
+ * A janela alimenta o KPI de progresso no tempo (quanto do quarter já passou),
+ * que é a régua contra a qual o progresso de entrega é comparado.
+ *
+ * O `programa` existe para o filtro de PI da barra saber quais opções fazem
+ * sentido com o Programa escolhido: com Afya One marcado, só os PIs de Afya One
+ * aparecem. A correlação vive aqui, como DADO, e não num casamento por pedaço do
+ * nome ("- Afya One"): um `PI5 - AfyaOne` sem espaço, ou um rename de label,
+ * quebraria a regra em silêncio, enquanto uma entrada faltando nesta tabela
+ * aparece na hora — o PI some da lista.
+ *
+ * Atenção ao vocabulário: a label diz "Legado", mas o PROGRAMA correspondente
+ * chama-se **Afya Bridge** (o mesmo nome que `classification.rules.js` deriva do
+ * projeto). São duas palavras para o mesmo lado do painel.
  *
  * Derivado de `label_options.py`: Afya One PI1/PI2/PI3 = Q1/Q2/Q3 de 2026, e o
  * mesmo para o Legado. PI4 - Afya One não existe no afya-quarter; segue a
- * sequência como Q4/2026.
+ * sequência como Q4/2026. Não há PI4 - Legado: quando ele existir, precisa ser
+ * acrescentado aqui, senão o Afya Bridge fica sem PI corrente no Q4.
  */
 const piPeriods = {
-  'PI1 - Afya One': { quarter: 'Q1', year: 2026 },
-  'PI2 - Afya One': { quarter: 'Q2', year: 2026 },
-  'PI3 - Afya One': { quarter: 'Q3', year: 2026 },
-  'PI4 - Afya One': { quarter: 'Q4', year: 2026 },
-  'PI1 - Legado': { quarter: 'Q1', year: 2026 },
-  'PI2 - Legado': { quarter: 'Q2', year: 2026 },
-  'PI3 - Legado': { quarter: 'Q3', year: 2026 },
+  'PI1 - Afya One': { quarter: 'Q1', year: 2026, programa: 'Afya One' },
+  'PI2 - Afya One': { quarter: 'Q2', year: 2026, programa: 'Afya One' },
+  'PI3 - Afya One': { quarter: 'Q3', year: 2026, programa: 'Afya One' },
+  'PI4 - Afya One': { quarter: 'Q4', year: 2026, programa: 'Afya One' },
+  'PI1 - Legado': { quarter: 'Q1', year: 2026, programa: 'Afya Bridge' },
+  'PI2 - Legado': { quarter: 'Q2', year: 2026, programa: 'Afya Bridge' },
+  'PI3 - Legado': { quarter: 'Q3', year: 2026, programa: 'Afya Bridge' },
 };
 
 /** Primeiro e último dia de cada quarter (mês/dia), para montar as datas. */

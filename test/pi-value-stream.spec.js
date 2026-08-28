@@ -26,13 +26,15 @@
  *    "tudo como nasce" e a escolha do usuário sobreviva ao re-render (a lista é
  *    reconstruída a cada mudança de filtro).
  *
- * 4. **A aba escreve Afya One no filtro de Programa ao ser aberta e apaga ao
- *    ser deixada.** O usuário quer o filtro marcado de verdade na barra, mas
- *    Programa é global: deixá-lo marcado tiraria Afya Bridge do número de
- *    abertura de todas as outras abas. Daí a escrita entrar e sair junto com a
- *    aba. Ela nunca sobrescreve nem apaga uma escolha do usuário, e **não existe
- *    nenhum recorte de Programa por dentro** — se existisse, desmarcar Afya One
- *    aqui dentro não teria efeito e o filtro viraria uma trava.
+ * 4. **A aba escreve o PI do quarter corrente no filtro ao ser aberta e apaga ao
+ *    ser deixada.** O PI é campo de preenchimento manual: 63,6% dos sub-itens e
+ *    57% dos bloqueios da base não têm label, então pré-selecioná-lo na barra
+ *    inteira deixaria 27% da base de pé. Aqui o mesmo recorte é de graça — a
+ *    seleção é feita no ÉPICO, que tem a label, e os filhos entram pela cadeia
+ *    de parent. A aba nunca sobrescreve nem apaga uma escolha do usuário, e não
+ *    existe recorte de PI por dentro: desmarcar tem efeito de verdade.
+ *    (O `Programa = Afya One` é outra coisa: padrão GLOBAL, verificado em
+ *    `filtros.spec.js`.)
  *
  * Rode com:  npm run test:pi-vs
  */
@@ -85,7 +87,8 @@ const epilogo = `
 ;globalThis.__T = {
   set DATA(v){ DATA.length=0; DATA.push(...v); PI_DATA.length=0; PI_DATA.push(...v); },
   selections, piBuildTracking, renderPiTracking,
-  piExpandedSquads, piExpandedVs, PI_DEFAULT_PROGRAMA, piSincronizarProgramaPadrao,
+  piExpandedSquads, piExpandedVs, piSincronizarPiPadrao, piDoQuarterAtual,
+  set piPadraoAtivo(v){ piPadraoAtivo = v; },
   set activeTab(v){ activeTab = v; },
   set isoToday(fn){ isoToday = fn; },
 };`;
@@ -214,59 +217,68 @@ assert.equal(t.kpis.totalSquads, 4, 'são 4 squads distintas, ainda que sejam 5 
 assert.equal(t.kpis.squadsBehind, 1,
   'só Squad C (0%) está abaixo dos 50% do quarter; Squad X somada dá exatamente 50%');
 
-/* ---------- o Programa padrão que a aba escreve na barra ---------- */
-assert.equal(T.PI_DEFAULT_PROGRAMA, 'Afya One');
+/* ---------- o PI do quarter que a aba escreve na barra ---------- */
+// Hoje é 15/08/2026 no cenário, dentro do Q3/2026.
+T.selections.PI.clear();
+assert.equal(T.piDoQuarterAtual(), 'PI3 - Afya One',
+  'sem Programa marcado, o desempate é pelo Afya One — o painel é orientado a ele');
 
-// Fora da aba PI nada é escrito: é justamente o que impede o recorte de vazar
-// para o número de abertura das outras abas.
+// Fora da aba PI nada é escrito: é o que impede o recorte de PI de vazar para as
+// outras abas, onde ele derrubaria a base de quem não tem label.
 T.activeTab = 'exec';
-assert.equal(T.piSincronizarProgramaPadrao(), false, 'fora da aba PI o padrão não escreve nada');
-assert.equal(T.selections.Programa.size, 0, 'as outras abas abrem sem recorte de Programa');
+assert.equal(T.piSincronizarPiPadrao(), false, 'fora da aba PI o padrão não escreve nada');
+assert.equal(T.selections.PI.size, 0);
 
-// Entrar na aba marca Afya One na seleção GLOBAL. O retorno true é o que avisa
-// quem chamou que precisa re-renderizar: trocar de aba, sozinho, não redesenha
-// nada — os painéis já estão no DOM.
+// Entrar na aba marca o PI do quarter. O retorno true avisa quem chamou que
+// precisa re-renderizar: trocar de aba, sozinho, não redesenha nada.
 T.activeTab = 'pi';
-assert.equal(T.piSincronizarProgramaPadrao(), true, 'entrar na aba muda o recorte e avisa');
-assert.deepEqual([...T.selections.Programa], ['Afya One'], 'o filtro fica marcado de verdade');
-assert.equal(T.piSincronizarProgramaPadrao(), false, 'aplicar de novo não faz nada');
+assert.equal(T.piSincronizarPiPadrao(), true, 'entrar na aba muda o recorte e avisa');
+assert.deepEqual(Array.from(T.selections.PI), ['PI3 - Afya One']);
+assert.equal(T.piSincronizarPiPadrao(), false, 'aplicar de novo não faz nada');
 
-const comPadrao = T.piBuildTracking();
-assert.equal(comPadrao.programa.padrao, true, 'a aba sabe que a seleção é a que ela escreveu');
-assert.ok(!comPadrao.epics.some((e) => e.epic.Chave === 'E-BR'), 'Afya Bridge fica fora do recorte');
-
-// Sair da aba apaga o que a aba escreveu — nenhuma outra aba herda o recorte.
+// Sair apaga o que a aba escreveu.
 T.activeTab = 'wip';
-assert.equal(T.piSincronizarProgramaPadrao(), true, 'sair da aba também muda o recorte');
-assert.equal(T.selections.Programa.size, 0, 'sair devolve as outras abas ao recorte cheio');
+assert.equal(T.piSincronizarPiPadrao(), true, 'sair da aba também muda o recorte');
+assert.equal(T.selections.PI.size, 0, 'nenhuma outra aba herda o recorte de PI');
 
-/* Escolha do usuário vence o padrão nas duas pontas: a aba não sobrescreve ao
-   entrar nem apaga ao sair. */
-T.selections.Programa.add('Afya Bridge');
-T.activeTab = 'pi';
-assert.equal(T.piSincronizarProgramaPadrao(), false, 'quem já escolheu um Programa mantém o dele');
-T.selections.PI.add('PI3 - Legado');
-const bridge = T.piBuildTracking();
-assert.equal(bridge.programa.padrao, false, 'a seleção do usuário não é anunciada como padrão da aba');
-assert.deepEqual(bridge.epics.map((e) => e.epic.Chave), ['E-BR'],
-  'escolher Afya Bridge tem de mostrar Afya Bridge');
-T.activeTab = 'exec';
-assert.equal(T.piSincronizarProgramaPadrao(), false, 'a aba não pode apagar uma escolha do usuário');
-assert.deepEqual([...T.selections.Programa], ['Afya Bridge']);
-
-/* Sem recorte por dentro: com o filtro de Programa vazio, a aba mostra TUDO o
-   que o PI selecionado traz — inclusive o Legado. É o que garante que desmarcar
-   Afya One dentro da aba tenha efeito, em vez de cair num padrão invisível. */
+/* O PI do quarter acompanha o Programa marcado: é o caso que o usuário deu como
+   exemplo — marcar Afya Bridge tem de trazer PI3 - Legado. */
 T.selections.Programa.clear();
+T.selections.Programa.add('Afya Bridge');
+assert.equal(T.piDoQuarterAtual(), 'PI3 - Legado');
 T.activeTab = 'pi';
-const semPrograma = T.piBuildTracking();
-assert.equal(semPrograma.programa, null, 'filtro vazio é filtro vazio: não há set sintético');
-assert.ok(semPrograma.epics.some((e) => e.epic.Chave === 'E-BR'),
-  'desmarcar o Programa tem de trazer o Legado de volta — nada de trava por dentro');
-T.selections.PI.delete('PI3 - Legado');
+assert.equal(T.piSincronizarPiPadrao(), true);
+assert.deepEqual(Array.from(T.selections.PI), ['PI3 - Legado']);
+const bridge = T.piBuildTracking();
+assert.deepEqual(bridge.epics.map((e) => e.epic.Chave), ['E-BR'],
+  'com Afya Bridge e o PI dele, a aba mostra o épico do Legado');
 
-// Volta ao estado padrão da aba para o bloco de renderização abaixo.
-T.piSincronizarProgramaPadrao();
+/* Escolha do usuário vence o padrão nas duas pontas. Na barra real, mexer no
+   filtro de PI desliga o padrão pelo handler do checkbox (coberto em
+   filtros.spec.js, com DOM de verdade); aqui o vm não tem DOM, então a troca é
+   simulada. */
+T.selections.PI.clear();
+T.selections.PI.add('PI2 - Afya One');
+T.piPadraoAtivo = false;
+T.activeTab = 'exec';
+assert.equal(T.piSincronizarPiPadrao(), false, 'a aba não apaga uma escolha do usuário ao sair');
+T.activeTab = 'pi';
+assert.equal(T.piSincronizarPiPadrao(), false, 'nem a sobrescreve ao voltar');
+assert.deepEqual(Array.from(T.selections.PI), ['PI2 - Afya One']);
+
+/* Sem recorte por dentro: filtro de PI vazio mostra tudo o que o Programa
+   permite. É o que garante que desmarcar tenha efeito. */
+T.selections.PI.clear();
+T.selections.Programa.clear();
+T.selections.Programa.add('Afya One');
+const semPi = T.piBuildTracking();
+assert.ok(!semPi.epics.some((e) => e.epic.Chave === 'E-BR'),
+  'com Afya One marcado, o épico do Legado fica fora pelo Programa, não pelo PI');
+assert.ok(semPi.epics.length > 0, 'e os épicos de Afya One de todos os PIs aparecem');
+
+// Volta ao estado da aba para o bloco de renderização abaixo.
+T.selections.PI.clear();
+T.piSincronizarPiPadrao();
 
 /* ---------- renderização ---------- */
 T.renderPiTracking();
@@ -276,8 +288,10 @@ const recorte = getEl('pi-recorte').innerHTML;
 // O padrão precisa estar DECLARADO: a barra de filtros continua mostrando
 // "Programa: nenhum", então esta linha é o único lugar onde o leitor descobre
 // que o recorte foi feito.
-assert.ok(recorte.includes('Afya One') && recorte.includes('padrão da aba'),
-  `o padrão de Programa tem de ser declarado na linha de recorte: ${recorte}`);
+assert.ok(recorte.includes('PI3 - Afya One') && recorte.includes('PI do quarter corrente'),
+  `o PI marcado pela aba tem de ser declarado na linha de recorte: ${recorte}`);
+assert.ok(recorte.includes('Programa') && recorte.includes('Afya One'),
+  'e o Programa do recorte continua aparecendo');
 
 const VS_RX = /class="pi-vs( collapsed)?" data-pi-vs="([^"]*)"/g;
 const blocos = squadsHtml.match(VS_RX) || [];
