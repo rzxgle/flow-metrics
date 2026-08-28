@@ -76,6 +76,16 @@ para outras abas. O que funciona:
 3. Procurar texto obsoleto: uma mudança de regra costuma deixar afirmações
    velhas em `TAB_HELP`, na aba de Notas metodológicas e nos cabeçalhos dos
    testes.
+4. **Mudou o formato do payload? Suba `DASHBOARD_SCHEMA_VERSION`** (em
+   `public/index.html`). O navegador guarda o dataset em IndexedDB e, ao
+   reabrir, **renderiza direto do snapshot sem chamar o servidor** — só o
+   descarte por versão o obriga a recoletar. Já aconteceu: `piPeriods` ganhou o
+   campo `programa` e o ajuste "não replicou em produção", porque o snapshot
+   antigo trazia o campo vazio. O modo de falhar é o pior possível — **calado e
+   parcial**: o que é puro front-end (um filtro padrão, por exemplo) continua
+   funcionando, e só o que depende do campo novo fica mudo, então a tela parece
+   meio aplicada em vez de quebrada. Quem já está com a página aberta se
+   resolve clicando em **Atualizar dados**, que remonta o `meta`.
 
 ---
 

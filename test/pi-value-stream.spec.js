@@ -339,4 +339,25 @@ assert.equal(gradeDe('pi-vs-head'), gradeDe('pi-squad-head'),
 assert.ok(/\.pi-vs\.collapsed\s*>\s*\.pi-vs-body\{display:none;\}/.test(html),
   'fechar o VS tem de esconder só o corpo dele');
 
+/* ---------- o snapshot do navegador precisa ser invalidado ----------
+   O painel guarda o dataset em IndexedDB e, ao reabrir, renderiza direto do
+   snapshot sem chamar o servidor. A correlação PI -> Programa viaja dentro de
+   `meta.quarterRules.piPeriods`, então um snapshot gravado antes dela deixa
+   `programa` como `undefined`: nenhum PI casa com o Programa marcado, o PI do
+   quarter não é pré-selecionado e a lista de PI não esconde nada.
+
+   O modo de falhar é o pior possível — CALADO e parcial: o padrão de Programa é
+   puro front-end e continua aparecendo, então a tela parece "metade aplicada".
+   Aconteceu de verdade em produção. Este caso trava o par (versão do snapshot,
+   campos do payload). */
+const versaoSnapshot = Number(/const DASHBOARD_SCHEMA_VERSION = (\d+);/.exec(html)[1]);
+assert.ok(versaoSnapshot >= 12,
+  `piPeriods[*].programa exige descarte do snapshot antigo (versão ${versaoSnapshot})`);
+assert.ok(/snap\.schemaVersion===DASHBOARD_SCHEMA_VERSION\?snap:null/.test(html),
+  'o snapshot de versão diferente precisa continuar sendo descartado');
+// E o campo tem de existir mesmo nas regras do servidor, senão o bump não adianta.
+Object.entries(quarterRules.piPeriods).forEach(([pi, per]) => {
+  assert.ok(per.programa, `o PI "${pi}" precisa declarar o programa em piPeriods`);
+});
+
 console.log('pi-value-stream.spec.js OK');

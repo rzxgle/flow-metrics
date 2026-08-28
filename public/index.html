@@ -6863,7 +6863,19 @@ const DASHBOARD_STORE = 'snapshots';
 //      que por acaso foram mexidas no período —, o que é pior do que vazia,
 //      porque parece um número plausível. `Tipo Agrupado` também mudou para os
 //      itens desse tipo, então o campo gravado no snapshot estaria errado.
-const DASHBOARD_SCHEMA_VERSION = 11;
+// 12 = `meta.quarterRules.piPeriods` ganhou o campo `programa`, que é a
+//      correlação PI -> Programa usada pelo filtro de PI e pela pré-seleção do
+//      PI do quarter na aba PI Tracking. Sem o bump nada disso funciona em
+//      produção e FALHA CALADO: o navegador que já tinha snapshot renderiza
+//      direto dele e nem chama o servidor (`cacheComplete && !forceRefresh`
+//      retorna antes), então `piPeriods[pi].programa` vem `undefined` — nenhum
+//      PI casa com o Programa marcado, `piDoQuarterAtual()` não acha candidato
+//      e a lista de PI não esconde nada. O padrão de Programa, que é puro
+//      front-end, continua aparecendo, e é isso que faz o ajuste parecer
+//      "metade aplicado" em vez de quebrado.
+//      Aqui só o `meta` mudou, não os itens; como o snapshot não sabe recarregar
+//      só o meta, o descarte custa uma coleta completa, uma vez por navegador.
+const DASHBOARD_SCHEMA_VERSION = 12;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 
