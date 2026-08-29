@@ -1,7 +1,28 @@
 'use strict';
 
-const IssueRepository = require('../../domain/repositories/IssueRepository');
-const Issue = require('../../domain/entities/Issue');
+import IssueRepository = require('../../domain/repositories/IssueRepository');
+import Issue = require('../../domain/entities/Issue');
+import JiraFieldMap = require('./JiraFieldMap');
+import JiraHttpClient = require('./JiraHttpClient');
+
+interface RepositoryOptions { httpClient: JiraHttpClient; fieldMap: JiraFieldMap; jql: string }
+interface FindBatchInput {
+  jql?: string;
+  nextPageToken?: string | null;
+  maxPages?: number;
+  includeSprintHistory?: boolean;
+}
+interface RawIssue { id?: unknown; key?: unknown; fields?: Record<string, unknown> }
+interface ChangeItem {
+  field?: unknown;
+  fieldId?: unknown;
+  fromString?: unknown;
+  toString?: unknown;
+}
+interface ChangeHistory { created?: unknown; items?: ChangeItem[] }
+interface SprintTransition { at: string; from: string[]; to: string[] }
+interface StatusTransition { at: string; from: string; to: string }
+interface AdfNode { text?: unknown; content?: unknown }
 
 /**
  * JiraIssueRepository — implementação concreta da porta IssueRepository.
@@ -12,21 +33,25 @@ const Issue = require('../../domain/entities/Issue');
  * só este arquivo muda (o domínio e os casos de uso permanecem intactos).
  */
 class JiraIssueRepository extends IssueRepository {
-  constructor({ httpClient, fieldMap, jql }) {
+  private readonly httpClient: JiraHttpClient;
+  private readonly fieldMap: JiraFieldMap;
+  private readonly jql: string;
+
+  constructor({ httpClient, fieldMap, jql }: RepositoryOptions) {
     super();
     this.httpClient = httpClient;
     this.fieldMap = fieldMap;
     this.jql = jql;
   }
 
-  async findAll() {
+  async findAll(): Promise<Issue[]> {
     const raw = await this.httpClient.searchAll(this.jql, this.fieldMap.requestedFields());
     const issues = raw.map((r) => this._toIssue(r));
     await this.attachChangelogs(issues);
     return issues;
   }
 
-  async findBatch({ jql = this.jql, nextPageToken, maxPages, includeSprintHistory = true }) {
+  async findBatch({ jql = this.jql, nextPageToken, maxPages, includeSprintHistory = true }: FindBatchInput = {}) {
     const result = await this.httpClient.searchBatch(jql, this.fieldMap.requestedFields(), {
       nextPageToken,
       maxPages,
@@ -52,30 +77,30 @@ class JiraIssueRepository extends IssueRepository {
    * campo manual e a interface exibe a ressalva — degradar é melhor do que não
    * abrir.
    */
-  async attachChangelogs(issues) {
+  async attachChangelogs(issues: Issue[]): Promise<Issue[]> {
     if (!this.httpClient.fetchFieldChangelogs) return issues;
     const comId = issues.filter((i) => i.id);
     if (!comId.length) return issues;
     try {
       const logs = await this.httpClient.fetchFieldChangelogs(
-        comId.map((i) => i.id),
+        comId.map((i) => i.id).filter((id): id is string => id !== null),
         [this.fieldMap.sprint, this.fieldMap.status],
       );
       const porId = new Map(logs.map((l) => [String(l.issueId), l]));
       for (const issue of comId) {
-        const log = porId.get(issue.id);
+        const log = issue.id ? porId.get(issue.id) : undefined;
         if (!log) continue;
         issue.sprintTransitions = this._toSprintTransitions(log.changeHistories);
         issue.statusTransitions = this._toStatusTransitions(log.changeHistories);
       }
-    } catch (error) {
-      console.warn('[jira] changelog de sprint/status indisponivel:', error.message);
+    } catch (error: unknown) {
+      console.warn('[jira] changelog de sprint/status indisponivel:', errorMessage(error));
     }
     return issues;
   }
 
   /** Nome anterior, mantido para não quebrar chamadas externas. */
-  async attachSprintTransitions(issues) {
+  async attachSprintTransitions(issues: Issue[]): Promise<Issue[]> {
     return this.attachChangelogs(issues);
   }
 
@@ -87,16 +112,17 @@ class JiraIssueRepository extends IssueRepository {
    *   - com múltiplas sprints, `fromString`/`toString` vêm como lista separada
    *     por vírgula ("A, B") — são snapshots do conjunto, não deltas.
    */
-  _toSprintTransitions(changeHistories) {
+  private _toSprintTransitions(changeHistories: object[]): SprintTransition[] {
     const sprintFieldId = this.fieldMap.sprint;
-    const out = [];
-    for (const h of changeHistories || []) {
+    const out: SprintTransition[] = [];
+    for (const rawHistory of changeHistories || []) {
+      const h = rawHistory as ChangeHistory;
       for (const item of h.items || []) {
         const ehSprint = String(item.field).toLowerCase() === 'sprint'
           || (item.fieldId && item.fieldId === sprintFieldId);
         if (!ehSprint) continue;
         out.push({
-          at: this._toIsoInstant(h.created),
+          at: this._toIsoInstant(h.created) || '',
           from: this._splitSprintNames(item.fromString),
           to: this._splitSprintNames(item.toString),
         });
@@ -110,58 +136,60 @@ class JiraIssueRepository extends IssueRepository {
    * (`fromString`/`toString`); os ids (`from`/`to`) não servem, porque as regras
    * de classificação são escritas por nome.
    */
-  _toStatusTransitions(changeHistories) {
-    const out = [];
-    for (const h of changeHistories || []) {
+  private _toStatusTransitions(changeHistories: object[]): StatusTransition[] {
+    const out: StatusTransition[] = [];
+    for (const rawHistory of changeHistories || []) {
+      const h = rawHistory as ChangeHistory;
       for (const item of h.items || []) {
         if (String(item.field).toLowerCase() !== 'status') continue;
         out.push({
-          at: this._toIsoInstant(h.created),
-          from: item.fromString || null,
-          to: item.toString || null,
+          at: this._toIsoInstant(h.created) || '',
+          from: this._readString(item.fromString) || '',
+          to: this._readString(item.toString) || '',
         });
       }
     }
     return out;
   }
 
-  _toIsoInstant(value) {
+  private _toIsoInstant(value: unknown): string | null {
     if (value == null) return null;
     if (/^\d+$/.test(String(value))) return new Date(Number(value)).toISOString();
+    if (typeof value !== 'string' && typeof value !== 'number' && !(value instanceof Date)) return null;
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? null : d.toISOString();
   }
 
-  _splitSprintNames(value) {
+  private _splitSprintNames(value: unknown): string[] {
     if (!value) return [];
     return String(value).split(',').map((s) => s.trim()).filter(Boolean);
   }
 
-  _toIssue(raw) {
+  private _toIssue(raw: RawIssue): Issue {
     const f = raw.fields || {};
     const fm = this.fieldMap;
     return new Issue({
-      id: raw.id,
-      key: raw.key,
-      summary: f[fm.summary] || '',
-      issueType: f[fm.issuetype] ? f[fm.issuetype].name : null,
-      projectName: f[fm.project] ? f[fm.project].name : null,
-      projectKey: f[fm.project] ? f[fm.project].key : null,
-      team: this._readTeam(f[fm.team]),
-      status: f[fm.status] ? f[fm.status].name : null,
-      storyPoints: f[fm.storyPoints],
-      createdAt: f[fm.created] || null,
-      resolvedAt: f[fm.resolutiondate] || null,
-      dueDate: f[fm.duedate] || null,
-      startDate: f[fm.startDate] || null,
-      actualStartDate: f[fm.actualStart] || null,
-      actualEndDate: f[fm.actualEnd] || null,
-      labels: f[fm.labels] || [],
-      parentKey: f[fm.parent] ? f[fm.parent].key : null,
+      id: this._readStringOrNumber(raw.id),
+      key: this._readString(raw.key) || '',
+      summary: this._readString(f[fm.summary]) || '',
+      issueType: this._readObjectString(f[fm.issuetype], 'name') || '',
+      projectName: this._readObjectString(f[fm.project], 'name') || '',
+      projectKey: this._readObjectString(f[fm.project], 'key'),
+      team: this._readTeam(f[fm.team]) || '',
+      status: this._readObjectString(f[fm.status], 'name') || '',
+      storyPoints: this._readStringOrNumber(f[fm.storyPoints]),
+      createdAt: this._readString(f[fm.created]),
+      resolvedAt: this._readString(f[fm.resolutiondate]),
+      dueDate: this._readString(f[fm.duedate]),
+      startDate: this._readString(f[fm.startDate]),
+      actualStartDate: this._readString(f[fm.actualStart]),
+      actualEndDate: this._readString(f[fm.actualEnd]),
+      labels: this._readStringList(f[fm.labels]),
+      parentKey: this._readObjectString(f[fm.parent], 'key'),
       sprint: this._readSprint(f[fm.sprint]),
       sprints: this._readSprintList(f[fm.sprint]),
       sprintMeta: this._readSprintMeta(f[fm.sprint]),
-      bcp: f[fm.bcp],
+      bcp: this._readStringOrNumber(f[fm.bcp]),
       blockReason: this._readSelect(f[fm.blockReason]),
       timeDemandante: this._readSelect(f[fm.timeDemandante]),
       timeExterno: this._readSelect(f[fm.timeExterno]),
@@ -179,20 +207,28 @@ class JiraIssueRepository extends IssueRepository {
    * O sentido importa — é o que separa "o que me trava" de "o que eu travo" —
    * e não dá para recuperá-lo depois, porque o nome do tipo é o mesmo nos dois.
    */
-  _readIssueLinks(value) {
+  private _readIssueLinks(value: unknown) {
     if (!Array.isArray(value)) return [];
-    const out = [];
-    for (const link of value) {
-      if (!link || !link.type) continue;
-      const other = link.outwardIssue || link.inwardIssue;
-      if (!other || !other.key) continue;
-      const of = other.fields || {};
+    const out: Array<{
+      key: string; type: string | undefined; direction: 'in' | 'out';
+      issueType: string | undefined; status: string | undefined;
+    }> = [];
+    for (const rawLink of value) {
+      const link = asRecord(rawLink);
+      const type = asRecord(link?.type);
+      if (!link || !type) continue;
+      const outward = asRecord(link.outwardIssue);
+      const inward = asRecord(link.inwardIssue);
+      const other = outward || inward;
+      const key = this._readString(other?.key);
+      if (!other || !key) continue;
+      const fields = asRecord(other.fields);
       out.push({
-        key: other.key,
-        type: link.type.name || null,
-        direction: link.outwardIssue ? 'out' : 'in',
-        issueType: of.issuetype ? of.issuetype.name : null,
-        status: of.status ? of.status.name : null,
+        key,
+        type: this._readString(type.name) || undefined,
+        direction: outward ? 'out' : 'in',
+        issueType: this._readObjectString(fields?.issuetype, 'name') || undefined,
+        status: this._readObjectString(fields?.status, 'name') || undefined,
       });
     }
     return out;
@@ -202,7 +238,7 @@ class JiraIssueRepository extends IssueRepository {
    * Campo de múltipla escolha (checkbox) — vem como array de opções. Aqui só
    * interessa se há ALGUMA opção marcada.
    */
-  _readChecked(value) {
+  private _readChecked(value: unknown): boolean {
     if (Array.isArray(value)) return value.length > 0;
     return !!value;
   }
@@ -211,14 +247,15 @@ class JiraIssueRepository extends IssueRepository {
    * Campo de texto longo. Na API v3 ele vem em ADF (documento estruturado), não
    * em string — extraímos apenas os nós de texto.
    */
-  _readRichText(value) {
+  private _readRichText(value: unknown): string | null {
     if (!value) return null;
     if (typeof value === 'string') return value.trim() || null;
-    const parts = [];
-    const walk = (node) => {
-      if (!node || typeof node !== 'object') return;
-      if (typeof node.text === 'string') parts.push(node.text);
-      for (const child of node.content || []) walk(child);
+    const parts: string[] = [];
+    const walk = (node: unknown): void => {
+      const record = asRecord(node) as AdfNode | null;
+      if (!record) return;
+      if (typeof record.text === 'string') parts.push(record.text);
+      if (Array.isArray(record.content)) for (const child of record.content) walk(child);
     };
     walk(value);
     const text = parts.join(' ').replace(/\s+/g, ' ').trim();
@@ -230,12 +267,12 @@ class JiraIssueRepository extends IssueRepository {
    * simples do array do Jira). Usada para "comprometido/planejado na sprint X"
    * (Nível A: item cujo array de sprints contém X).
    */
-  _readSprintList(value) {
+  private _readSprintList(value: unknown): string[] {
     if (!value) return [];
     const arr = Array.isArray(value) ? value : [value];
     const names = arr
-      .map((s) => (typeof s === 'string' ? s : s && s.name))
-      .filter(Boolean);
+      .map((s) => (typeof s === 'string' ? s : this._readObjectString(s, 'name')))
+      .filter((name): name is string => Boolean(name));
     return Array.from(new Set(names)); // remove duplicatas preservando ordem
   }
 
@@ -248,18 +285,19 @@ class JiraIssueRepository extends IssueRepository {
    * misturar sprint em andamento — que está sempre "sub-entregue" — com sprint
    * fechada no cálculo da média.
    */
-  _readSprintMeta(value) {
+  private _readSprintMeta(value: unknown) {
     if (!value) return [];
     const arr = Array.isArray(value) ? value : [value];
     return arr
-      .filter((s) => s && typeof s === 'object' && s.name)
+      .map((s) => asRecord(s))
+      .filter((s): s is Record<string, unknown> => Boolean(s && this._readString(s.name)))
       .map((s) => ({
-        name: s.name,
-        startDate: s.startDate || null,
-        endDate: s.endDate || null,
-        completeDate: s.completeDate || null,
-        state: s.state || null,
-        id: s.id != null ? s.id : null,
+        name: this._readString(s.name) || '',
+        startDate: this._readString(s.startDate),
+        endDate: this._readString(s.endDate),
+        completeDate: this._readString(s.completeDate),
+        state: this._readString(s.state),
+        id: this._readStringOrNumber(s.id),
       }));
   }
 
@@ -267,10 +305,12 @@ class JiraIssueRepository extends IssueRepository {
    * O campo "Team" pode vir como string, objeto {name/value/title} ou nulo,
    * dependendo do tipo do campo na instância. Normalizamos para string.
    */
-  _readTeam(value) {
+  private _readTeam(value: unknown): string | null {
     if (!value) return null;
     if (typeof value === 'string') return value;
-    return value.name || value.value || value.title || null;
+    return this._readObjectString(value, 'name')
+      || this._readObjectString(value, 'value')
+      || this._readObjectString(value, 'title');
   }
 
   /**
@@ -278,25 +318,49 @@ class JiraIssueRepository extends IssueRepository {
    * várias sprints). Regra de negócio: usar a ÚLTIMA sprint ATIVA; se não houver
    * ativa, cai para a última do array. Retorna o `name`.
    */
-  _readSprint(value) {
+  private _readSprint(value: unknown): string | null {
     if (!value) return null;
     const arr = Array.isArray(value) ? value : [value];
     if (!arr.length) return null;
-    const actives = arr.filter((s) => s && String(s.state).toLowerCase() === 'active');
+    const actives = arr.filter((s) => String(asRecord(s)?.state || '').toLowerCase() === 'active');
     const chosen = actives.length ? actives[actives.length - 1] : arr[arr.length - 1];
     if (!chosen) return null;
-    return typeof chosen === 'string' ? chosen : (chosen.name || null);
+    return typeof chosen === 'string' ? chosen : this._readObjectString(chosen, 'name');
   }
 
   /**
    * Campos de seleção única (ex.: "Motivo de Bloqueio") vêm como {value}/{name}.
    * Também aceita string simples.
    */
-  _readSelect(value) {
+  private _readSelect(value: unknown): string | null {
     if (!value) return null;
     if (typeof value === 'string') return value;
-    return value.value || value.name || null;
+    return this._readObjectString(value, 'value') || this._readObjectString(value, 'name');
+  }
+
+  private _readString(value: unknown): string | null {
+    return typeof value === 'string' ? value : null;
+  }
+
+  private _readStringOrNumber(value: unknown): string | number | null {
+    return typeof value === 'string' || typeof value === 'number' ? value : null;
+  }
+
+  private _readObjectString(value: unknown, key: string): string | null {
+    return this._readString(asRecord(value)?.[key]);
+  }
+
+  private _readStringList(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
   }
 }
 
-module.exports = JiraIssueRepository;
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' ? value as Record<string, unknown> : null;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export = JiraIssueRepository;

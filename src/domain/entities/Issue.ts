@@ -12,8 +12,9 @@ interface SprintMeta {
   name?: string;
   startDate?: string | null;
   endDate?: string | null;
-  state?: string;
+  state?: string | null;
   completeDate?: string | null;
+  id?: string | number | null;
 }
 
 interface SprintTransition { at: string; from: string[]; to: string[] }
@@ -79,8 +80,8 @@ class Issue {
   readonly sprint: string | null;
   readonly sprints: string[];
   readonly sprintMeta: SprintMeta[];
-  readonly sprintTransitions: SprintTransition[];
-  readonly statusTransitions: StatusTransition[];
+  sprintTransitions: SprintTransition[];
+  statusTransitions: StatusTransition[];
   readonly bcp: number | null;
   readonly blockReason: string | null;
   readonly timeDemandante: string | null;
