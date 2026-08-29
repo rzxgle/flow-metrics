@@ -1,13 +1,16 @@
 'use strict';
 
-const path = require('path');
-const express = require('express');
+import path = require('path');
+import express = require('express');
+import DashboardController = require('./controllers/DashboardController');
+
+interface ServerOptions { dashboardController: DashboardController; publicDir: string }
 
 /**
  * createServer — monta o app Express. Recebe o controller já pronto
  * (injeção de dependência) e apenas conecta rotas + serve o front estático.
  */
-function createServer({ dashboardController, publicDir }) {
+function createServer({ dashboardController, publicDir }: ServerOptions): express.Express {
   const app = express();
 
   app.use(express.json());
@@ -30,4 +33,4 @@ function createServer({ dashboardController, publicDir }) {
   return app;
 }
 
-module.exports = { createServer };
+export = { createServer };

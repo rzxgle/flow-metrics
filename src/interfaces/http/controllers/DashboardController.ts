@@ -1,5 +1,23 @@
 'use strict';
 
+import type { Request, Response } from 'express';
+import GetDashboardDataUseCase = require('../../../application/use-cases/GetDashboardDataUseCase');
+import GetProgressiveDashboardDataUseCase = require('../../../application/use-cases/GetProgressiveDashboardDataUseCase');
+import PersistentCache = require('../../../infrastructure/cache/PersistentCache');
+
+type DashboardPayload = Awaited<ReturnType<GetDashboardDataUseCase['execute']>>;
+type ProgressiveInput = Parameters<GetProgressiveDashboardDataUseCase['execute']>[0];
+type ProgressivePayload = Awaited<ReturnType<GetProgressiveDashboardDataUseCase['execute']>>;
+interface ControllerOptions {
+  refresh: () => Promise<DashboardPayload>;
+  cache: PersistentCache<DashboardPayload>;
+  getProgressiveDashboardData: (input: ProgressiveInput) => Promise<ProgressivePayload>;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 /**
  * DashboardController — adaptador HTTP <-> aplicação.
  *
@@ -11,14 +29,19 @@
  * - /api/refresh força uma nova coleta (o botão "Atualizar agora").
  */
 class DashboardController {
-  constructor({ refresh, cache, getProgressiveDashboardData }) {
+  private readonly refresh: ControllerOptions['refresh'];
+  private readonly cache: ControllerOptions['cache'];
+  private readonly getProgressiveDashboardData: ControllerOptions['getProgressiveDashboardData'];
+  private _refreshing: Promise<DashboardPayload> | null;
+
+  constructor({ refresh, cache, getProgressiveDashboardData }: ControllerOptions) {
     this.refresh = refresh; // async () => payload (executa o caso de uso e grava no cache)
     this.cache = cache;
     this.getProgressiveDashboardData = getProgressiveDashboardData;
     this._refreshing = null; // evita coletas simultâneas
   }
 
-  _runRefresh() {
+  private _runRefresh(): Promise<DashboardPayload> {
     if (!this._refreshing) {
       this._refreshing = Promise.resolve()
         .then(() => this.refresh())
@@ -28,7 +51,7 @@ class DashboardController {
   }
 
   /** GET /api/dashboard -> { issues, epics, generatedAt, coletadoEm, meta } */
-  getDashboard = async (req, res) => {
+  getDashboard = async (req: Request, res: Response) => {
     try {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
@@ -40,18 +63,19 @@ class DashboardController {
         return res.status(503).json({ error: 'Dados ainda não disponíveis. Tente novamente em instantes.' });
       }
       return res.json({ ...payload, coletadoEm: this.cache.getSavedAt() });
-    } catch (err) {
-      console.error('[DashboardController] erro:', err.message);
+    } catch (err: unknown) {
+      const detail = errorMessage(err);
+      console.error('[DashboardController] erro:', detail);
       const stale = this.cache.get();
       if (stale) {
-        return res.json({ ...stale, coletadoEm: this.cache.getSavedAt(), avisoColeta: err.message });
+        return res.json({ ...stale, coletadoEm: this.cache.getSavedAt(), avisoColeta: detail });
       }
-      return res.status(502).json({ error: 'Falha ao obter dados do Jira', detail: err.message });
+      return res.status(502).json({ error: 'Falha ao obter dados do Jira', detail });
     }
   };
 
   /** POST /api/dashboard/progressive -> um lote pequeno, continuado por token. */
-  getProgressiveDashboard = async (req, res) => {
+  getProgressiveDashboard = async (req: Request, res: Response) => {
     try {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       const phase = req.body?.phase || 'recent';
@@ -69,28 +93,29 @@ class DashboardController {
       }
       const payload = await this.getProgressiveDashboardData({ phase, nextPageToken, since, epicKeys });
       return res.json(payload);
-    } catch (err) {
-      console.error('[DashboardController] erro progressivo:', err.message);
-      return res.status(502).json({ error: 'Falha ao carregar lote do Jira', detail: err.message });
+    } catch (err: unknown) {
+      const detail = errorMessage(err);
+      console.error('[DashboardController] erro progressivo:', detail);
+      return res.status(502).json({ error: 'Falha ao carregar lote do Jira', detail });
     }
   };
 
   /** GET /api/refresh -> força nova coleta e devolve a hora. */
-  postRefresh = async (_req, res) => {
+  postRefresh = async (_req: Request, res: Response) => {
     try {
       res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       await this._runRefresh();
       res.json({ status: 'ok', coletadoEm: this.cache.getSavedAt() });
-    } catch (err) {
-      res.status(502).json({ error: 'Falha ao atualizar', detail: err.message });
+    } catch (err: unknown) {
+      res.status(502).json({ error: 'Falha ao atualizar', detail: errorMessage(err) });
     }
   };
 
   /** GET /api/health */
-  getHealth = (_req, res) => {
+  getHealth = (_req: Request, res: Response) => {
     res.set('Cache-Control', 'no-store');
     res.json({ status: 'ok', time: new Date().toISOString(), coletadoEm: this.cache.getSavedAt() });
   };
 }
 
-module.exports = DashboardController;
+export = DashboardController;

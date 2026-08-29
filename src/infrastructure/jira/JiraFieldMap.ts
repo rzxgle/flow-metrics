@@ -43,7 +43,7 @@ class JiraFieldMap {
   readonly depDescription: string;
   readonly issueLinks = 'issuelinks';
 
-  constructor(env: JiraFieldEnvironment = {}) {
+  constructor(env: JiraFieldEnvironment | NodeJS.ProcessEnv = {}) {
     // Campos padrão da API (nomes fixos)
 
     // Campos customizados (configuráveis via .env)

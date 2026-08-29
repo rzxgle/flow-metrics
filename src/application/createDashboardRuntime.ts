@@ -1,28 +1,32 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-const { loadConfig } = require('../config');
-const classificationRules = require('../config/classification.rules');
-const quarterRules = require('../config/quarter.rules');
-const dependencyRules = require('../config/dependency.rules');
-const IssueClassifier = require('../domain/services/IssueClassifier');
-const FlowMetricsCalculator = require('../domain/services/FlowMetricsCalculator');
-const IssueEnricher = require('../domain/services/IssueEnricher');
-const EpicSummaryBuilder = require('../domain/services/EpicSummaryBuilder');
-const EpicHealthEvaluator = require('../domain/services/EpicHealthEvaluator');
-const SprintHistoryResolver = require('../domain/services/SprintHistoryResolver');
-const SprintDeliveryResolver = require('../domain/services/SprintDeliveryResolver');
-const StatusTimeResolver = require('../domain/services/StatusTimeResolver');
-const DependencyResolver = require('../domain/services/DependencyResolver');
-const GetDashboardDataUseCase = require('./use-cases/GetDashboardDataUseCase');
-const GetProgressiveDashboardDataUseCase = require('./use-cases/GetProgressiveDashboardDataUseCase');
-const JiraFieldMap = require('../infrastructure/jira/JiraFieldMap');
-const JiraHttpClient = require('../infrastructure/jira/JiraHttpClient');
-const JiraIssueRepository = require('../infrastructure/jira/JiraIssueRepository');
-const PersistentCache = require('../infrastructure/cache/PersistentCache');
+import fs = require('fs');
+import path = require('path');
+import configModule = require('../config');
+import classificationRules = require('../config/classification.rules');
+import dependencyRules = require('../config/dependency.rules');
+import quarterRules = require('../config/quarter.rules');
+import DependencyResolver = require('../domain/services/DependencyResolver');
+import EpicHealthEvaluator = require('../domain/services/EpicHealthEvaluator');
+import EpicSummaryBuilder = require('../domain/services/EpicSummaryBuilder');
+import FlowMetricsCalculator = require('../domain/services/FlowMetricsCalculator');
+import IssueClassifier = require('../domain/services/IssueClassifier');
+import IssueEnricher = require('../domain/services/IssueEnricher');
+import SprintDeliveryResolver = require('../domain/services/SprintDeliveryResolver');
+import SprintHistoryResolver = require('../domain/services/SprintHistoryResolver');
+import StatusTimeResolver = require('../domain/services/StatusTimeResolver');
+import PersistentCache = require('../infrastructure/cache/PersistentCache');
+import JiraFieldMap = require('../infrastructure/jira/JiraFieldMap');
+import JiraHttpClient = require('../infrastructure/jira/JiraHttpClient');
+import JiraIssueRepository = require('../infrastructure/jira/JiraIssueRepository');
+import GetDashboardDataUseCase = require('./use-cases/GetDashboardDataUseCase');
+import GetProgressiveDashboardDataUseCase = require('./use-cases/GetProgressiveDashboardDataUseCase');
 
-function createDashboardRuntime(env = process.env) {
+const { loadConfig } = configModule;
+type DashboardPayload = Awaited<ReturnType<GetDashboardDataUseCase['execute']>>;
+type ProgressiveInput = Parameters<GetProgressiveDashboardDataUseCase['execute']>[0];
+
+function createDashboardRuntime(env: NodeJS.ProcessEnv = process.env) {
   const config = loadConfig(env);
   const referenceDate = new Date();
   const fieldMap = new JiraFieldMap(config.env);
@@ -32,7 +36,7 @@ function createDashboardRuntime(env = process.env) {
     pageSize: config.jira.pageSize,
   });
   const issueRepository = new JiraIssueRepository({ httpClient, fieldMap, jql: config.jira.jql });
-  const cache = new PersistentCache(config.cacheFilePath);
+  const cache = new PersistentCache<DashboardPayload>(config.cacheFilePath);
   const classifier = new IssueClassifier(classificationRules);
   const metricsCalculator = new FlowMetricsCalculator(referenceDate);
   const dependencyResolver = new DependencyResolver(classifier, dependencyRules);
@@ -80,9 +84,9 @@ function createDashboardRuntime(env = process.env) {
     config,
     cache,
     refresh,
-    getProgressiveDashboardData: (input) => getProgressiveDashboardDataUseCase.execute(input),
+    getProgressiveDashboardData: (input: ProgressiveInput) => getProgressiveDashboardDataUseCase.execute(input),
     publicDir,
   };
 }
 
-module.exports = { createDashboardRuntime };
+export = { createDashboardRuntime };

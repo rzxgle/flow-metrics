@@ -1,10 +1,13 @@
 'use strict';
 
-require('dotenv').config();
+import 'dotenv/config';
 
-const { createDashboardRuntime } = require('./application/createDashboardRuntime');
-const DashboardController = require('./interfaces/http/controllers/DashboardController');
-const { createServer } = require('./interfaces/http/server');
+import runtimeModule = require('./application/createDashboardRuntime');
+import DashboardController = require('./interfaces/http/controllers/DashboardController');
+import serverModule = require('./interfaces/http/server');
+
+const { createDashboardRuntime } = runtimeModule;
+const { createServer } = serverModule;
 
 async function start() {
   const runtime = createDashboardRuntime(process.env);
@@ -28,9 +31,9 @@ async function start() {
       return;
     }
 
-    runtime.refresh().catch((error) => console.error('[cache] falha na carga inicial:', error.message));
+    runtime.refresh().catch((error: unknown) => console.error('[cache] falha na carga inicial:', errorMessage(error)));
     setInterval(() => {
-      runtime.refresh().catch((error) => console.error('[refresh] falha no ciclo:', error.message));
+      runtime.refresh().catch((error: unknown) => console.error('[refresh] falha no ciclo:', errorMessage(error)));
     }, runtime.config.refreshIntervalMs).unref();
     console.log(`[cache] atualizacao automatica a cada ` +
       `${(runtime.config.refreshIntervalMs / 60000).toFixed(0)} min.`);
@@ -40,10 +43,14 @@ async function start() {
 }
 
 if (require.main === module) {
-  start().catch((error) => {
+  start().catch((error: unknown) => {
     console.error('[startup] falha ao iniciar:', error);
     process.exitCode = 1;
   });
 }
 
-module.exports = { start };
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export = { start };
