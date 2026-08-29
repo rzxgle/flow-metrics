@@ -12,11 +12,43 @@
  * Autenticação: Basic auth com e-mail + API token (Jira Cloud).
  * Gere um token em: https://id.atlassian.com/manage-profile/security/api-tokens
  */
+interface JiraHttpClientOptions {
+  baseUrl: string;
+  email: string;
+  apiToken: string;
+  searchPath?: string;
+  pageSize?: number;
+  changelogPath?: string;
+  changelogBatchSize?: number;
+}
+interface RequestOptions { timeoutMs?: number }
+type JiraIssue = Record<string, unknown>;
+interface JiraSearchResponse {
+  issues?: JiraIssue[];
+  nextPageToken?: string | null;
+  isLast?: boolean;
+}
+interface JiraSearchPage { issues: JiraIssue[]; nextPageToken: string | null; isLast: boolean }
+interface JiraChangeLog { issueId: string; changeHistories: object[] }
+interface JiraChangelogResponse {
+  issueChangeLogs?: JiraChangeLog[];
+  nextPageToken?: string | null;
+}
+interface SearchBatchOptions { nextPageToken?: string | null; maxPages?: number }
+interface JiraSearchBatch extends JiraSearchPage { pages: number }
+
 class JiraHttpClient {
+  private readonly baseUrl: string;
+  private readonly searchPath: string;
+  private readonly pageSize: number;
+  private readonly changelogPath: string;
+  private readonly changelogBatchSize: number;
+  private readonly authHeader: string;
+
   constructor({
     baseUrl, email, apiToken, searchPath = '/rest/api/3/search/jql', pageSize = 100,
     changelogPath = '/rest/api/3/changelog/bulkfetch', changelogBatchSize = 1000,
-  }) {
+  }: JiraHttpClientOptions) {
     if (!baseUrl) throw new Error('JiraHttpClient: baseUrl é obrigatório');
     if (!email || !apiToken) throw new Error('JiraHttpClient: email e apiToken são obrigatórios');
     this.baseUrl = baseUrl.replace(/\/$/, '');
@@ -28,7 +60,7 @@ class JiraHttpClient {
   }
 
   /** POST autenticado que devolve JSON, com erro legível quando a API recusa. */
-  async _post(path, body, { timeoutMs = 25000 } = {}) {
+  private async _post<T>(path: string, body: object, { timeoutMs = 25000 }: RequestOptions = {}): Promise<T> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method: 'POST',
       headers: {
@@ -43,7 +75,7 @@ class JiraHttpClient {
       const text = await res.text().catch(() => '');
       throw new Error(`Jira API ${res.status} ${res.statusText}: ${text.slice(0, 500)}`);
     }
-    return res.json();
+    return res.json() as Promise<T>;
   }
 
   /**
@@ -60,15 +92,15 @@ class JiraHttpClient {
    * @param {string[]} fieldIds ex.: ['customfield_10113']
    * @returns {Promise<Array<{issueId:string, changeHistories:object[]}>>}
    */
-  async fetchFieldChangelogs(issueIds, fieldIds) {
+  async fetchFieldChangelogs(issueIds: Array<string | number>, fieldIds: string[]): Promise<JiraChangeLog[]> {
     const ids = Array.from(new Set((issueIds || []).map((id) => String(id)).filter(Boolean)));
     if (!ids.length || !fieldIds || !fieldIds.length) return [];
-    const out = [];
+    const out: JiraChangeLog[] = [];
     for (let i = 0; i < ids.length; i += this.changelogBatchSize) {
       const chunk = ids.slice(i, i + this.changelogBatchSize);
-      let nextPageToken;
+      let nextPageToken: string | null | undefined;
       do {
-        const data = await this._post(this.changelogPath, {
+        const data = await this._post<JiraChangelogResponse>(this.changelogPath, {
           issueIdsOrKeys: chunk,
           fieldIds,
           maxResults: 1000,
@@ -91,9 +123,9 @@ class JiraHttpClient {
    * @param {string[]} fields campos a retornar
    * @returns {Promise<object[]>} issues cruas da API do Jira
    */
-  async searchAll(jql, fields) {
-    const all = [];
-    let nextPageToken = undefined;
+  async searchAll(jql: string, fields: string[]): Promise<JiraIssue[]> {
+    const all: JiraIssue[] = [];
+    let nextPageToken: string | null | undefined = undefined;
     let isLast = false;
 
     while (!isLast) {
@@ -106,8 +138,8 @@ class JiraHttpClient {
     return all;
   }
 
-  async searchPage(jql, fields, nextPageToken) {
-    const data = await this._post(this.searchPath, {
+  async searchPage(jql: string, fields: string[], nextPageToken?: string | null): Promise<JiraSearchPage> {
+    const data = await this._post<JiraSearchResponse>(this.searchPath, {
       jql,
       fields,
       maxResults: this.pageSize,
@@ -121,8 +153,8 @@ class JiraHttpClient {
   }
 
   /** Busca poucas paginas para manter cada resposta abaixo dos limites do hosting. */
-  async searchBatch(jql, fields, { nextPageToken, maxPages = 5 } = {}) {
-    const issues = [];
+  async searchBatch(jql: string, fields: string[], { nextPageToken, maxPages = 5 }: SearchBatchOptions = {}): Promise<JiraSearchBatch> {
+    const issues: JiraIssue[] = [];
     let token = nextPageToken;
     let isLast = false;
     let pages = 0;
@@ -137,4 +169,4 @@ class JiraHttpClient {
   }
 }
 
-module.exports = JiraHttpClient;
+export = JiraHttpClient;

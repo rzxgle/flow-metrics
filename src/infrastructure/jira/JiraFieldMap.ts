@@ -11,18 +11,40 @@
  * >>> Rode `npm run discover:fields` para descobrir os IDs corretos da SUA
  *     instância e ajuste-os no arquivo .env (ver .env.example). <<<
  */
+type JiraFieldEnvironment = Partial<Record<
+  | 'JIRA_FIELD_TEAM' | 'JIRA_FIELD_STORY_POINTS' | 'JIRA_FIELD_START_DATE'
+  | 'JIRA_FIELD_ACTUAL_START' | 'JIRA_FIELD_ACTUAL_END' | 'JIRA_FIELD_SPRINT'
+  | 'JIRA_FIELD_BCP' | 'JIRA_FIELD_BLOCK_REASON' | 'JIRA_FIELD_TIME_DEMANDANTE'
+  | 'JIRA_FIELD_TIME_EXTERNO' | 'JIRA_FIELD_DEP_APROVADA' | 'JIRA_FIELD_DEP_DESCRICAO',
+  string
+>>;
+
 class JiraFieldMap {
-  constructor(env = {}) {
+  readonly summary = 'summary';
+  readonly issuetype = 'issuetype';
+  readonly project = 'project';
+  readonly status = 'status';
+  readonly created = 'created';
+  readonly resolutiondate = 'resolutiondate';
+  readonly duedate = 'duedate';
+  readonly labels = 'labels';
+  readonly parent = 'parent';
+  readonly team: string;
+  readonly storyPoints: string;
+  readonly startDate: string;
+  readonly actualStart: string;
+  readonly actualEnd: string;
+  readonly sprint: string;
+  readonly bcp: string;
+  readonly blockReason: string;
+  readonly timeDemandante: string;
+  readonly timeExterno: string;
+  readonly depApproved: string;
+  readonly depDescription: string;
+  readonly issueLinks = 'issuelinks';
+
+  constructor(env: JiraFieldEnvironment = {}) {
     // Campos padrão da API (nomes fixos)
-    this.summary = 'summary';
-    this.issuetype = 'issuetype';
-    this.project = 'project';
-    this.status = 'status';
-    this.created = 'created';
-    this.resolutiondate = 'resolutiondate';
-    this.duedate = 'duedate';
-    this.labels = 'labels';
-    this.parent = 'parent';
 
     // Campos customizados (configuráveis via .env)
     this.team = env.JIRA_FIELD_TEAM || 'customfield_10001'; // "Team"
@@ -42,11 +64,10 @@ class JiraFieldMap {
 
     // Links entre issues. É por eles que uma dependência aponta o item que ficou
     // parado esperando o outro time.
-    this.issueLinks = 'issuelinks';
   }
 
   /** Lista de campos a solicitar na busca (reduz payload da API). */
-  requestedFields() {
+  requestedFields(): string[] {
     return [
       this.summary, this.issuetype, this.project, this.status,
       this.created, this.resolutiondate, this.duedate, this.labels, this.parent,
@@ -58,4 +79,4 @@ class JiraFieldMap {
   }
 }
 
-module.exports = JiraFieldMap;
+export = JiraFieldMap;
