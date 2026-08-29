@@ -1,6 +1,16 @@
 'use strict';
 
-const { toDate, diffDays, roundHalfEven } = require('../../shared/date.utils');
+import { type DateInput, diffDays, roundHalfEven, toDate } from '../../shared/date.utils';
+
+interface StatusTransition { at: string; from: string | null; to: string | null }
+interface StatusTimeInput {
+  createdAt?: string | null;
+  status?: string | null;
+  transitions?: StatusTransition[];
+}
+interface StatusStay { status: string; dias: number; visitas: number }
+interface StatusTimeResult { permanencias: StatusStay[]; reconstructed: boolean }
+interface StatusPoint { status: string | null; at: string | null }
 
 /**
  * StatusTimeResolver — reconstrói QUANTO TEMPO uma issue permaneceu em cada
@@ -52,7 +62,7 @@ class StatusTimeResolver {
    *          fecha (changelog ausente, truncado ou herdado) — o dashboard conta
    *          esses itens e exibe a ressalva em vez de embutir um palpite.
    */
-  resolve({ createdAt, status = null, transitions = [] } = {}) {
+  resolve({ createdAt, status = null, transitions = [] }: StatusTimeInput = {}): StatusTimeResult {
     const ordered = this._sortByTime(transitions);
     if (!ordered.length) {
       // Sem transição alguma: ou o changelog não veio, ou a issue foi criada já
@@ -65,10 +75,10 @@ class StatusTimeResolver {
     // Linha do tempo como pontos (status, instante de ENTRADA):
     //   [createdAt, from(t1)], [t1.at, to(t1)], [t2.at, to(t2)], ...
     // O último ponto é a visita ABERTA (status atual) e por isso não fecha.
-    const pontos = [{ status: this._canonical(ordered[0].from), at: createdAt || null }];
+    const pontos: StatusPoint[] = [{ status: this._canonical(ordered[0].from), at: createdAt || null }];
     for (const t of ordered) pontos.push({ status: this._canonical(t.to), at: t.at });
 
-    const porStatus = new Map();
+    const porStatus = new Map<string, StatusStay>();
     for (let i = 0; i < pontos.length - 1; i += 1) {
       const atual = pontos[i];
       const proximo = pontos[i + 1];
@@ -99,7 +109,7 @@ class StatusTimeResolver {
    * próprio changelog. Nos dois casos os tempos reconstruídos são parciais, e é
    * melhor dizer isso do que somá-los como se fossem completos.
    */
-  _isConsistent(ordered, status) {
+  private _isConsistent(ordered: StatusTransition[], status: string | null): boolean {
     const atual = this._canonical(status);
     const ultimo = this._canonical(ordered[ordered.length - 1].to);
     if (!atual || !ultimo || atual !== ultimo) return false;
@@ -114,11 +124,11 @@ class StatusTimeResolver {
   }
 
   /** Ordena as transições cronologicamente; entradas sem data vão para o fim. */
-  _sortByTime(transitions) {
+  private _sortByTime(transitions: StatusTransition[]): StatusTransition[] {
     return (transitions || [])
       .filter((t) => t && t.at && toDate(t.at))
       .slice()
-      .sort((a, b) => toDate(a.at).getTime() - toDate(b.at).getTime());
+      .sort((a, b) => (toDate(a.at)?.getTime() || 0) - (toDate(b.at)?.getTime() || 0));
   }
 
   /**
@@ -129,7 +139,7 @@ class StatusTimeResolver {
    *
    * Usa precisão alta aqui porque o arredondamento acontece só no total.
    */
-  _nonNegativeDiff(a, b) {
+  private _nonNegativeDiff(a: DateInput, b: DateInput): number | null {
     const da = toDate(a);
     const db = toDate(b);
     if (!da || !db) return null;
@@ -137,15 +147,15 @@ class StatusTimeResolver {
     return diffDays(a, b, 6);
   }
 
-  _round2(value) {
-    return roundHalfEven(value, 2);
+  private _round2(value: number): number {
+    return roundHalfEven(value, 2) as number;
   }
 
   /** Nome de status normalizado: só espaços nas pontas, sem casamento aproximado. */
-  _canonical(value) {
+  private _canonical(value: unknown): string | null {
     const s = String(value == null ? '' : value).trim();
     return s || null;
   }
 }
 
-module.exports = StatusTimeResolver;
+export = StatusTimeResolver;

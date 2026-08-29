@@ -1,6 +1,20 @@
 'use strict';
 
-const { toDate } = require('../../shared/date.utils');
+import { toDate } from '../../shared/date.utils';
+
+interface SprintTransition { at: string; from: string[]; to: string[] }
+interface SprintHistoryInput {
+  createdAt?: string | null;
+  sprints?: string[];
+  transitions?: SprintTransition[];
+}
+interface SprintMembership { sprint: string; enteredAt: string | null; leftAt: string | null }
+interface SprintHistoryResult {
+  membership: SprintMembership[];
+  reconstructed: boolean;
+  consistent: boolean;
+}
+interface SprintInterval { at: string | null; sprints: string[] }
 
 /**
  * SprintHistoryResolver — reconstrói QUANDO cada issue entrou e saiu de cada
@@ -45,7 +59,7 @@ class SprintHistoryResolver {
    *          `membership` traz UMA entrada por passagem — a mesma sprint pode
    *          aparecer duas vezes se a issue saiu e voltou.
    */
-  resolve({ createdAt, sprints = [], transitions = [] } = {}) {
+  resolve({ createdAt, sprints = [], transitions = [] }: SprintHistoryInput = {}): SprintHistoryResult {
     const atuais = this._uniq(sprints);
     const ordered = this._sortByTime(transitions);
 
@@ -60,7 +74,7 @@ class SprintHistoryResolver {
     }
 
     // Linha do tempo: [createdAt, t1) = from(t1); [ti, ti+1) = to(ti).
-    const intervals = [{ at: createdAt || null, sprints: this._uniq(ordered[0].from) }];
+    const intervals: SprintInterval[] = [{ at: createdAt || null, sprints: this._uniq(ordered[0].from) }];
     for (const t of ordered) intervals.push({ at: t.at, sprints: this._uniq(t.to) });
 
     // Uma issue pode entrar, sair e VOLTAR para a mesma sprint (visto na base:
@@ -68,9 +82,9 @@ class SprintHistoryResolver {
     // Por isso cada passagem é registrada separadamente — colapsar em um único
     // par entrada/saída marcaria como "fora" um item que ainda é membro.
     const nomes = this._uniq([...atuais, ...intervals.flatMap((i) => i.sprints)]);
-    const membership = [];
+    const membership: SprintMembership[] = [];
     for (const sprint of nomes) {
-      let aberta = null;
+      let aberta: SprintMembership | null = null;
       for (const intervalo of intervals) {
         const dentro = intervalo.sprints.includes(sprint);
         if (dentro && !aberta) {
@@ -93,7 +107,7 @@ class SprintHistoryResolver {
   }
 
   /** Ordena as transições cronologicamente; entradas sem data vão para o fim. */
-  _sortByTime(transitions) {
+  private _sortByTime(transitions: SprintTransition[]): SprintTransition[] {
     return (transitions || [])
       .filter((t) => t && Array.isArray(t.from) && Array.isArray(t.to))
       .slice()
@@ -107,7 +121,7 @@ class SprintHistoryResolver {
       });
   }
 
-  _uniq(arr) {
+  private _uniq(arr: string[]): string[] {
     return Array.from(new Set((arr || [])
       .map((s) => this._canonicalSprintName(s))
       .filter(Boolean)));
@@ -118,10 +132,10 @@ class SprintHistoryResolver {
    * O prefixo é deliberadamente exato: não fazemos comparação aproximada, e o
    * sufixo (PI3_3, PI3_4, PI3_5...) permanece intacto para não unir sprints.
    */
-  _canonicalSprintName(value) {
+  private _canonicalSprintName(value: unknown): string {
     return String(value || '').trim()
       .replace(/^26_SQD_APP_Aprenderr_/, '26_SQD_APP_Aprender_');
   }
 }
 
-module.exports = SprintHistoryResolver;
+export = SprintHistoryResolver;
