@@ -1,7 +1,42 @@
 'use strict';
 
+import Issue = require('../../domain/entities/Issue');
+import EpicHealthEvaluator = require('../../domain/services/EpicHealthEvaluator');
+import IssueEnricher = require('../../domain/services/IssueEnricher');
+
+interface ProgressiveRepository {
+  findBatch(input: {
+    jql: string; nextPageToken?: string | null; maxPages: number; includeSprintHistory: boolean;
+  }): Promise<{ issues: Issue[]; nextPageToken: string | null; isLast: boolean; pages: number }>;
+}
+interface PiLabelRule { label: string }
+interface ProgressiveOptions {
+  issueRepository: ProgressiveRepository;
+  enricher: IssueEnricher;
+  epicHealthEvaluator: EpicHealthEvaluator;
+  quarterRules?: { ignoredStatuses?: string[] } | null;
+  piLabelRules?: PiLabelRule[];
+  baseJql: string;
+  maxPages?: string | number;
+}
+type ProgressivePhase = 'recent' | 'history' | 'delta' | 'pi-epics' | 'pi-children';
+interface ExecuteInput {
+  phase: ProgressivePhase;
+  nextPageToken?: string | null;
+  since?: string | null;
+  epicKeys?: string[];
+}
+
 class GetProgressiveDashboardDataUseCase {
-  constructor({ issueRepository, enricher, epicHealthEvaluator, quarterRules, piLabelRules, baseJql, maxPages = 5 }) {
+  private readonly issueRepository: ProgressiveRepository;
+  private readonly enricher: IssueEnricher;
+  private readonly epicHealthEvaluator: EpicHealthEvaluator;
+  private readonly quarterRules: ProgressiveOptions['quarterRules'];
+  private readonly piLabelRules: PiLabelRule[];
+  private readonly baseJql: string;
+  private readonly maxPages: number;
+
+  constructor({ issueRepository, enricher, epicHealthEvaluator, quarterRules, piLabelRules, baseJql, maxPages = 5 }: ProgressiveOptions) {
     this.issueRepository = issueRepository;
     this.enricher = enricher;
     this.epicHealthEvaluator = epicHealthEvaluator;
@@ -11,11 +46,11 @@ class GetProgressiveDashboardDataUseCase {
     this.maxPages = Math.max(1, Math.min(Number(maxPages) || 5, 5));
   }
 
-  _quoteJql(value) {
+  private _quoteJql(value: string): string {
     return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
   }
 
-  _piEpicJql() {
+  private _piEpicJql(): string {
     const labels = Array.from(new Set(this.piLabelRules.map((rule) => rule.label).filter(Boolean)));
     if (!labels.length) throw new Error('Nenhuma label de PI configurada.');
     const ignored = (this.quarterRules?.ignoredStatuses || []).filter(Boolean);
@@ -25,7 +60,7 @@ class GetProgressiveDashboardDataUseCase {
       + 'ORDER BY created DESC';
   }
 
-  _piChildrenJql(epicKeys) {
+  private _piChildrenJql(epicKeys?: string[]): string {
     const keys = Array.from(new Set(epicKeys || []));
     if (!keys.length) throw new Error('Lista de epicos do PI vazia.');
     if (keys.length > 50) throw new Error('Limite de 50 epicos por lote excedido.');
@@ -35,7 +70,7 @@ class GetProgressiveDashboardDataUseCase {
     return `parent in (${keys.join(', ')}) ORDER BY created DESC`;
   }
 
-  _jqlFor(phase, since) {
+  private _jqlFor(phase: 'recent' | 'history' | 'delta', since?: string | null): string {
     const withoutOrder = this.baseJql.replace(/\s+ORDER\s+BY[\s\S]*$/i, '').trim();
     let dateClause;
     if (phase === 'recent') dateClause = 'created >= -60d';
@@ -50,14 +85,14 @@ class GetProgressiveDashboardDataUseCase {
     return `(${withoutOrder}) AND ${dateClause} ORDER BY created DESC`;
   }
 
-  async execute({ phase, nextPageToken, since, epicKeys }) {
+  async execute({ phase, nextPageToken, since, epicKeys }: ExecuteInput) {
     if (!['recent', 'history', 'delta', 'pi-epics', 'pi-children'].includes(phase)) {
       throw new Error('Fase progressiva invalida.');
     }
     const piPhase = phase === 'pi-epics' || phase === 'pi-children';
     const jql = phase === 'pi-epics' ? this._piEpicJql()
       : phase === 'pi-children' ? this._piChildrenJql(epicKeys)
-        : this._jqlFor(phase, since);
+        : this._jqlFor(phase as 'recent' | 'history' | 'delta', since);
     const batch = await this.issueRepository.findBatch({
       jql, nextPageToken, maxPages: this.maxPages, includeSprintHistory: !piPhase,
     });
@@ -69,7 +104,7 @@ class GetProgressiveDashboardDataUseCase {
       }
       return item;
     });
-    const sprintCatalog = new Map();
+    const sprintCatalog = new Map<string, Issue['sprintMeta'][number]>();
     for (const issue of batch.issues) {
       for (const sprint of issue.sprintMeta || []) {
         if (sprint?.name) sprintCatalog.set(sprint.name, sprint);
@@ -100,4 +135,4 @@ class GetProgressiveDashboardDataUseCase {
   }
 }
 
-module.exports = GetProgressiveDashboardDataUseCase;
+export = GetProgressiveDashboardDataUseCase;

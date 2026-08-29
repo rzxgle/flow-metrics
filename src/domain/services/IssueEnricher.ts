@@ -3,6 +3,7 @@
 import { toIsoDate, toYear, toYearMonth } from '../../shared/date.utils';
 import Issue = require('../entities/Issue');
 import DependencyResolver = require('./DependencyResolver');
+import EpicHealthEvaluator = require('./EpicHealthEvaluator');
 import FlowMetricsCalculator = require('./FlowMetricsCalculator');
 import IssueClassifier = require('./IssueClassifier');
 import SprintDeliveryResolver = require('./SprintDeliveryResolver');
@@ -116,8 +117,8 @@ class IssueEnricher {
       AgingDias: this.metrics.agingDays(issue),
       parent: issue.parentKey,
       // Campos resolvidos posteriormente pelo caso de uso:
-      EpicoChave: null,
-      SaudeEpico: null,
+      EpicoChave: null as string | null,
+      SaudeEpico: null as ReturnType<EpicHealthEvaluator['evaluate']> | null,
       // guardado internamente para resolução de épico/incremental:
       parentKey: issue.parentKey,
       grupo,

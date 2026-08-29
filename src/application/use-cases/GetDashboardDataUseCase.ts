@@ -1,6 +1,23 @@
 'use strict';
 
-const EpicResolver = require('../../domain/services/EpicResolver');
+import IssueRepository = require('../../domain/repositories/IssueRepository');
+import EpicHealthEvaluator = require('../../domain/services/EpicHealthEvaluator');
+import EpicResolver = require('../../domain/services/EpicResolver');
+import EpicSummaryBuilder = require('../../domain/services/EpicSummaryBuilder');
+import IssueEnricher = require('../../domain/services/IssueEnricher');
+
+type EnrichedIssue = ReturnType<IssueEnricher['enrich']>;
+interface UseCaseOptions {
+  issueRepository: IssueRepository;
+  enricher: IssueEnricher;
+  epicSummaryBuilder: EpicSummaryBuilder;
+  epicHealthEvaluator: EpicHealthEvaluator;
+  quarterRules?: unknown;
+}
+interface SprintCatalogEntry {
+  name: string; startDate: string | null; endDate: string | null;
+  completeDate: string | null; state: string | null; id: string | number | null;
+}
 
 /**
  * GetDashboardDataUseCase — orquestra a produção do payload do dashboard.
@@ -17,7 +34,13 @@ const EpicResolver = require('../../domain/services/EpicResolver');
  *   6. devolver { issues, epics, generatedAt }.
  */
 class GetDashboardDataUseCase {
-  constructor({ issueRepository, enricher, epicSummaryBuilder, epicHealthEvaluator, quarterRules }) {
+  private readonly issueRepository: IssueRepository;
+  private readonly enricher: IssueEnricher;
+  private readonly epicSummaryBuilder: EpicSummaryBuilder;
+  private readonly epicHealthEvaluator: EpicHealthEvaluator;
+  private readonly quarterRules: unknown;
+
+  constructor({ issueRepository, enricher, epicSummaryBuilder, epicHealthEvaluator, quarterRules }: UseCaseOptions) {
     this.issueRepository = issueRepository;
     this.enricher = enricher;
     this.epicSummaryBuilder = epicSummaryBuilder;
@@ -48,7 +71,7 @@ class GetDashboardDataUseCase {
       issues.filter((i) => this.enricher.classifier.groupOf(i.issueType) === 'Épico')
         .map((i) => [i.key, i]),
     );
-    const healthByEpic = new Map();
+    const healthByEpic = new Map<string, ReturnType<EpicHealthEvaluator['evaluate']>>();
     for (const [key, rawEpic] of rawEpicIndex.entries()) {
       healthByEpic.set(key, this.epicHealthEvaluator.evaluate(rawEpic));
     }
@@ -67,7 +90,7 @@ class GetDashboardDataUseCase {
 
     // Catálogo de sprints (nome -> datas/estado), para o burndown e o velocity.
     // Dedup por nome; mantém os metadados mais completos encontrados.
-    const sprintCatalog = new Map();
+    const sprintCatalog = new Map<string, SprintCatalogEntry>();
     for (const i of issues) {
       for (const sm of (i.sprintMeta || [])) {
         if (!sm || !sm.name) continue;
@@ -102,12 +125,12 @@ class GetDashboardDataUseCase {
   }
 
   /** Sub-task herda "Incremental" do primeiro ancestral não sub-task. */
-  _resolveIncremental(issue, indexByKey) {
+  private _resolveIncremental(issue: EnrichedIssue, indexByKey: Map<string, EnrichedIssue>): boolean {
     if (issue['Tipo Agrupado'] !== 'Sub-task') {
       return issue['Tipo Agrupado'] === 'História' || issue['Tipo Agrupado'] === 'Épico';
     }
-    const seen = new Set();
-    let cur = issue;
+    const seen = new Set<string>();
+    let cur: EnrichedIssue | undefined = issue;
     while (cur && cur.parentKey && !seen.has(cur.parentKey)) {
       seen.add(cur.parentKey);
       cur = indexByKey.get(cur.parentKey);
@@ -118,10 +141,10 @@ class GetDashboardDataUseCase {
     return true; // ancestral desconhecido -> assume incremental
   }
 
-  _stripInternal(e) {
+  private _stripInternal(e: EnrichedIssue): Omit<EnrichedIssue, 'grupo'> {
     const { grupo, ...clean } = e;
     return clean;
   }
 }
 
-module.exports = GetDashboardDataUseCase;
+export = GetDashboardDataUseCase;

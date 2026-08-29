@@ -28,7 +28,7 @@ interface ClassificationRules {
 type FlowPhase = 'Cancelado' | 'Concluído' | 'Pendente' | 'Em andamento';
 
 class IssueClassifier {
-  private readonly rules: ClassificationRules;
+  readonly rules: ClassificationRules;
 
   constructor(rules: ClassificationRules) {
     this.rules = rules;
