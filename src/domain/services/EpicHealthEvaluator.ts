@@ -1,6 +1,17 @@
 'use strict';
 
-const { toDate } = require('../../shared/date.utils');
+import { type DateInput, toDate } from '../../shared/date.utils';
+import IssueClassifier = require('./IssueClassifier');
+
+interface EpicHealthIssue {
+  status: string;
+  dueDate?: DateInput;
+  actualEndDate?: DateInput;
+  resolvedAt?: DateInput;
+}
+
+type EpicHealth = 'Cancelado' | 'Entregue no prazo' | 'Entregue com atraso'
+  | 'Entregue' | 'Atrasado' | 'Em andamento';
 
 /**
  * EpicHealthEvaluator — deriva o campo "SaudeEpico".
@@ -22,17 +33,20 @@ const { toDate } = require('../../shared/date.utils');
  *   - Em andamento                      -> 'Em andamento'
  */
 class EpicHealthEvaluator {
-  constructor(classifier, referenceDate = new Date()) {
+  private readonly classifier: IssueClassifier;
+  private now: Date;
+
+  constructor(classifier: IssueClassifier, referenceDate: DateInput = new Date()) {
     this.classifier = classifier;
     this.now = toDate(referenceDate) || new Date();
   }
 
   /** Atualiza o "hoje" de referência (usado pelo refresh periódico). */
-  setReferenceDate(referenceDate) {
+  setReferenceDate(referenceDate: DateInput): void {
     this.now = toDate(referenceDate) || new Date();
   }
 
-  evaluate(epicIssue) {
+  evaluate(epicIssue: EpicHealthIssue): EpicHealth {
     const status = epicIssue.status;
     if (this.classifier.isCancelled(status)) return 'Cancelado';
 
@@ -51,4 +65,4 @@ class EpicHealthEvaluator {
   }
 }
 
-module.exports = EpicHealthEvaluator;
+export = EpicHealthEvaluator;

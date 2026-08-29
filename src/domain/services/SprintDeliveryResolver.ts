@@ -1,6 +1,18 @@
 'use strict';
 
-const { toDate } = require('../../shared/date.utils');
+import { toDate } from '../../shared/date.utils';
+import IssueClassifier = require('./IssueClassifier');
+
+interface StatusTransition { at: string; from: string; to: string }
+interface SprintDeliveryInput {
+  statusTransitions?: StatusTransition[];
+  status?: string | null;
+  fallback?: string | null;
+}
+interface SprintDelivery {
+  at: string | null;
+  source: 'changelog' | 'fallback' | 'none';
+}
 
 /**
  * SprintDeliveryResolver — determina QUANDO o trabalho de sprint de uma issue
@@ -34,8 +46,10 @@ const { toDate } = require('../../shared/date.utils');
  * entrega a uma sprint em que o trabalho ainda seria refeito.
  */
 class SprintDeliveryResolver {
+  private readonly classifier: IssueClassifier;
+
   /** @param {import('./IssueClassifier')} classifier */
-  constructor(classifier) {
+  constructor(classifier: IssueClassifier) {
     this.classifier = classifier;
   }
 
@@ -48,8 +62,8 @@ class SprintDeliveryResolver {
    *          `source` chega ao dashboard para que a ressalva de transparência
    *          possa contar quantos itens ainda dependem do campo manual.
    */
-  resolve({ statusTransitions = [], status = null, fallback = null } = {}) {
-    if (!this.classifier.isDone(status)) return { at: null, source: 'none' };
+  resolve({ statusTransitions = [], status = null, fallback = null }: SprintDeliveryInput = {}): SprintDelivery {
+    if (!this.classifier.isDone(status || '')) return { at: null, source: 'none' };
 
     const ordered = this._sortByTime(statusTransitions);
     for (let i = ordered.length - 1; i >= 0; i -= 1) {
@@ -64,7 +78,7 @@ class SprintDeliveryResolver {
     return { at: fallback || null, source: fallback ? 'fallback' : 'none' };
   }
 
-  _sortByTime(transitions) {
+  private _sortByTime(transitions: StatusTransition[]): StatusTransition[] {
     return (transitions || [])
       .filter((t) => t && t.at)
       .slice()
@@ -79,4 +93,4 @@ class SprintDeliveryResolver {
   }
 }
 
-module.exports = SprintDeliveryResolver;
+export = SprintDeliveryResolver;
