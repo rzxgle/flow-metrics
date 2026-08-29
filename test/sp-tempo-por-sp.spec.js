@@ -48,7 +48,7 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const rules = require('../src/config/classification.rules');
+const rules = require('../dist/src/config/classification.rules');
 
 /* ---------- boot da página real dentro do jsdom ---------- */
 const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');

@@ -22,8 +22,8 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const quarterRules = require('../src/config/quarter.rules');
-const classificationRules = require('../src/config/classification.rules');
+const quarterRules = require('../dist/src/config/quarter.rules');
+const classificationRules = require('../dist/src/config/classification.rules');
 
 /* ---------- DOM mínimo ---------- */
 function fakeEl(id) {

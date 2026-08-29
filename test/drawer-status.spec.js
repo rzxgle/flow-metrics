@@ -32,8 +32,8 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const rules = require('../src/config/classification.rules');
-const IssueClassifier = require('../src/domain/services/IssueClassifier');
+const rules = require('../dist/src/config/classification.rules');
+const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
 
 const classifier = new IssueClassifier(rules);
 

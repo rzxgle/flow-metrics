@@ -27,7 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const quarterRules = require('../src/config/quarter.rules');
+const quarterRules = require('../dist/src/config/quarter.rules');
 
 /* ---------- boot da página real dentro do jsdom ---------- */
 const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');

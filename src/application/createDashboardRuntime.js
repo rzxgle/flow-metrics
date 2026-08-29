@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const { loadConfig } = require('../config');
 const classificationRules = require('../config/classification.rules');
 const quarterRules = require('../config/quarter.rules');
@@ -67,12 +68,20 @@ function createDashboardRuntime(env = process.env) {
     return payload;
   }
 
+  const bundledPublicDir = path.join(__dirname, '..', '..', 'public');
+  // No bundle do Amplify, `public` fica ao lado de `src`. Em desenvolvimento,
+  // o backend roda de `dist/src`, mas deve servir o frontend-fonte para que
+  // alterações no HTML apareçam sem uma etapa de cópia a cada edição.
+  const publicDir = fs.existsSync(bundledPublicDir)
+    ? bundledPublicDir
+    : path.join(process.cwd(), 'public');
+
   return {
     config,
     cache,
     refresh,
     getProgressiveDashboardData: (input) => getProgressiveDashboardDataUseCase.execute(input),
-    publicDir: path.join(__dirname, '..', '..', 'public'),
+    publicDir,
   };
 }
 

@@ -14,9 +14,9 @@
  * Rode com:  npm run test:sprint
  */
 const assert = require('assert');
-const SprintHistoryResolver = require('../src/domain/services/SprintHistoryResolver');
-const JiraIssueRepository = require('../src/infrastructure/jira/JiraIssueRepository');
-const JiraFieldMap = require('../src/infrastructure/jira/JiraFieldMap');
+const SprintHistoryResolver = require('../dist/src/domain/services/SprintHistoryResolver');
+const JiraIssueRepository = require('../dist/src/infrastructure/jira/JiraIssueRepository');
+const JiraFieldMap = require('../dist/src/infrastructure/jira/JiraFieldMap');
 
 const resolver = new SprintHistoryResolver();
 const CRIADO = '2026-07-01T10:00:00.000Z';

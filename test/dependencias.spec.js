@@ -45,13 +45,13 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const classificationRules = require('../src/config/classification.rules');
-const dependencyRules = require('../src/config/dependency.rules');
-const IssueClassifier = require('../src/domain/services/IssueClassifier');
-const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
-const IssueEnricher = require('../src/domain/services/IssueEnricher');
-const DependencyResolver = require('../src/domain/services/DependencyResolver');
-const Issue = require('../src/domain/entities/Issue');
+const classificationRules = require('../dist/src/config/classification.rules');
+const dependencyRules = require('../dist/src/config/dependency.rules');
+const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
+const FlowMetricsCalculator = require('../dist/src/domain/services/FlowMetricsCalculator');
+const IssueEnricher = require('../dist/src/domain/services/IssueEnricher');
+const DependencyResolver = require('../dist/src/domain/services/DependencyResolver');
+const Issue = require('../dist/src/domain/entities/Issue');
 
 let passou = 0;
 const teste = (nome, fn) => {

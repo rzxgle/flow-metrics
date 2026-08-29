@@ -8,7 +8,7 @@ const compute = path.join(output, 'compute', 'default');
 
 fs.rmSync(output, { recursive: true, force: true });
 fs.mkdirSync(compute, { recursive: true });
-fs.cpSync(path.join(root, 'src'), path.join(compute, 'src'), { recursive: true });
+fs.cpSync(path.join(root, 'dist', 'src'), path.join(compute, 'src'), { recursive: true });
 fs.cpSync(path.join(root, 'public'), path.join(compute, 'public'), { recursive: true });
 fs.cpSync(path.join(root, 'public'), path.join(output, 'static'), { recursive: true });
 fs.cpSync(path.join(root, 'node_modules'), path.join(compute, 'node_modules'), { recursive: true });

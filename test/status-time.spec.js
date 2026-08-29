@@ -25,13 +25,13 @@
  * Rode com:  npm run test:status-time
  */
 const assert = require('assert');
-const StatusTimeResolver = require('../src/domain/services/StatusTimeResolver');
-const IssueClassifier = require('../src/domain/services/IssueClassifier');
-const IssueEnricher = require('../src/domain/services/IssueEnricher');
-const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
-const SprintHistoryResolver = require('../src/domain/services/SprintHistoryResolver');
-const SprintDeliveryResolver = require('../src/domain/services/SprintDeliveryResolver');
-const rules = require('../src/config/classification.rules');
+const StatusTimeResolver = require('../dist/src/domain/services/StatusTimeResolver');
+const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
+const IssueEnricher = require('../dist/src/domain/services/IssueEnricher');
+const FlowMetricsCalculator = require('../dist/src/domain/services/FlowMetricsCalculator');
+const SprintHistoryResolver = require('../dist/src/domain/services/SprintHistoryResolver');
+const SprintDeliveryResolver = require('../dist/src/domain/services/SprintDeliveryResolver');
+const rules = require('../dist/src/config/classification.rules');
 
 const resolver = new StatusTimeResolver();
 const classifier = new IssueClassifier(rules);

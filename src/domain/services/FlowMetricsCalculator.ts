@@ -1,6 +1,13 @@
 'use strict';
 
-const { diffDays, startOfDayUtc, toDate } = require('../../shared/date.utils');
+import { type DateInput, diffDays, startOfDayUtc, toDate } from '../../shared/date.utils';
+
+interface FlowMetricIssue {
+  actualEndDate?: DateInput;
+  resolvedAt?: DateInput;
+  createdAt?: DateInput;
+  actualStartDate?: DateInput;
+}
 
 /**
  * FlowMetricsCalculator — calcula as métricas de fluxo de uma issue.
@@ -15,22 +22,24 @@ const { diffDays, startOfDayUtc, toDate } = require('../../shared/date.utils');
  * geração do relatório —, tornando o cálculo determinístico e testável.
  */
 class FlowMetricsCalculator {
-  constructor(referenceDate = new Date()) {
+  private now: Date;
+
+  constructor(referenceDate: DateInput = new Date()) {
     this.now = startOfDayUtc(referenceDate);
   }
 
   /** Atualiza o "dia de referência" (usado pelo refresh periódico). */
-  setReferenceDate(referenceDate) {
+  setReferenceDate(referenceDate: DateInput): void {
     this.now = startOfDayUtc(referenceDate);
   }
 
-  leadTimeDays(issue, isDone) {
+  leadTimeDays(issue: FlowMetricIssue, isDone: boolean): number | null {
     if (!isDone) return null;
     const end = issue.actualEndDate || issue.resolvedAt;
     return this._nonNegativeDiff(issue.createdAt, end, 2);
   }
 
-  cycleTimeDays(issue, isDone) {
+  cycleTimeDays(issue: FlowMetricIssue, isDone: boolean): number | null {
     if (!isDone) return null;
     if (!issue.actualStartDate || !issue.actualEndDate) return null;
     return this._nonNegativeDiff(issue.actualStartDate, issue.actualEndDate, 2);
@@ -46,7 +55,7 @@ class FlowMetricsCalculator {
    * de dias atrás e congelaria o envelhecimento. O valor daqui serve aos
    * consumidores da API. Se mudar a regra, mude nos dois lugares.
    */
-  agingDays(issue) {
+  agingDays(issue: FlowMetricIssue): number | null {
     if (!issue.actualStartDate) return null;
     return diffDays(issue.actualStartDate, this.now, 1);
   }
@@ -55,7 +64,7 @@ class FlowMetricsCalculator {
    * Diferença em dias que NULIFICA resultados negativos (datas inconsistentes,
    * ex.: fim antes do início). Espelha o comportamento do ETL original.
    */
-  _nonNegativeDiff(a, b, decimals) {
+  private _nonNegativeDiff(a: DateInput, b: DateInput, decimals: number): number | null {
     const da = toDate(a);
     const db = toDate(b);
     if (!da || !db) return null;
@@ -64,4 +73,4 @@ class FlowMetricsCalculator {
   }
 }
 
-module.exports = FlowMetricsCalculator;
+export = FlowMetricsCalculator;

@@ -43,7 +43,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const quarterRules = require('../src/config/quarter.rules');
+const quarterRules = require('../dist/src/config/quarter.rules');
 
 /* ---------- DOM mínimo (mesmo padrão de pi-tracking.spec.js) ---------- */
 function fakeEl(id) {

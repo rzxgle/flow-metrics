@@ -2,11 +2,15 @@
   "name": "jira-flow-metrics",
   "version": "1.0.0",
   "description": "Dashboard de Flow Metrics (SAFe) alimentado diretamente pela API do Jira, em Clean Architecture + SOLID.",
-  "main": "src/main.js",
+  "main": "dist/src/main.js",
   "scripts": {
-    "start": "node src/main.js",
-    "dev": "node --watch src/main.js",
-    "build:amplify": "node scripts/build-amplify.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prestart": "npm run build",
+    "start": "node dist/src/main.js",
+    "predev": "npm run build",
+    "dev": "concurrently -k \"tsc -p tsconfig.json --watch --preserveWatchOutput\" \"node --watch dist/src/main.js\"",
+    "build:amplify": "npm run build && node scripts/build-amplify.js",
     "discover:fields": "node scripts/discover-fields.js",
     "test:transform": "node test/transform.spec.js",
     "test:sprint": "node test/sprint-history.spec.js",
@@ -28,6 +32,7 @@
     "test:flow-medidas": "node test/flow-medidas.spec.js",
     "test:burndown": "node test/sprint-burndown.spec.js",
     "test:completude": "node test/sprint-completude.spec.js",
+    "pretest": "npm run build",
     "test": "npm run test:transform && npm run test:sprint && npm run test:velocity && npm run test:progressive && npm run test:pi && npm run test:pi-drill && npm run test:pi-vs && npm run test:delivery && npm run test:filtros && npm run test:bloqueios && npm run test:drawer && npm run test:status-time && npm run test:status-time-view && npm run test:dependencias && npm run test:wip && npm run test:sp-tempo && npm run test:flow-medidas && npm run test:burndown && npm run test:completude && npm run test:amplify"
   },
   "engines": {
@@ -39,7 +44,10 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "jsdom": "^30.0.1"
+    "@types/express": "^4.17.0",
+    "@types/node": "^22.0.0",
+    "concurrently": "^9.0.0",
+    "jsdom": "^30.0.1",
+    "typescript": "~5.9.0"
   }
 }
-

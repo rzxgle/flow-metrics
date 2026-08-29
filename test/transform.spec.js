@@ -10,16 +10,16 @@
  * Rode com:  npm run test:transform
  */
 const assert = require('assert');
-const Issue = require('../src/domain/entities/Issue');
-const rules = require('../src/config/classification.rules');
-const IssueClassifier = require('../src/domain/services/IssueClassifier');
-const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
-const IssueEnricher = require('../src/domain/services/IssueEnricher');
-const EpicSummaryBuilder = require('../src/domain/services/EpicSummaryBuilder');
-const EpicHealthEvaluator = require('../src/domain/services/EpicHealthEvaluator');
-const SprintHistoryResolver = require('../src/domain/services/SprintHistoryResolver');
-const GetDashboardDataUseCase = require('../src/application/use-cases/GetDashboardDataUseCase');
-const IssueRepository = require('../src/domain/repositories/IssueRepository');
+const Issue = require('../dist/src/domain/entities/Issue');
+const rules = require('../dist/src/config/classification.rules');
+const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
+const FlowMetricsCalculator = require('../dist/src/domain/services/FlowMetricsCalculator');
+const IssueEnricher = require('../dist/src/domain/services/IssueEnricher');
+const EpicSummaryBuilder = require('../dist/src/domain/services/EpicSummaryBuilder');
+const EpicHealthEvaluator = require('../dist/src/domain/services/EpicHealthEvaluator');
+const SprintHistoryResolver = require('../dist/src/domain/services/SprintHistoryResolver');
+const GetDashboardDataUseCase = require('../dist/src/application/use-cases/GetDashboardDataUseCase');
+const IssueRepository = require('../dist/src/domain/repositories/IssueRepository');
 
 // Data de referência fixa para tornar o Aging determinístico:
 const REF = new Date('2026-07-15T12:01:00Z');

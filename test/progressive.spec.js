@@ -3,7 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const GetProgressiveDashboardDataUseCase = require('../src/application/use-cases/GetProgressiveDashboardDataUseCase');
+const GetProgressiveDashboardDataUseCase = require('../dist/src/application/use-cases/GetProgressiveDashboardDataUseCase');
 
 function rawIssue(key, type, parentKey = null) {
   return {

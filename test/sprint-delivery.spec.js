@@ -14,14 +14,14 @@
  * Rode com:  npm run test:delivery
  */
 const assert = require('assert');
-const SprintDeliveryResolver = require('../src/domain/services/SprintDeliveryResolver');
-const IssueClassifier = require('../src/domain/services/IssueClassifier');
-const IssueEnricher = require('../src/domain/services/IssueEnricher');
-const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
-const SprintHistoryResolver = require('../src/domain/services/SprintHistoryResolver');
-const JiraIssueRepository = require('../src/infrastructure/jira/JiraIssueRepository');
-const JiraFieldMap = require('../src/infrastructure/jira/JiraFieldMap');
-const rules = require('../src/config/classification.rules');
+const SprintDeliveryResolver = require('../dist/src/domain/services/SprintDeliveryResolver');
+const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
+const IssueEnricher = require('../dist/src/domain/services/IssueEnricher');
+const FlowMetricsCalculator = require('../dist/src/domain/services/FlowMetricsCalculator');
+const SprintHistoryResolver = require('../dist/src/domain/services/SprintHistoryResolver');
+const JiraIssueRepository = require('../dist/src/infrastructure/jira/JiraIssueRepository');
+const JiraFieldMap = require('../dist/src/infrastructure/jira/JiraFieldMap');
+const rules = require('../dist/src/config/classification.rules');
 
 const classifier = new IssueClassifier(rules);
 const resolver = new SprintDeliveryResolver(classifier);

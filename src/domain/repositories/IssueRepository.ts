@@ -1,5 +1,7 @@
 'use strict';
 
+import Issue = require('../entities/Issue');
+
 /**
  * Porta (interface) do repositório de issues.
  *
@@ -16,9 +18,9 @@ class IssueRepository {
    * Busca todas as issues que satisfazem a consulta (JQL) configurada.
    * @returns {Promise<import('../entities/Issue')[]>}
    */
-  async findAll() {
+  async findAll(): Promise<Issue[]> {
     throw new Error('IssueRepository.findAll() não implementado');
   }
 }
 
-module.exports = IssueRepository;
+export = IssueRepository;

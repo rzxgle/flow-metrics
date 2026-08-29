@@ -10,13 +10,32 @@
  * As regras vêm injetadas (config/classification.rules.js), então este serviço
  * não precisa mudar quando as regras mudam (Open/Closed + Dependency Inversion).
  */
+interface PiRule { label: string; pi: string }
+interface ClassificationRules {
+  issueTypeToGroup: Record<string, string>;
+  defaultGroup: string;
+  bridgeProjectKeys: string[];
+  bridgeValueStreamNames: string[];
+  piRulesInPriorityOrder: PiRule[];
+  defaultPi: string;
+  doneStatuses: string[];
+  cancelledStatuses: string[];
+  broadlyDeliveredStatuses: string[];
+  pendingStatuses?: string[];
+  inProgressStatuses?: string[];
+}
+
+type FlowPhase = 'Cancelado' | 'Concluído' | 'Pendente' | 'Em andamento';
+
 class IssueClassifier {
-  constructor(rules) {
+  private readonly rules: ClassificationRules;
+
+  constructor(rules: ClassificationRules) {
     this.rules = rules;
   }
 
   /** "Tipo de item" cru -> "Tipo Agrupado". */
-  groupOf(issueType) {
+  groupOf(issueType: string): string {
     return this.rules.issueTypeToGroup[issueType] || this.rules.defaultGroup;
   }
 
@@ -27,7 +46,7 @@ class IssueClassifier {
    * nome continua sendo aceito para o caso de a chave não ter chegado (issue
    * montada sem ela, como nas fixtures dos testes).
    */
-  programOf(projectName, projectKey) {
+  programOf(projectName: string, projectKey?: string | null): 'Afya Bridge' | 'Afya One' {
     const key = String(projectKey || '').trim().toUpperCase();
     if (key && this.rules.bridgeProjectKeys.includes(key)) return 'Afya Bridge';
     return this.rules.bridgeValueStreamNames.includes(projectName)
@@ -36,7 +55,7 @@ class IssueClassifier {
   }
 
   /** Labels -> PI, respeitando a ordem de prioridade das regras. */
-  piOf(labels) {
+  piOf(labels?: string[]): string {
     const set = new Set(labels || []);
     for (const rule of this.rules.piRulesInPriorityOrder) {
       if (set.has(rule.label)) return rule.pi;
@@ -44,28 +63,28 @@ class IssueClassifier {
     return this.rules.defaultPi;
   }
 
-  isDone(status) {
+  isDone(status: string): boolean {
     return this.rules.doneStatuses.includes(status);
   }
 
-  isCancelled(status) {
+  isCancelled(status: string): boolean {
     return this.rules.cancelledStatuses.includes(status);
   }
 
   /** Em andamento = nem concluído, nem cancelado. */
-  isWip(status) {
+  isWip(status: string): boolean {
     return !this.isDone(status) && !this.isCancelled(status);
   }
 
-  isBroadlyDelivered(status) {
+  isBroadlyDelivered(status: string): boolean {
     return this.rules.broadlyDeliveredStatuses.includes(status);
   }
 
-  isPending(status) {
+  isPending(status: string): boolean {
     return (this.rules.pendingStatuses || []).includes(status);
   }
 
-  isInProgress(status) {
+  isInProgress(status: string): boolean {
     return (this.rules.inProgressStatuses || []).includes(status);
   }
 
@@ -76,7 +95,7 @@ class IssueClassifier {
    * Um status "em aberto" que não esteja em nenhuma lista cai em "Em andamento",
    * para nunca ficar de fora das contagens.
    */
-  phaseOf(status) {
+  phaseOf(status: string): FlowPhase {
     if (this.isCancelled(status)) return 'Cancelado';
     if (this.isDone(status)) return 'Concluído';
     if (this.isPending(status)) return 'Pendente';
@@ -84,4 +103,4 @@ class IssueClassifier {
   }
 }
 
-module.exports = IssueClassifier;
+export = IssueClassifier;

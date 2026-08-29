@@ -377,7 +377,7 @@ check('o "Limpar" geral da barra também zera os chips', () => {
 
    Tudo aqui roda pelo clique real na aba, o único caminho em que o efeito
    acontece. */
-const quarterRules = require('../src/config/quarter.rules');
+const quarterRules = require('../dist/src/config/quarter.rules');
 window.__QUARTER_RULES = quarterRules;
 T.PI_DATA = [{
   Chave: 'PI-1', Resumo: 'épico', 'Tipo de item': 'Epic', 'Tipo Agrupado': 'Épico',
