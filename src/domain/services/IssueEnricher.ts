@@ -1,6 +1,18 @@
 'use strict';
 
-const { toIsoDate, toYearMonth, toYear } = require('../../shared/date.utils');
+import { toIsoDate, toYear, toYearMonth } from '../../shared/date.utils';
+import Issue = require('../entities/Issue');
+import DependencyResolver = require('./DependencyResolver');
+import FlowMetricsCalculator = require('./FlowMetricsCalculator');
+import IssueClassifier = require('./IssueClassifier');
+import SprintDeliveryResolver = require('./SprintDeliveryResolver');
+import SprintHistoryResolver = require('./SprintHistoryResolver');
+import StatusTimeResolver = require('./StatusTimeResolver');
+
+interface StatusTimePayload {
+  TempoPorStatus?: Array<{ status: string; dias: number; visitas?: number }>;
+  StatusHistoricoOk?: boolean;
+}
 
 /**
  * IssueEnricher — transforma uma `Issue` (dados crus normalizados) no registro
@@ -11,8 +23,18 @@ const { toIsoDate, toYearMonth, toYear } = require('../../shared/date.utils');
  * issues) — fica a cargo do caso de uso, após montar o índice.
  */
 class IssueEnricher {
-  constructor(classifier, metricsCalculator, sprintHistoryResolver = null,
-    sprintDeliveryResolver = null, statusTimeResolver = null, dependencyResolver = null) {
+  readonly classifier: IssueClassifier;
+  readonly metrics: FlowMetricsCalculator;
+  readonly sprintHistory: SprintHistoryResolver | null;
+  readonly sprintDelivery: SprintDeliveryResolver | null;
+  readonly statusTime: StatusTimeResolver | null;
+  readonly dependency: DependencyResolver | null;
+
+  constructor(classifier: IssueClassifier, metricsCalculator: FlowMetricsCalculator,
+    sprintHistoryResolver: SprintHistoryResolver | null = null,
+    sprintDeliveryResolver: SprintDeliveryResolver | null = null,
+    statusTimeResolver: StatusTimeResolver | null = null,
+    dependencyResolver: DependencyResolver | null = null) {
     this.classifier = classifier;
     this.metrics = metricsCalculator;
     this.sprintHistory = sprintHistoryResolver;
@@ -22,7 +44,7 @@ class IssueEnricher {
   }
 
   /** @param {import('../entities/Issue')} issue */
-  enrich(issue) {
+  enrich(issue: Issue) {
     const grupo = this.classifier.groupOf(issue.issueType);
     const sprintHist = this._resolveSprintHistory(issue);
     const done = this.classifier.isDone(issue.status);
@@ -110,7 +132,7 @@ class IssueEnricher {
   }
 
   /** Bloco `Dep*`, ou objeto VAZIO quando a issue não é uma dependência. */
-  _resolveDependency(issue) {
+  private _resolveDependency(issue: Issue): {} | ReturnType<DependencyResolver['resolve']> {
     if (!this.dependency || !this.dependency.isDependency(issue.issueType)) return {};
     return this.dependency.resolve(issue);
   }
@@ -124,7 +146,7 @@ class IssueEnricher {
    * status de cada issue concluída, e o payload inteiro atravessa a rede em
    * lotes com limite de tamanho no Amplify. Quem lê deve tratar ausência como 1.
    */
-  _resolveStatusTime(issue, isDone) {
+  private _resolveStatusTime(issue: Issue, isDone: boolean): StatusTimePayload {
     if (!this.statusTime || !isDone) return {};
     const { permanencias, reconstructed } = this.statusTime.resolve({
       createdAt: issue.createdAt,
@@ -145,7 +167,10 @@ class IssueEnricher {
    * é a própria data de conclusão. Assim o dashboard continua funcionando
    * (com a precisão antiga) se o changelog de status não puder ser coletado.
    */
-  _resolveSprintDelivery(issue, conclusao) {
+  private _resolveSprintDelivery(
+    issue: Issue,
+    conclusao: string | null,
+  ): ReturnType<SprintDeliveryResolver['resolve']> {
     if (!this.sprintDelivery) {
       return { at: conclusao, source: conclusao ? 'fallback' : 'none' };
     }
@@ -161,7 +186,9 @@ class IssueEnricher {
    * "não sei a cronologia": membership vazio e histórico não reconstruído,
    * nunca um palpite.
    */
-  _resolveSprintHistory(issue) {
+  private _resolveSprintHistory(
+    issue: Issue,
+  ): Pick<ReturnType<SprintHistoryResolver['resolve']>, 'membership' | 'reconstructed'> {
     if (!this.sprintHistory || !(issue.sprints || []).length) {
       return { membership: [], reconstructed: !(issue.sprints || []).length };
     }
@@ -173,4 +200,4 @@ class IssueEnricher {
   }
 }
 
-module.exports = IssueEnricher;
+export = IssueEnricher;
