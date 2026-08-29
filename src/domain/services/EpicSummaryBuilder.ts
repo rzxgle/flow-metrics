@@ -1,6 +1,21 @@
 'use strict';
 
-const { roundHalfEven } = require('../../shared/date.utils');
+import { roundHalfEven } from '../../shared/date.utils';
+
+interface EnrichedIssue {
+  EpicoChave?: string | null;
+  'Tipo Agrupado'?: string;
+  Concluido?: boolean;
+  Cancelado?: boolean;
+  'Story Points'?: number;
+  Chave: string;
+  Resumo: string;
+  Squad: string;
+  VS: string;
+  Programa: string;
+  PI: string;
+  Status: string;
+}
 
 /**
  * EpicSummaryBuilder — agrega as issues enriquecidas por épico, gerando o
@@ -22,9 +37,8 @@ class EpicSummaryBuilder {
    * @param {object[]} enrichedIssues issues já enriquecidas (formato do dashboard)
    * @param {Map<string, object>} epicIndexByKey mapa chave -> issue-épico enriquecida
    */
-  build(enrichedIssues, epicIndexByKey) {
-    /** @type {Map<string, object[]>} */
-    const membersByEpic = new Map();
+  build(enrichedIssues: EnrichedIssue[], epicIndexByKey: Map<string, EnrichedIssue>) {
+    const membersByEpic = new Map<string, EnrichedIssue[]>();
     for (const issue of enrichedIssues) {
       const epicKey = issue.EpicoChave;
       if (!epicKey) continue;
@@ -35,7 +49,7 @@ class EpicSummaryBuilder {
       // de PI Tracking (`excludedChildTypes`).
       if (issue['Tipo Agrupado'] === 'Dependência') continue;
       if (!membersByEpic.has(epicKey)) membersByEpic.set(epicKey, []);
-      membersByEpic.get(epicKey).push(issue);
+      membersByEpic.get(epicKey)?.push(issue);
     }
 
     const summaries = [];
@@ -47,12 +61,12 @@ class EpicSummaryBuilder {
       const done = members.filter((m) => m.Concluido).length;
       const cancelled = members.filter((m) => m.Cancelado).length;
       const denominator = total - cancelled;
-      const pct = denominator > 0 ? roundHalfEven((done / denominator) * 100, 1) : 0;
-      const spTotal = roundHalfEven(members.reduce((s, m) => s + (m['Story Points'] || 0), 0), 1);
+      const pct = denominator > 0 ? roundHalfEven((done / denominator) * 100, 1) as number : 0;
+      const spTotal = roundHalfEven(members.reduce((s, m) => s + (m['Story Points'] || 0), 0), 1) as number;
       const spDone = roundHalfEven(
         members.filter((m) => m.Concluido).reduce((s, m) => s + (m['Story Points'] || 0), 0),
         1,
-      );
+      ) as number;
 
       summaries.push({
         Chave: epic.Chave,
@@ -75,4 +89,4 @@ class EpicSummaryBuilder {
   }
 }
 
-module.exports = EpicSummaryBuilder;
+export = EpicSummaryBuilder;

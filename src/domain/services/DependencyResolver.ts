@@ -1,6 +1,37 @@
 'use strict';
 
-const { toIsoDate, toDate, diffDays } = require('../../shared/date.utils');
+import { type DateInput, diffDays, toDate, toIsoDate } from '../../shared/date.utils';
+import Issue = require('../entities/Issue');
+import IssueClassifier = require('./IssueClassifier');
+
+interface DependencyRules {
+  dependencyIssueType: string;
+  officialLinkTypes: Record<string, string>;
+  fallbackLinkTypes: string[];
+  unknownScopeLabel: string;
+  squadPrefixPattern: RegExp;
+  teamAliases: Record<string, string>;
+  teamLabels: Record<string, string>;
+  unknownTeamLabel: string;
+}
+interface CanonicalTeam { id: string | null; label: string }
+type IssueLink = Issue['issueLinks'][number];
+type ResolvedLink = IssueLink & { escopo: string | null };
+interface DependencyBlock {
+  EhDependencia: true;
+  DepDemandante: string | null;
+  DepDependente: string | null;
+  DepEscopo: string;
+  DepInicio: string | null;
+  DepExterno?: string;
+  DepLinks?: Array<{ k?: string; t?: string; s?: string }>;
+  DepDescricao?: string;
+  DepAprovada?: true;
+  'Data Conclusao'?: string;
+  AnoMesConclusao?: string;
+  AnoConclusao?: number;
+  LeadTimeDias?: number | null;
+}
 
 /**
  * DependencyResolver — transforma uma issue do tipo "Dependência" nos campos
@@ -31,11 +62,15 @@ const { toIsoDate, toDate, diffDays } = require('../../shared/date.utils');
  * necessária, então ela é um episódio contado, mas sem dias medidos.
  */
 class DependencyResolver {
+  private readonly classifier: IssueClassifier;
+  private readonly rules: DependencyRules;
+  private readonly teamLabels: Map<string, string>;
+
   /**
    * @param {import('./IssueClassifier')} classifier
    * @param {object} rules ver config/dependency.rules.js
    */
-  constructor(classifier, rules) {
+  constructor(classifier: IssueClassifier, rules: DependencyRules) {
     this.classifier = classifier;
     this.rules = rules;
     /** id canônico -> rótulo de exibição, preenchido conforme os times aparecem. */
@@ -43,7 +78,7 @@ class DependencyResolver {
   }
 
   /** True quando a issue é uma dependência (e portanto `resolve` se aplica). */
-  isDependency(issueType) {
+  isDependency(issueType: string): boolean {
     return issueType === this.rules.dependencyIssueType;
   }
 
@@ -51,7 +86,7 @@ class DependencyResolver {
    * @param {import('../entities/Issue')} issue
    * @returns {object} bloco de campos `Dep*` + as sobrescritas de data/lead time
    */
-  resolve(issue) {
+  resolve(issue: Issue): DependencyBlock {
     const done = this.classifier.isDone(issue.status);
     const conclusao = done ? this._entradaEmDone(issue.statusTransitions) : null;
     const links = this._links(issue.issueLinks);
@@ -64,7 +99,7 @@ class DependencyResolver {
     // (ver teamCatalog). Repetir "Martech CDP & Tracking [Educon]" duas vezes
     // por dependência custaria mais que o catálogo inteiro, e o payload atravessa
     // a rede em lotes com limite de tamanho no Amplify.
-    const bloco = {
+    const bloco: DependencyBlock = {
       EhDependencia: true,
       // Quem ABRIU (demandante) e de quem se depende (dependente, = campo Team).
       DepDemandante: demandante.id,
@@ -90,10 +125,12 @@ class DependencyResolver {
     // que existe para este issuetype.
     if (conclusao) {
       const iso = toIsoDate(conclusao);
-      bloco['Data Conclusao'] = iso;
-      bloco.AnoMesConclusao = iso.slice(0, 7);
-      bloco.AnoConclusao = Number(iso.slice(0, 4));
-      bloco.LeadTimeDias = this._dias(issue.createdAt, conclusao);
+      if (iso) {
+        bloco['Data Conclusao'] = iso;
+        bloco.AnoMesConclusao = iso.slice(0, 7);
+        bloco.AnoConclusao = Number(iso.slice(0, 4));
+        bloco.LeadTimeDias = this._dias(issue.createdAt, conclusao);
+      }
     }
 
     return bloco;
@@ -107,11 +144,11 @@ class DependencyResolver {
    * aparece sem aviso: fixar a lista faria a matriz perder o time novo em
    * silêncio, que é pior do que o rótulo chegar por aqui.
    */
-  teamCatalog() {
+  teamCatalog(): Record<string, string> {
     return Object.fromEntries(this.teamLabels);
   }
 
-  _dias(de, ate) {
+  private _dias(de: DateInput, ate: DateInput): number | null {
     const a = toDate(de);
     const b = toDate(ate);
     if (!a || !b || b.getTime() < a.getTime()) return null;
@@ -124,7 +161,7 @@ class DependencyResolver {
    * sequência final: creditar a primeira dataria a resolução num momento em que
    * o trabalho ainda seria refeito.
    */
-  _entradaEmDone(transitions) {
+  private _entradaEmDone(transitions: Issue['statusTransitions']): string | null {
     const ordered = this._ordenar(transitions);
     for (let i = ordered.length - 1; i >= 0; i -= 1) {
       const t = ordered[i];
@@ -138,14 +175,14 @@ class DependencyResolver {
    * primeira, e não a última: a pergunta é quanto tempo o time dependente levou
    * para pegar a demanda, e isso acontece uma vez só.
    */
-  _primeiroEmAndamento(transitions) {
+  private _primeiroEmAndamento(transitions: Issue['statusTransitions']): string | null {
     for (const t of this._ordenar(transitions)) {
       if (this.classifier.isInProgress(t.to)) return t.at;
     }
     return null;
   }
 
-  _ordenar(transitions) {
+  private _ordenar(transitions: Issue['statusTransitions']): Issue['statusTransitions'] {
     return (transitions || [])
       .filter((t) => t && t.at)
       .slice()
@@ -162,13 +199,14 @@ class DependencyResolver {
    * `Relates` entram como aproximação (ver fallbackLinkTypes). `Cloners` fica
    * de fora: clone é cópia da própria dependência, não o item impactado.
    */
-  _links(issueLinks) {
-    const out = [];
+  private _links(issueLinks: Issue['issueLinks']): ResolvedLink[] {
+    const out: ResolvedLink[] = [];
     for (const link of issueLinks || []) {
       if (!link || !link.key) continue;
-      const oficial = Object.prototype.hasOwnProperty.call(this.rules.officialLinkTypes, link.type);
-      if (!oficial && !this.rules.fallbackLinkTypes.includes(link.type)) continue;
-      out.push({ ...link, escopo: oficial ? this.rules.officialLinkTypes[link.type] : null });
+      const type = link.type || '';
+      const oficial = Object.prototype.hasOwnProperty.call(this.rules.officialLinkTypes, type);
+      if (!oficial && !this.rules.fallbackLinkTypes.includes(type)) continue;
+      out.push({ ...link, escopo: oficial ? this.rules.officialLinkTypes[type] : null });
     }
     return out;
   }
@@ -178,9 +216,9 @@ class DependencyResolver {
    * Sem link oficial não há como saber — e dizer "mesma VS" por omissão seria
    * inventar o dado.
    */
-  _escopo(links) {
+  private _escopo(links: ResolvedLink[]): string {
     const oficial = links.find((l) => l.escopo);
-    return oficial ? oficial.escopo : this.rules.unknownScopeLabel;
+    return oficial?.escopo || this.rules.unknownScopeLabel;
   }
 
   /**
@@ -191,7 +229,7 @@ class DependencyResolver {
    * É isso que permite cruzar `Time Demandante` ("Core Features") com `Team`
    * ("Squad Core - Core Features") na matriz demandante x dependente.
    */
-  _time(nome) {
+  private _time(nome: string | null): CanonicalTeam {
     if (!nome) return { id: null, label: this.rules.unknownTeamLabel };
     const curto = String(nome).replace(this.rules.squadPrefixPattern, '').trim();
     const base = curto
@@ -210,4 +248,4 @@ class DependencyResolver {
   }
 }
 
-module.exports = DependencyResolver;
+export = DependencyResolver;
