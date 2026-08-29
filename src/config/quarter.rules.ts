@@ -137,7 +137,7 @@ const quarterBounds = {
   Q4: { startMonth: 10, startDay: 1, endMonth: 12, endDay: 31 },
 };
 
-module.exports = {
+const quarterRules = {
   doneStatuses,
   inProgressStatuses,
   ignoredStatuses,
@@ -147,3 +147,5 @@ module.exports = {
   piPeriods,
   quarterBounds,
 };
+
+export = quarterRules;

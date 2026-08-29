@@ -169,7 +169,7 @@ const defaultPi = 'Não informado';
 const bridgeProjectKeys = ['LEG', 'BOPS'];
 const bridgeValueStreamNames = ['Value Streams Afya Bridge', 'Operação e Bugs'];
 
-module.exports = {
+const classificationRules = {
   issueTypeToGroup,
   defaultGroup,
   doneStatuses,
@@ -182,3 +182,5 @@ module.exports = {
   bridgeProjectKeys,
   bridgeValueStreamNames,
 };
+
+export = classificationRules;

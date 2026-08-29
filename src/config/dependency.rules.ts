@@ -102,7 +102,7 @@ const teamLabels = {
 /** Rótulo usado quando o time não foi preenchido. */
 const unknownTeamLabel = 'Não informado';
 
-module.exports = {
+const dependencyRules = {
   dependencyIssueType,
   officialLinkTypes,
   fallbackLinkTypes,
@@ -112,3 +112,5 @@ module.exports = {
   teamLabels,
   unknownTeamLabel,
 };
+
+export = dependencyRules;
