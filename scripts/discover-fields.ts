@@ -11,7 +11,13 @@ require('dotenv').config();
  * Team, Story Points, Start date, Data de início real, Data de fim real.
  * Copie os IDs (customfield_XXXXX) para o seu .env.
  */
-async function main() {
+interface JiraField {
+  id: string;
+  name: string;
+  custom: boolean;
+}
+
+async function main(): Promise<void> {
   const baseUrl = (process.env.JIRA_BASE_URL || '').replace(/\/$/, '');
   const email = process.env.JIRA_EMAIL;
   const apiToken = process.env.JIRA_API_TOKEN;
@@ -29,9 +35,9 @@ async function main() {
     console.error(`Erro ${res.status}: ${await res.text()}`);
     process.exit(1);
   }
-  const fields = await res.json();
+  const fields = await res.json() as JiraField[];
 
-  const hints = {
+  const hints: Record<string, RegExp> = {
     'JIRA_FIELD_TEAM': /team|time|squad|equipe/i,
     'JIRA_FIELD_STORY_POINTS': /story\s*point|pontos/i,
     'JIRA_FIELD_START_DATE': /start date|data de in[íi]cio$/i,

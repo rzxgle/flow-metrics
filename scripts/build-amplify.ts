@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '..', '..');
 const output = path.join(root, '.amplify-hosting');
 const compute = path.join(output, 'compute', 'default');
 
@@ -33,13 +33,14 @@ const jiraEnvironmentKeys = [
   'JIRA_FIELD_DEP_APROVADA',
   'JIRA_FIELD_DEP_DESCRICAO',
 ];
-const runtimeConfig = {
+const runtimeConfig: Record<string, string> = {
   AMPLIFY_COMPUTE: '1', PORT: '3000',
   CACHE_FILE_PATH: '/tmp/jira-flow-metrics/dataset.json',
   PROGRESSIVE_PAGES_PER_REQUEST: process.env.PROGRESSIVE_PAGES_PER_REQUEST || '5',
 };
 for (const key of jiraEnvironmentKeys) {
-  if (process.env[key]) runtimeConfig[key] = process.env[key];
+  const value = process.env[key];
+  if (value) runtimeConfig[key] = value;
 }
 if (process.env.AWS_BRANCH && (!runtimeConfig.JIRA_EMAIL || !runtimeConfig.JIRA_API_TOKEN)) {
   throw new Error('Configure JIRA_EMAIL e JIRA_API_TOKEN nas variaveis de ambiente do Amplify.');
@@ -56,7 +57,7 @@ require('./src/main').start().catch((error) => {
 
 const manifest = {
   version: 1,
-  framework: { name: 'express', version: require('../node_modules/express/package.json').version },
+  framework: { name: 'express', version: require(path.join(root, 'node_modules', 'express', 'package.json')).version },
   routes: [
     { path: '/*.*', target: { kind: 'Static', cacheControl: 'public, max-age=300' },
       fallback: { kind: 'Compute', src: 'default' } },
