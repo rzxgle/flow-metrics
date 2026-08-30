@@ -12,6 +12,7 @@ function loadDashboardHtml(): string {
     path.join(root, 'frontend', 'core', 'statistics.ts'),
     path.join(root, 'frontend', 'pages', 'block.ts'),
     path.join(root, 'frontend', 'pages', 'throughput.ts'),
+    path.join(root, 'frontend', 'pages', 'wip.ts'),
     path.join(root, 'frontend', 'dashboard.ts'),
   ];
   const source = sourceFiles.map((file) => fs.readFileSync(file, 'utf8')).join('\n');

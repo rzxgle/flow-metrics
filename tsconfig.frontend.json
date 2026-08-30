@@ -15,6 +15,7 @@
     "frontend/core/statistics.ts",
     "frontend/pages/block.ts",
     "frontend/pages/throughput.ts",
+    "frontend/pages/wip.ts",
     "frontend/dashboard.ts"
   ]
 }
