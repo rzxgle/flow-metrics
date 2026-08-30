@@ -14,15 +14,21 @@
  * Rode com:  npm run test:sprint
  */
 const assert = require('assert');
-const SprintHistoryResolver = require('../dist/src/domain/services/SprintHistoryResolver');
-const JiraIssueRepository = require('../dist/src/infrastructure/jira/JiraIssueRepository');
-const JiraFieldMap = require('../dist/src/infrastructure/jira/JiraFieldMap');
+const SprintHistoryResolver = require('../src/domain/services/SprintHistoryResolver');
+const JiraIssueRepository = require('../src/infrastructure/jira/JiraIssueRepository');
+const JiraFieldMap = require('../src/infrastructure/jira/JiraFieldMap');
 
 const resolver = new SprintHistoryResolver();
 const CRIADO = '2026-07-01T10:00:00.000Z';
 
+interface SprintMembership {
+  sprint: string;
+  enteredAt: string;
+  leftAt: string | null;
+}
+
 let passed = 0;
-const check = (desc, fn) => { fn(); passed += 1; console.log('  ✓', desc); };
+const check = (desc: string, fn: () => void) => { fn(); passed += 1; console.log('  ✓', desc); };
 
 console.log('\nSprintHistoryResolver:');
 
@@ -43,7 +49,7 @@ check('2+ sprints e nenhuma transição -> NÃO reconstruído (cronologia descon
   assert.strictEqual(r.reconstructed, false);
   assert.strictEqual(r.membership.length, 2);
   // o conjunto é conhecido; a data de entrada cai na criação por falta de melhor
-  assert.ok(r.membership.every((m) => m.enteredAt === CRIADO && m.leftAt === null));
+  assert.ok(r.membership.every((m: SprintMembership) => m.enteredAt === CRIADO && m.leftAt === null));
 });
 
 check('entrou depois da criação ("" -> A)', () => {
@@ -63,8 +69,8 @@ check('spillover acumulado (A -> "A, B") mantém A e abre B na data certa', () =
       { at: '2026-07-20T15:00:00.000Z', from: ['A'], to: ['A', 'B'] },
     ],
   });
-  const a = r.membership.find((m) => m.sprint === 'A');
-  const b = r.membership.find((m) => m.sprint === 'B');
+  const a = r.membership.find((m: SprintMembership) => m.sprint === 'A');
+  const b = r.membership.find((m: SprintMembership) => m.sprint === 'B');
   assert.deepStrictEqual(a, { sprint: 'A', enteredAt: '2026-07-02T09:00:00.000Z', leftAt: null });
   assert.deepStrictEqual(b, { sprint: 'B', enteredAt: '2026-07-20T15:00:00.000Z', leftAt: null });
   assert.strictEqual(r.reconstructed, true);
@@ -92,7 +98,7 @@ check('saiu e VOLTOU à mesma sprint -> duas passagens, a última aberta', () =>
       { at: '2026-07-10T09:00:00.000Z', from: [], to: ['A'] },
     ],
   });
-  const passagens = r.membership.filter((m) => m.sprint === 'A');
+  const passagens = r.membership.filter((m: SprintMembership) => m.sprint === 'A');
   assert.strictEqual(passagens.length, 2, 'deve haver duas passagens pela sprint A');
   assert.strictEqual(passagens[0].leftAt, '2026-07-03T09:00:00.000Z');
   assert.strictEqual(passagens[1].enteredAt, '2026-07-10T09:00:00.000Z');
@@ -107,8 +113,8 @@ check('transições fora de ordem são ordenadas por data', () => {
       { at: '2026-07-02T09:00:00.000Z', from: [], to: ['A'] },
     ],
   });
-  assert.strictEqual(r.membership.find((m) => m.sprint === 'A').enteredAt, '2026-07-02T09:00:00.000Z');
-  assert.strictEqual(r.membership.find((m) => m.sprint === 'B').enteredAt, '2026-07-20T15:00:00.000Z');
+  assert.strictEqual(r.membership.find((m: SprintMembership) => m.sprint === 'A').enteredAt, '2026-07-02T09:00:00.000Z');
+  assert.strictEqual(r.membership.find((m: SprintMembership) => m.sprint === 'B').enteredAt, '2026-07-20T15:00:00.000Z');
 });
 
 check('changelog que não fecha no campo atual -> consistent/reconstructed false', () => {
@@ -166,7 +172,7 @@ check('alias APP_Aprenderr mantém PI3_3, PI3_4 e PI3_5 separados', () => {
       ],
     }],
   });
-  assert.deepStrictEqual(r.membership.map((m) => m.sprint), [
+  assert.deepStrictEqual(r.membership.map((m: SprintMembership) => m.sprint), [
     '26_SQD_APP_Aprender_PI3_3',
     '26_SQD_APP_Aprender_PI3_4',
     '26_SQD_APP_Aprender_PI3_5',
@@ -185,7 +191,7 @@ check('nomes parecidos fora do alias explícito não são modificados', () => {
     }],
   });
   assert.strictEqual(r.consistent, false);
-  assert.ok(r.membership.some((m) => m.sprint === '26_SQD_APP_Aprendeer_PI3_3'));
+  assert.ok(r.membership.some((m: SprintMembership) => m.sprint === '26_SQD_APP_Aprendeer_PI3_3'));
 });
 
 console.log('\nNormalização do changelog cru (JiraIssueRepository):');
@@ -226,7 +232,7 @@ check('created em ISO é preservado e campos de outro tipo são ignorados', () =
 
   const ok = new JiraIssueRepository({
     httpClient: {
-      fetchFieldChangelogs: async (ids) => [{
+      fetchFieldChangelogs: async (ids: string[]) => [{
         issueId: ids[0],
         changeHistories: [{ created: '2026-07-02T09:00:00.000Z', items: [{ field: 'Sprint', fromString: '', toString: 'A' }] }],
       }],

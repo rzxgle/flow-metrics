@@ -14,7 +14,7 @@
     "prediscover:fields": "npm run build",
     "discover:fields": "node dist/scripts/discover-fields.js",
     "test:transform": "node test/transform.spec.js",
-    "test:sprint": "node test/sprint-history.spec.js",
+    "test:sprint": "node dist/test/sprint-history.spec.js",
     "test:velocity": "node test/velocity.spec.js",
     "test:amplify": "node test/amplify.spec.js",
     "test:progressive": "node test/progressive.spec.js",
