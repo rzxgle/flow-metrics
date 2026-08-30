@@ -1,12 +1,12 @@
-// @ts-nocheck -- ponto de partida fiel para a migracao incremental do frontend.
+// @ts-nocheck -- monólito legado; módulos extraídos são checados em modo strict.
 /* ===================== Setup ===================== */
 // Os dados agora vêm da API do backend (que fala com o Jira), em vez de
 // virem embutidos no HTML. DATA e EPICS são preenchidos no bootstrap().
-let DATA = [];
+let DATA: DashboardIssue[] = [];
 // Dataset exclusivo do PI Tracking: inclui épicos de quarters criados antes do
 // ano corrente e seus filhos, sem contaminar as métricas das demais abas.
-let PI_DATA = [];
-let EPICS = [];
+let PI_DATA: DashboardIssue[] = [];
+let EPICS: DashboardIssue[] = [];
 
 const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const COLORS = ['#CE0058','#0057B8','#E13D72','#333333','#E97899','#7F8084','#A30046','#050505','#EF9AB1','#D0D0CF'];
@@ -153,7 +153,7 @@ const FILTER_DIMS = [
   {key:'Tipo de item', label:'Tipo'},
   {key:'Status', label:'Status'}
 ];
-const selections = {};
+const selections: Record<string, Set<any>> = {};
 FILTER_DIMS.forEach(f=> selections[f.key] = new Set());
 let filterDocumentHandlerBound = false;
 // Filtro padrão de Tipo de item (recorte inicial): tipos crus de produção.
@@ -200,7 +200,7 @@ const TIPOS_FORA_DA_ABA_SPRINT = new Set([
 /* ===================== Item 6 — Filtro de calendário (por data de conclusão) =====================
    Opção A: itens COM data de conclusão são filtrados pelo intervalo;
    itens em aberto (WIP, sem data de conclusão) permanecem sempre visíveis. */
-const dateRange = { from: null, to: null }; // 'YYYY-MM-DD'
+const dateRange: { from: string | null; to: string | null } = { from: null, to: null }; // 'YYYY-MM-DD'
 
 function isoLocalDate(date){
   const year = date.getFullYear();
@@ -732,66 +732,6 @@ function dentroDoPeriodoDeEntrega(d){
   if(dateRange.from && dc < dateRange.from) return false;
   if(dateRange.to && dc > dateRange.to) return false;
   return true;
-}
-
-/* ===================== Utility stats ===================== */
-function sum(arr, fn){ return arr.reduce((a,d)=>a+(fn(d)||0),0); }
-function median(arr){
-  if(!arr.length) return null;
-  const s = [...arr].sort((a,b)=>a-b);
-  const mid = Math.floor(s.length/2);
-  return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2;
-}
-function percentile(arr, p){
-  if(!arr.length) return null;
-  const s = [...arr].sort((a,b)=>a-b);
-  const idx = (p/100)*(s.length-1);
-  const lo = Math.floor(idx), hi = Math.ceil(idx);
-  if(lo===hi) return s[lo];
-  return s[lo] + (s[hi]-s[lo])*(idx-lo);
-}
-function mean(arr){ return arr.length ? sum(arr,x=>x)/arr.length : null; }
-function fmt1(n){ const x = typeof n==='number' ? n : parseFloat(n); return (x===null||x===undefined||!isFinite(x)) ? '—' : x.toFixed(1); }
-function fmt0(n){ const x = typeof n==='number' ? n : parseFloat(n); return (x===null||x===undefined||!isFinite(x)) ? '—' : Math.round(x).toLocaleString('pt-BR'); }
-/* Quebra um texto longo em linhas para caber no tooltip do Chart.js, que
-   renderiza array de strings como múltiplas linhas. Sem isso um resumo de
-   história (~60 caracteres) sai numa linha só e o tooltip vira uma tarja que
-   atravessa o card. Quebra por palavra; palavra maior que o limite fica
-   inteira, para não cortar chave ou termo técnico no meio. */
-function quebraTextoTooltip(texto, max){
-  const palavras = String(texto||'').trim().split(/\s+/).filter(Boolean);
-  if(!palavras.length) return [];
-  const linhas = [];
-  let atual = '';
-  palavras.forEach(w=>{
-    if(!atual){ atual = w; return; }
-    if((atual+' '+w).length <= (max||44)) atual += ' '+w;
-    else { linhas.push(atual); atual = w; }
-  });
-  linhas.push(atual);
-  return linhas;
-}
-function groupBy(arr, fn){
-  const m = new Map();
-  arr.forEach(d=>{
-    const k = fn(d);
-    if(!m.has(k)) m.set(k,[]);
-    m.get(k).push(d);
-  });
-  return m;
-}
-function monthLabel(ym){
-  if(!ym) return '—';
-  const [y,m] = ym.split('-');
-  return MESES[parseInt(m,10)]+'/'+y.slice(2);
-}
-function sortedMonthKeys(arr, fieldYM){
-  const set = new Set(arr.map(d=>d[fieldYM]).filter(Boolean));
-  return Array.from(set).sort();
-}
-function piSortKey(pi){
-  if(!pi) return 'zzz';
-  return pi;
 }
 
 /* ===================== Chart registry ===================== */
