@@ -40,7 +40,8 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 const rules = require('../src/config/classification.rules');
 
 /* ---------- boot da página real dentro do jsdom ---------- */
-const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
+const loadDashboardHtml = require('./support/dashboardHtml');
+const html = loadDashboardHtml();
 const script = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((m) => m[1]).filter((s) => s && s.trim())[0];
 

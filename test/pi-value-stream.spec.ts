@@ -60,7 +60,8 @@ function fakeEl(id) {
 const registry = new Map();
 const getEl = (id) => { if (!registry.has(id)) registry.set(id, fakeEl(id)); return registry.get(id); };
 
-const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
+const loadDashboardHtml = require('./support/dashboardHtml');
+const html = loadDashboardHtml();
 const script = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((m) => m[1]).filter((s) => s && s.trim())[0];
 

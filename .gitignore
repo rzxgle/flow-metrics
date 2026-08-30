@@ -6,3 +6,5 @@ node_modules/
 /.amplify-hosting/
 /reports/dashboard/
 /dist/
+/public/dashboard.js
+/public/dashboard.js.map

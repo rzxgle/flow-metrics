@@ -286,7 +286,8 @@ teste('a sobrescrita do enricher vence a data padrão (que viria vazia)', () => 
 
 console.log('\n== visão: a aba dentro do jsdom ==');
 
-const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
+const loadDashboardHtml = require('./support/dashboardHtml');
+const html = loadDashboardHtml();
 const script = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((m) => m[1]).filter((s) => s && s.trim())[0];
 

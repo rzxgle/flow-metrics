@@ -71,7 +71,8 @@ function rawIssue(key: string, type: string, parentKey: string | null = null) {
   assert.equal(receivedInput.includeSprintHistory, false);
   await assert.rejects(() => useCase.execute({ phase: 'pi-children', epicKeys: ['chave inválida'] }), /Chave de epico invalida/);
 
-  const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
+const loadDashboardHtml = require('./support/dashboardHtml');
+const html = loadDashboardHtml();
   const inlineScripts = Array.from(
     html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi) as Iterable<RegExpMatchArray>,
   ).map((match) => match[1]).filter(Boolean);
