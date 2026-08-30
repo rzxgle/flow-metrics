@@ -25,23 +25,23 @@
  * Rode com:  npm run test:status-time
  */
 const assert = require('assert');
-const StatusTimeResolver = require('../dist/src/domain/services/StatusTimeResolver');
-const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
-const IssueEnricher = require('../dist/src/domain/services/IssueEnricher');
-const FlowMetricsCalculator = require('../dist/src/domain/services/FlowMetricsCalculator');
-const SprintHistoryResolver = require('../dist/src/domain/services/SprintHistoryResolver');
-const SprintDeliveryResolver = require('../dist/src/domain/services/SprintDeliveryResolver');
-const rules = require('../dist/src/config/classification.rules');
+const StatusTimeResolver = require('../src/domain/services/StatusTimeResolver');
+const IssueClassifier = require('../src/domain/services/IssueClassifier');
+const IssueEnricher = require('../src/domain/services/IssueEnricher');
+const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
+const SprintHistoryResolver = require('../src/domain/services/SprintHistoryResolver');
+const SprintDeliveryResolver = require('../src/domain/services/SprintDeliveryResolver');
+const rules = require('../src/config/classification.rules');
 
 const resolver = new StatusTimeResolver();
 const classifier = new IssueClassifier(rules);
 
 let passed = 0;
-const check = (desc, fn) => { fn(); passed += 1; console.log('  ✓', desc); };
+const check = (desc: string, fn: () => void) => { fn(); passed += 1; console.log('  ✓', desc); };
 
 /** Atalho: mapa status -> dias, para asserções legíveis. */
-const dias = (r) => Object.fromEntries(r.permanencias.map((p) => [p.status, p.dias]));
-const visitas = (r) => Object.fromEntries(r.permanencias.map((p) => [p.status, p.visitas]));
+const dias = (r: any) => Object.fromEntries(r.permanencias.map((p: any) => [p.status, p.dias]));
+const visitas = (r: any) => Object.fromEntries(r.permanencias.map((p: any) => [p.status, p.visitas]));
 
 console.log('\nStatusTimeResolver — reconstrução das permanências:');
 
@@ -98,7 +98,7 @@ check('a soma das permanências fecha com o intervalo criação -> última trans
       { at: '2026-07-09T18:00:00.000Z', from: 'Em teste', to: 'Concluído' },
     ],
   });
-  const total = r.permanencias.reduce((a, p) => a + p.dias, 0);
+  const total = r.permanencias.reduce((a: number, p: any) => a + p.dias, 0);
   assert.strictEqual(Number(total.toFixed(2)), 8.75); // 01T00:00 -> 09T18:00
 });
 
@@ -343,7 +343,7 @@ check('`visitas` é omitido quando vale 1 e presente quando há reentrada', () =
       { at: '2026-07-08T00:00:00.000Z', from: 'Desenvolvimento', to: 'Concluído' },
     ],
   }));
-  const porStatus = Object.fromEntries(e.TempoPorStatus.map((p) => [p.status, p]));
+  const porStatus: Record<string, any> = Object.fromEntries(e.TempoPorStatus.map((p: any) => [p.status, p]));
   assert.strictEqual('visitas' in porStatus.Backlog, false);
   assert.strictEqual(porStatus.Desenvolvimento.visitas, 2);
 });
@@ -393,10 +393,10 @@ check('nenhum status aparece em duas listas de fase', () => {
 
 check('phaseOf é exaustivo: todo status das listas cai em exatamente uma fase', () => {
   const esperado = new Map([
-    ...rules.pendingStatuses.map((s) => [s, 'Pendente']),
-    ...rules.inProgressStatuses.map((s) => [s, 'Em andamento']),
-    ...rules.doneStatuses.map((s) => [s, 'Concluído']),
-    ...rules.cancelledStatuses.map((s) => [s, 'Cancelado']),
+    ...rules.pendingStatuses.map((s: string) => [s, 'Pendente']),
+    ...rules.inProgressStatuses.map((s: string) => [s, 'Em andamento']),
+    ...rules.doneStatuses.map((s: string) => [s, 'Concluído']),
+    ...rules.cancelledStatuses.map((s: string) => [s, 'Cancelado']),
   ]);
   for (const [status, fase] of esperado) {
     assert.strictEqual(classifier.phaseOf(status), fase, `${status} deveria ser ${fase}`);

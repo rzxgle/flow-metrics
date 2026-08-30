@@ -3,9 +3,9 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const GetProgressiveDashboardDataUseCase = require('../dist/src/application/use-cases/GetProgressiveDashboardDataUseCase');
+const GetProgressiveDashboardDataUseCase = require('../src/application/use-cases/GetProgressiveDashboardDataUseCase');
 
-function rawIssue(key, type, parentKey = null) {
+function rawIssue(key: string, type: string, parentKey: string | null = null) {
   return {
     key,
     issueType: type,
@@ -15,9 +15,9 @@ function rawIssue(key, type, parentKey = null) {
 
 (async () => {
   let receivedJql = '';
-  let receivedInput = null;
+  let receivedInput: any = null;
   const issueRepository = {
-    async findBatch(input) {
+    async findBatch(input: any) {
       receivedInput = input;
       receivedJql = input.jql;
       return {
@@ -30,7 +30,7 @@ function rawIssue(key, type, parentKey = null) {
   const classifier = { rules };
   const enricher = {
     classifier,
-    enrich(issue) {
+    enrich(issue: any) {
       const group = issue.issueType === 'Epic' ? 'Épico' : 'História';
       return { Chave: issue.key, 'Tipo Agrupado': group, parentKey: issue.parentKey,
         EpicoChave: null, SaudeEpico: null };
@@ -71,9 +71,10 @@ function rawIssue(key, type, parentKey = null) {
   assert.equal(receivedInput.includeSprintHistory, false);
   await assert.rejects(() => useCase.execute({ phase: 'pi-children', epicKeys: ['chave inválida'] }), /Chave de epico invalida/);
 
-  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
-  const inlineScripts = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
-    .map((match) => match[1]).filter(Boolean);
+  const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
+  const inlineScripts = Array.from(
+    html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi) as Iterable<RegExpMatchArray>,
+  ).map((match) => match[1]).filter(Boolean);
   for (const script of inlineScripts) new Function(script);
   assert.match(html, /\/api\/dashboard\/progressive/);
   assert.match(html, /indexedDB\.open/);

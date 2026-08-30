@@ -10,16 +10,16 @@
  * Rode com:  npm run test:transform
  */
 const assert = require('assert');
-const Issue = require('../dist/src/domain/entities/Issue');
-const rules = require('../dist/src/config/classification.rules');
-const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
-const FlowMetricsCalculator = require('../dist/src/domain/services/FlowMetricsCalculator');
-const IssueEnricher = require('../dist/src/domain/services/IssueEnricher');
-const EpicSummaryBuilder = require('../dist/src/domain/services/EpicSummaryBuilder');
-const EpicHealthEvaluator = require('../dist/src/domain/services/EpicHealthEvaluator');
-const SprintHistoryResolver = require('../dist/src/domain/services/SprintHistoryResolver');
-const GetDashboardDataUseCase = require('../dist/src/application/use-cases/GetDashboardDataUseCase');
-const IssueRepository = require('../dist/src/domain/repositories/IssueRepository');
+const Issue = require('../src/domain/entities/Issue');
+const rules = require('../src/config/classification.rules');
+const IssueClassifier = require('../src/domain/services/IssueClassifier');
+const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
+const IssueEnricher = require('../src/domain/services/IssueEnricher');
+const EpicSummaryBuilder = require('../src/domain/services/EpicSummaryBuilder');
+const EpicHealthEvaluator = require('../src/domain/services/EpicHealthEvaluator');
+const SprintHistoryResolver = require('../src/domain/services/SprintHistoryResolver');
+const GetDashboardDataUseCase = require('../src/application/use-cases/GetDashboardDataUseCase');
+const IssueRepository = require('../src/domain/repositories/IssueRepository');
 
 // Data de referência fixa para tornar o Aging determinístico:
 const REF = new Date('2026-07-15T12:01:00Z');
@@ -115,9 +115,9 @@ function build() {
 
 (async () => {
   const { issues, epics } = await build().execute();
-  const byKey = Object.fromEntries(issues.map((i) => [i.Chave, i]));
+  const byKey: Record<string, any> = Object.fromEntries(issues.map((i: any) => [i.Chave, i]));
   let passed = 0;
-  const check = (desc, fn) => { fn(); passed++; console.log('  ✓', desc); };
+  const check = (desc: string, fn: () => void) => { fn(); passed++; console.log('  ✓', desc); };
 
   console.log('\nTransformação raw -> enriquecido:');
 
@@ -188,10 +188,10 @@ function build() {
   check('SprintPeriodos: entrada por sprint reconstruída do changelog', () => {
     const p = byKey['AONE-6'].SprintPeriodos;
     assert.strictEqual(byKey['AONE-6'].SprintHistoricoOk, true);
-    assert.deepStrictEqual(p.find((x) => x.sprint === 'S1'),
+    assert.deepStrictEqual(p.find((x: any) => x.sprint === 'S1'),
       { sprint: 'S1', enteredAt: '2026-06-03T10:00:00.000Z', leftAt: null });
     // entrou na S2 só no dia 16 -> na S1 era compromisso, na S2 é escopo adicionado
-    assert.deepStrictEqual(p.find((x) => x.sprint === 'S2'),
+    assert.deepStrictEqual(p.find((x: any) => x.sprint === 'S2'),
       { sprint: 'S2', enteredAt: '2026-06-16T09:00:00.000Z', leftAt: null });
   });
   check('item sem sprint não inventa histórico', () => {
@@ -212,7 +212,7 @@ function build() {
   });
 
   check('Agregação de épico (AONE-1)', () => {
-    const e = epics.find((x) => x.Chave === 'AONE-1');
+    const e = epics.find((x: any) => x.Chave === 'AONE-1');
     // membros: AONE-1..5 (todos apontam p/ AONE-1). Total=5, Concluídos=2, Cancelados=1
     assert.strictEqual(e.TotalItens, 5);
     assert.strictEqual(e.Concluidos, 2);
