@@ -15,6 +15,7 @@
     "frontend/core/statistics.ts",
     "frontend/pages/overview.ts",
     "frontend/pages/estimates.ts",
+    "frontend/pages/flow.ts",
     "frontend/pages/block.ts",
     "frontend/pages/throughput.ts",
     "frontend/pages/wip.ts",

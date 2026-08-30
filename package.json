@@ -10,7 +10,7 @@
     "prestart": "npm run build",
     "start": "node dist/src/main.js",
     "predev": "npm run build",
-    "dev": "concurrently -k \"tsc -p tsconfig.json --watch --preserveWatchOutput\" \"tsc -p tsconfig.frontend.json --watch --preserveWatchOutput\" \"node --watch dist/src/main.js\"",
+    "dev": "node dist/scripts/dev.js",
     "build:amplify": "npm run build && node dist/scripts/build-amplify.js",
     "prediscover:fields": "npm run build",
     "discover:fields": "node dist/scripts/discover-fields.js",
