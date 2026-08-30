@@ -9,5 +9,10 @@
     "skipLibCheck": true,
     "noEmitOnError": true
   },
-  "files": ["frontend/globals.d.ts", "frontend/core/statistics.ts", "frontend/dashboard.ts"]
+  "files": [
+    "frontend/globals.d.ts",
+    "frontend/core/calendar.ts",
+    "frontend/core/statistics.ts",
+    "frontend/dashboard.ts"
+  ]
 }

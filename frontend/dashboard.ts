@@ -202,33 +202,6 @@ const TIPOS_FORA_DA_ABA_SPRINT = new Set([
    itens em aberto (WIP, sem data de conclusão) permanecem sempre visíveis. */
 const dateRange: { from: string | null; to: string | null } = { from: null, to: null }; // 'YYYY-MM-DD'
 
-function isoLocalDate(date){
-  const year = date.getFullYear();
-  const month = String(date.getMonth()+1).padStart(2,'0');
-  const day = String(date.getDate()).padStart(2,'0');
-  return `${year}-${month}-${day}`;
-}
-function isoToday(){ return isoLocalDate(new Date()); }
-/* Dias corridos (inteiros) de uma data 'YYYY-MM-DD' até hoje.
-   null quando a data não vier preenchida; data futura conta como 0.
-   As duas pontas são lidas como meia-noite UTC, então a subtração não sofre
-   deslocamento de fuso — o resultado é a diferença entre datas de calendário. */
-function diasCorridosAteHoje(isoDate){
-  if(!isoDate) return null;
-  const inicioMs = Date.parse(String(isoDate).slice(0,10)+'T00:00:00Z');
-  const hojeMs = Date.parse(isoToday()+'T00:00:00Z');
-  if(Number.isNaN(inicioMs)||Number.isNaN(hojeMs)) return null;
-  return Math.max(0, Math.round((hojeMs-inicioMs)/86400000));
-}
-/* Default: hoje e os 30 dias corridos anteriores (D-30). */
-function setDefaultDateRange(){
-  const today = new Date();
-  const thirtyDaysAgo = new Date(today);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate()-30);
-  dateRange.from = isoLocalDate(thirtyDaysAgo);
-  dateRange.to = isoLocalDate(today);
-}
-
 function uniqueVals(key){
   const set = new Set();
   if(key==='Sprint'){
@@ -719,21 +692,6 @@ function getFiltered(skip){
    2) SEM JANELA SELECIONADA, PASSA TUDO. Mesmo comportamento do `getFiltered`:
       o intervalo só recorta quando existe.
 */
-function dataEntregaEfetiva(d){
-  if(d['Data Conclusao']) return d['Data Conclusao'];
-  if(d['Tipo Agrupado']==='Épico' && d['Data Entrega Sprint']) return d['Data Entrega Sprint'];
-  return null;
-}
-/** true quando a data efetiva de entrega cai no intervalo selecionado. */
-function dentroDoPeriodoDeEntrega(d){
-  if(!dateRange.from && !dateRange.to) return true;
-  const dc = dataEntregaEfetiva(d);
-  if(!dc) return false;
-  if(dateRange.from && dc < dateRange.from) return false;
-  if(dateRange.to && dc > dateRange.to) return false;
-  return true;
-}
-
 /* ===================== Chart registry ===================== */
 const chartsReg = {};
 function chartHexRgb(hex){

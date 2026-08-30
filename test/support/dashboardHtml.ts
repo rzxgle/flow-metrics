@@ -8,6 +8,7 @@ function loadDashboardHtml(): string {
   const html = fs.readFileSync(path.join(root, 'public', 'index.html'), 'utf8');
   const dashboard = fs.readFileSync(path.join(root, 'public', 'dashboard.js'), 'utf8');
   const sourceFiles = [
+    path.join(root, 'frontend', 'core', 'calendar.ts'),
     path.join(root, 'frontend', 'core', 'statistics.ts'),
     path.join(root, 'frontend', 'dashboard.ts'),
   ];
