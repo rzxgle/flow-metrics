@@ -10,6 +10,7 @@ function loadDashboardHtml(): string {
   const sourceFiles = [
     path.join(root, 'frontend', 'core', 'calendar.ts'),
     path.join(root, 'frontend', 'core', 'statistics.ts'),
+    path.join(root, 'frontend', 'pages', 'overview.ts'),
     path.join(root, 'frontend', 'pages', 'block.ts'),
     path.join(root, 'frontend', 'pages', 'throughput.ts'),
     path.join(root, 'frontend', 'pages', 'wip.ts'),
