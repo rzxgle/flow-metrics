@@ -1,3 +1,4 @@
+// @ts-nocheck -- harness dinâmico executado dentro do sandbox do jsdom.
 'use strict';
 
 /**
@@ -32,13 +33,13 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const rules = require('../dist/src/config/classification.rules');
-const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
+const rules = require('../src/config/classification.rules');
+const IssueClassifier = require('../src/domain/services/IssueClassifier');
 
 const classifier = new IssueClassifier(rules);
 
 /* ---------- boot da página real dentro do jsdom ---------- */
-const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
 const script = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((m) => m[1]).filter((s) => s && s.trim())[0];
 

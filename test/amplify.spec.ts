@@ -1,3 +1,4 @@
+// @ts-nocheck -- valida artefatos dinâmicos produzidos pelo bundle.
 'use strict';
 
 const assert = require('assert');
@@ -5,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '..', '..');
 const fakeEmail = 'amplify-test@example.invalid';
 const fakeToken = 'amplify-test-token-not-a-secret';
 execFileSync(process.execPath, [path.join(root, 'dist', 'scripts', 'build-amplify.js')], {

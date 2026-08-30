@@ -1,3 +1,4 @@
+// @ts-nocheck -- harness dinâmico executado dentro do sandbox do jsdom.
 'use strict';
 
 /**
@@ -53,7 +54,7 @@ const ESPERADOS_NA_LISTA = [
 ];
 
 /* ---------- boot da página real dentro do jsdom ---------- */
-const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
 const script = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((m) => m[1]).filter((s) => s && s.trim())[0];
 
@@ -377,7 +378,7 @@ check('o "Limpar" geral da barra também zera os chips', () => {
 
    Tudo aqui roda pelo clique real na aba, o único caminho em que o efeito
    acontece. */
-const quarterRules = require('../dist/src/config/quarter.rules');
+const quarterRules = require('../src/config/quarter.rules');
 window.__QUARTER_RULES = quarterRules;
 T.PI_DATA = [{
   Chave: 'PI-1', Resumo: 'épico', 'Tipo de item': 'Epic', 'Tipo Agrupado': 'Épico',

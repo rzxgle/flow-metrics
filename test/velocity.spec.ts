@@ -1,3 +1,4 @@
+// @ts-nocheck -- harness dinâmico executado dentro do sandbox do jsdom.
 'use strict';
 
 /**
@@ -40,7 +41,7 @@ class ChartStub {
 ChartStub.defaults = { font:{}, color:'', plugins:{legend:{labels:{}}} };
 ChartStub.register = ()=>{};
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
 const script = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((m)=>m[1]).filter((s)=>s && s.trim())[0];
 

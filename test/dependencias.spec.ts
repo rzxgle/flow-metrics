@@ -1,3 +1,4 @@
+// @ts-nocheck -- combina fixtures flexíveis com sandbox do jsdom.
 'use strict';
 
 /**
@@ -45,13 +46,13 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const classificationRules = require('../dist/src/config/classification.rules');
-const dependencyRules = require('../dist/src/config/dependency.rules');
-const IssueClassifier = require('../dist/src/domain/services/IssueClassifier');
-const FlowMetricsCalculator = require('../dist/src/domain/services/FlowMetricsCalculator');
-const IssueEnricher = require('../dist/src/domain/services/IssueEnricher');
-const DependencyResolver = require('../dist/src/domain/services/DependencyResolver');
-const Issue = require('../dist/src/domain/entities/Issue');
+const classificationRules = require('../src/config/classification.rules');
+const dependencyRules = require('../src/config/dependency.rules');
+const IssueClassifier = require('../src/domain/services/IssueClassifier');
+const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
+const IssueEnricher = require('../src/domain/services/IssueEnricher');
+const DependencyResolver = require('../src/domain/services/DependencyResolver');
+const Issue = require('../src/domain/entities/Issue');
 
 let passou = 0;
 const teste = (nome, fn) => {
@@ -285,7 +286,7 @@ teste('a sobrescrita do enricher vence a data padrão (que viria vazia)', () => 
 
 console.log('\n== visão: a aba dentro do jsdom ==');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
 const script = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((m) => m[1]).filter((s) => s && s.trim())[0];
 

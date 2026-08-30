@@ -1,3 +1,4 @@
+// @ts-nocheck -- harness dinâmico executado dentro do sandbox do jsdom.
 'use strict';
 
 /**
@@ -43,7 +44,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const quarterRules = require('../dist/src/config/quarter.rules');
+const quarterRules = require('../src/config/quarter.rules');
 
 /* ---------- DOM mínimo (mesmo padrão de pi-tracking.spec.js) ---------- */
 function fakeEl(id) {
@@ -59,7 +60,7 @@ function fakeEl(id) {
 const registry = new Map();
 const getEl = (id) => { if (!registry.has(id)) registry.set(id, fakeEl(id)); return registry.get(id); };
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', '..', 'public', 'index.html'), 'utf8');
 const script = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi))
   .map((m) => m[1]).filter((s) => s && s.trim())[0];
 
