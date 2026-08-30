@@ -13,6 +13,7 @@
     "frontend/globals.d.ts",
     "frontend/core/calendar.ts",
     "frontend/core/statistics.ts",
+    "frontend/pages/throughput.ts",
     "frontend/dashboard.ts"
   ]
 }
