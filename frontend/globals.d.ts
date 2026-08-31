@@ -7,7 +7,7 @@ interface Window {
   __RULES_CANCELLED: string[];
   __SPRINTS: DashboardSprint[];
   __QUARTER_RULES: Record<string, unknown>;
-  __DEP_TEAMS: unknown[];
+  __DEP_TEAMS: Record<string, string>;
 }
 
 interface DashboardIssue {
