@@ -88,7 +88,7 @@ const html = loadDashboardHtml();
   assert.match(html, /loadLocalDashboard\(forceRefresh,generation\)/);
   assert.match(html, /const piIssues=await loadPiTrackingDataset\(generation\)/);
   assert.doesNotMatch(html, /renderProgressiveDataset\(issues,issues,/);
-  assert.match(html, /cached\.progress\.phase==='pi'\s*\?\s*phases\.length/);
+  assert.match(html, /(?:cached\.progress\.phase|progress\?\.phase)==='pi'\s*\?\s*phases\.length/);
   assert.match(html, /lastSyncAt/);
   assert.match(html, /mode:'delta'/);
   assert.match(html, /cacheComplete&&!forceRefresh/);

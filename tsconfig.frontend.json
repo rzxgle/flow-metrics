@@ -22,6 +22,7 @@
     "frontend/pages/block.ts",
     "frontend/pages/throughput.ts",
     "frontend/pages/wip.ts",
-    "frontend/dashboard.ts"
+    "frontend/dashboard.ts",
+    "frontend/bootstrap.ts"
   ]
 }
