@@ -1,12 +1,36 @@
 declare const Chart: any;
 
+interface DashboardQuarterPeriod {
+  quarter: string;
+  year: number;
+  programa: string;
+}
+
+interface DashboardQuarterBounds {
+  startMonth: number;
+  startDay: number;
+  endMonth: number;
+  endDay: number;
+}
+
+interface DashboardQuarterRules {
+  doneStatuses: string[];
+  inProgressStatuses: string[];
+  ignoredStatuses: string[];
+  excludedChildTypes: string[];
+  subtaskTypePrefixes: string[];
+  transbordoLabels: string[];
+  piPeriods: Record<string, DashboardQuarterPeriod>;
+  quarterBounds: Record<string, DashboardQuarterBounds>;
+}
+
 interface Window {
   __RULES_PENDING: string[];
   __RULES_INPROG: string[];
   __RULES_DONE: string[];
   __RULES_CANCELLED: string[];
   __SPRINTS: DashboardSprint[];
-  __QUARTER_RULES: Record<string, unknown>;
+  __QUARTER_RULES: DashboardQuarterRules | null;
   __DEP_TEAMS: Record<string, string>;
 }
 

@@ -341,8 +341,14 @@ T.dateRange = { from: null, to: null }; // sem janela: o teste controla o recort
 /** Data ISO a N dias corridos atrás de hoje. */
 const diasAtras = (n) => {
   const d = new Date();
+  // A aplicação mede dias pelo calendário local. `toISOString()` usa UTC e,
+  // após 21h em Brasília, já devolve o dia seguinte, tornando o teste instável.
+  d.setHours(12, 0, 0, 0);
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 };
 
 let seq = 0;

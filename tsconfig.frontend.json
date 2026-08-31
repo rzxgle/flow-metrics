@@ -18,6 +18,7 @@
     "frontend/pages/flow.ts",
     "frontend/pages/sprint.ts",
     "frontend/pages/dependencies.ts",
+    "frontend/pages/pi.ts",
     "frontend/pages/block.ts",
     "frontend/pages/throughput.ts",
     "frontend/pages/wip.ts",

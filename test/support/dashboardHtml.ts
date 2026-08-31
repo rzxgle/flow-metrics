@@ -15,6 +15,7 @@ function loadDashboardHtml(): string {
     path.join(root, 'frontend', 'pages', 'flow.ts'),
     path.join(root, 'frontend', 'pages', 'sprint.ts'),
     path.join(root, 'frontend', 'pages', 'dependencies.ts'),
+    path.join(root, 'frontend', 'pages', 'pi.ts'),
     path.join(root, 'frontend', 'pages', 'block.ts'),
     path.join(root, 'frontend', 'pages', 'throughput.ts'),
     path.join(root, 'frontend', 'pages', 'wip.ts'),
