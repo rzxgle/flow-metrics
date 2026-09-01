@@ -24,6 +24,7 @@
     "frontend/pages/wip.ts",
     "frontend/dashboard.ts",
     "frontend/ui/charts.ts",
+    "frontend/ui/drawer.ts",
     "frontend/ui/filters.ts",
     "frontend/bootstrap.ts"
   ]

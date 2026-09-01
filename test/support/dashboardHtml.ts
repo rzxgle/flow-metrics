@@ -21,6 +21,7 @@ function loadDashboardHtml(): string {
     path.join(root, 'frontend', 'pages', 'wip.ts'),
     path.join(root, 'frontend', 'dashboard.ts'),
     path.join(root, 'frontend', 'ui', 'charts.ts'),
+    path.join(root, 'frontend', 'ui', 'drawer.ts'),
     path.join(root, 'frontend', 'ui', 'filters.ts'),
     path.join(root, 'frontend', 'bootstrap.ts'),
   ];
