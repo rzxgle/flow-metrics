@@ -1,4 +1,3 @@
-// @ts-nocheck -- monólito legado; módulos extraídos são checados em modo strict.
 /* ===================== Setup ===================== */
 // Os dados agora vêm da API do backend (que fala com o Jira), em vez de
 // virem embutidos no HTML. DATA e EPICS são preenchidos no bootstrap().
@@ -8,11 +7,11 @@ let DATA: DashboardIssue[] = [];
 let PI_DATA: DashboardIssue[] = [];
 let EPICS: DashboardIssue[] = [];
 
-const MESES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const COLORS = ['#CE0058','#0057B8','#E13D72','#333333','#E97899','#7F8084','#A30046','#050505','#EF9AB1','#D0D0CF'];
-const TIPO_COLOR = {'Épico':'#333333','História':'#CE0058','Sub-task':'#9AA0A6','Bug':'#D64545','Débito Técnico':'#D98E3B','Enabler':'#0057B8'};
+const MESES: readonly string[] = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const COLORS: readonly string[] = ['#CE0058','#0057B8','#E13D72','#333333','#E97899','#7F8084','#A30046','#050505','#EF9AB1','#D0D0CF'];
+const TIPO_COLOR: Readonly<Record<string, string>> = {'Épico':'#333333','História':'#CE0058','Sub-task':'#9AA0A6','Bug':'#D64545','Débito Técnico':'#D98E3B','Enabler':'#0057B8'};
 
-function normalizeData(){
+function normalizeData(): void {
   DATA.forEach(d=>{
     d.Mes = d.AnoMesCriacao ? d.AnoMesCriacao.split('-')[1] : null;
     d.MesConclusao = d.AnoMesConclusao ? d.AnoMesConclusao.split('-')[1] : null;
@@ -31,7 +30,7 @@ function normalizeData(){
  *   atual — estado atual/planejamento (ignora o intervalo de datas)
  * Cada render recebe os dois e escolhe a base correta por métrica.
  */
-function renderAll(){
+function renderAll(): void {
   syncFilterBarForTab();
   const f = getFiltered();
   const atual = getFilteredNoDate();
@@ -55,10 +54,10 @@ function renderAll(){
 }
 
 /* Item 2 — mostra o intervalo de datas presente no recorte filtrado */
-function renderPeriodo(f, atual){
+function renderPeriodo(f: DashboardIssue[], atual: DashboardIssue[]): void {
   const el = document.getElementById('periodoDados');
   if(!el) return;
-  const fmt = iso => { const [a,m,dd]=iso.split('-'); return `${dd}/${m}/${a}`; };
+  const fmt = (iso: string): string => { const [a,m,dd]=iso.split('-'); return `${dd}/${m}/${a}`; };
   const temPeriodo = !!(dateRange.from || dateRange.to);
   let prefixo = '';
   if(temPeriodo){
@@ -66,7 +65,9 @@ function renderPeriodo(f, atual){
     const ate = dateRange.to ? fmt(dateRange.to) : 'hoje';
     prefixo = `Filtro de conclusão: ${de} → ${ate} · `;
   }
-  const concl = f.map(d=>d['Data Conclusao']).filter(Boolean).sort();
+  const concl = f.map(d=>d['Data Conclusao'])
+    .filter((value): value is string=>typeof value==='string' && value.length>0)
+    .sort();
   if(!atual.length){ el.textContent = prefixo + 'sem dados no recorte atual'; return; }
   // Com período ativo, f contém só quem concluiu dentro dele; `atual` é o recorte
   // completo dos filtros da barra. Mostrar os dois evita leitura ambígua.
@@ -95,7 +96,13 @@ function kpiCard(
   </div>`;
 }
 
-function comparisonCard(kind, previousLabel, currentLabel, previousValue, currentValue){
+function comparisonCard(
+  kind: unknown,
+  previousLabel: unknown,
+  currentLabel: unknown,
+  previousValue: number,
+  currentValue: number,
+): string {
   const diff=currentValue-previousValue;
   const pct=previousValue?Math.round(diff/previousValue*100):null;
   const max=Math.max(previousValue,currentValue,1);
