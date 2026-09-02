@@ -24,6 +24,7 @@ function loadDashboardHtml(): string {
     path.join(root, 'frontend', 'ui', 'drawer.ts'),
     path.join(root, 'frontend', 'ui', 'filters.ts'),
     path.join(root, 'frontend', 'ui', 'help.ts'),
+    path.join(root, 'frontend', 'ui', 'navigation.ts'),
     path.join(root, 'frontend', 'bootstrap.ts'),
   ];
   const source = sourceFiles.map((file) => fs.readFileSync(file, 'utf8')).join('\n');
