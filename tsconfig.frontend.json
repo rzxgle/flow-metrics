@@ -26,6 +26,7 @@
     "frontend/ui/charts.ts",
     "frontend/ui/drawer.ts",
     "frontend/ui/filters.ts",
+    "frontend/ui/help.ts",
     "frontend/bootstrap.ts"
   ]
 }
