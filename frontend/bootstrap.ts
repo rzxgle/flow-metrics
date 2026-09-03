@@ -101,7 +101,7 @@ function formatExportDate(iso: string): string {
   }catch(e){ return iso; }
 }
 
-const DASHBOARD_DB = 'afya-metrics-dashboard';
+const DASHBOARD_DB = 'flow-metrics';
 const DASHBOARD_STORE = 'snapshots';
 // Suba a versão sempre que uma regra de cálculo mudar: snapshots gravados com
 // versão anterior são descartados (senão o cache serviria métricas pela regra antiga).
@@ -132,7 +132,7 @@ const DASHBOARD_STORE = 'snapshots';
 //      "metade aplicado" em vez de quebrado.
 //      Aqui só o `meta` mudou, não os itens; como o snapshot não sabe recarregar
 //      só o meta, o descarte custa uma coleta completa, uma vez por navegador.
-const DASHBOARD_SCHEMA_VERSION = 12;
+const DASHBOARD_SCHEMA_VERSION = 13;
 let dashboardInitialized = false;
 let progressiveGeneration = 0;
 

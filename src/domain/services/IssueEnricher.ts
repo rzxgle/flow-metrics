@@ -60,7 +60,7 @@ class IssueEnricher {
       'Tipo de item': issue.issueType,
       'Tipo Agrupado': grupo,
       Programa: this.classifier.programOf(issue.projectName, issue.projectKey),
-      VS: issue.projectName,
+      VS: this.classifier.valueStreamOf(issue.projectName, issue.projectKey),
       Squad: issue.team || 'Não informado',
       PI: this.classifier.piOf(issue.labels),
       // Labels cruas: o PI acima já é derivado delas, mas a aba de PI Tracking

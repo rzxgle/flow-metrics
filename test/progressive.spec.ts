@@ -40,7 +40,7 @@ function rawIssue(key: string, type: string, parentKey: string | null = null) {
     issueRepository, enricher, epicHealthEvaluator: { evaluate: () => 'Saudável' },
     baseJql: 'project = TEST ORDER BY created DESC', maxPages: 9,
     quarterRules: { ignoredStatuses: ['Cancelado', 'Inválido'] },
-    piLabelRules: [{ label: 'PI3AfyaOne', pi: 'PI3' }, { label: 'NOVOPI3AfyaOne', pi: 'PI3' }],
+    piLabelRules: [{ label: 'PI3One', pi: 'PI3' }, { label: 'NOVOPI3One', pi: 'PI3' }],
   });
   const recent = await useCase.execute({ phase: 'recent' });
   assert.match(receivedJql, /created >= -60d/);
@@ -58,7 +58,7 @@ function rawIssue(key: string, type: string, parentKey: string | null = null) {
   await assert.rejects(() => useCase.execute({ phase: 'invalid' }), /Fase progressiva invalida/);
 
   const piEpics = await useCase.execute({ phase: 'pi-epics' });
-  assert.match(receivedJql, /labels in \("PI3AfyaOne", "NOVOPI3AfyaOne"\)/);
+  assert.match(receivedJql, /labels in \("PI3One", "NOVOPI3One"\)/);
   assert.match(receivedJql, /issuetype in \(Epic, "Enabler Epic"\)/);
   assert.match(receivedJql, /status not in \("Cancelado", "Inválido"\)/);
   assert.doesNotMatch(receivedJql, /startOfYear|created\s*[<>]=?/i);

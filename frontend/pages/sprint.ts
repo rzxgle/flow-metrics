@@ -179,7 +179,7 @@ function passouPelaSprint(d: DashboardIssue, sprint: string): boolean {
  * concluídos na abertura.
  *
  * Não confundir com `piIsTransbordo`: lá o transbordo é de PI e vem de label
- * (`TransbordoPI2AfyaOne` etc.); aqui é de sprint e vem do histórico de sprint.
+ * (labels de transbordo do PI); aqui é de sprint e vem do histórico de sprint.
  * Unidades diferentes, mesma palavra — o vocabulário é o do time.
  *
  * Item cujo histórico não pôde ser reconstruído não é marcado: preferimos

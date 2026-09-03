@@ -47,6 +47,7 @@ const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
 const classificationRules = require('../src/config/classification.rules');
+const jiraPiLabels = require('../src/config/jira-labels');
 const dependencyRules = require('../src/config/dependency.rules');
 const IssueClassifier = require('../src/domain/services/IssueClassifier');
 const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
@@ -75,7 +76,7 @@ const dependencia = (over = {}) => new Issue({
   projectName: 'Value Streams Core', team: 'Squad Core - Core Features',
   status: 'To Do', createdAt: '2026-06-01T10:00:00.000Z',
   resolvedAt: null, actualStartDate: null, actualEndDate: null,
-  labels: ['PI3AfyaOne'], statusTransitions: [], issueLinks: [],
+  labels: [jiraPiLabels.pi3One], statusTransitions: [], issueLinks: [],
   timeDemandante: 'Ativação do Curso', ...over,
 });
 
@@ -357,8 +358,8 @@ const dep = (over = {}) => {
   seq += 1;
   return {
     Chave: `COREX-${seq}`, Resumo: 'dependência', 'Tipo de item': 'Dependência',
-    'Tipo Agrupado': 'Dependência', Programa: 'Afya One', VS: 'VS X',
-    Squad: 'Squad Core - Core Features', PI: 'PI3 - Afya One', Labels: ['PI3AfyaOne'],
+    'Tipo Agrupado': 'Dependência', Programa: 'One', VS: 'VS X',
+    Squad: 'Squad Core - Core Features', PI: 'PI3 - One', Labels: [jiraPiLabels.pi3One],
     Status: 'To Do', Concluido: false, Cancelado: false, WIP: true,
     FaseFluxo: 'Pendente', EntregueAmplo: false, Incremental: false,
     'Story Points': 0, Sprints: [], SprintPeriodos: [],

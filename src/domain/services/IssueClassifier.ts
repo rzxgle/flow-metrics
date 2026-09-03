@@ -40,18 +40,24 @@ class IssueClassifier {
   }
 
   /**
-   * Projeto -> Programa (Afya Bridge | Afya One).
+   * Projeto -> Programa (Bridge | One).
    *
    * A chave vem primeiro porque é o identificador estável do projeto no Jira; o
    * nome continua sendo aceito para o caso de a chave não ter chegado (issue
    * montada sem ela, como nas fixtures dos testes).
    */
-  programOf(projectName: string, projectKey?: string | null): 'Afya Bridge' | 'Afya One' {
+  programOf(projectName: string, projectKey?: string | null): 'Bridge' | 'One' {
     const key = String(projectKey || '').trim().toUpperCase();
-    if (key && this.rules.bridgeProjectKeys.includes(key)) return 'Afya Bridge';
+    if (key && this.rules.bridgeProjectKeys.includes(key)) return 'Bridge';
     return this.rules.bridgeValueStreamNames.includes(projectName)
-      ? 'Afya Bridge'
-      : 'Afya One';
+      ? 'Bridge'
+      : 'One';
+  }
+
+  /** Nome da Value Stream que pode ser apresentado sem expor nomes legados. */
+  valueStreamOf(projectName: string, projectKey?: string | null): string {
+    const key = String(projectKey || '').trim().toUpperCase();
+    return key === 'LEG' ? 'Value Streams Bridge' : projectName;
   }
 
   /** Labels -> PI, respeitando a ordem de prioridade das regras. */

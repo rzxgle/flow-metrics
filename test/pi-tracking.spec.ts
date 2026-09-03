@@ -25,6 +25,7 @@ const vm = require('vm');
 
 const quarterRules = require('../src/config/quarter.rules');
 const classificationRules = require('../src/config/classification.rules');
+const jiraPiLabels = require('../src/config/jira-labels');
 
 /* ---------- DOM mínimo ---------- */
 function fakeEl(id) {
@@ -91,7 +92,7 @@ vm.runInContext('isoToday = () => "2026-08-15";', sandbox);
 function issue(over) {
   return {
     Chave: 'X-0', Resumo: '', 'Tipo de item': 'Story', 'Tipo Agrupado': 'História',
-    Programa: 'Afya One', VS: 'CORE EXPERIENCE', Squad: 'Squad A', PI: 'Não informado',
+    Programa: 'One', VS: 'CORE EXPERIENCE', Squad: 'Squad A', PI: 'Não informado',
     Labels: [], Status: 'Backlog', EpicoChave: null, parentKey: null,
     Concluido: false, Cancelado: false, 'Story Points': 0,
     ...over,
@@ -100,7 +101,7 @@ function issue(over) {
 function epic(chave, over) {
   return issue({
     Chave: chave, 'Tipo de item': 'Epic', 'Tipo Agrupado': 'Épico',
-    EpicoChave: chave, PI: 'PI3 - Afya One', ...over,
+    EpicoChave: chave, PI: 'PI3 - One', ...over,
   });
 }
 function child(chave, epicKey, status, over) {
@@ -125,7 +126,7 @@ const DATA = [
      F-2 não tem nenhuma label de PI e ainda assim conta para o épico.
      => válidos 2, concluídos 1 = 50% */
   epic('E-2', { Squad: 'Squad A', Status: 'PRONTO PARA ATIVAÇÃO DE VALOR' }),
-  child('F-1', 'E-2', 'pronto para prod', { PI: 'PI3 - Afya One' }),
+  child('F-1', 'E-2', 'pronto para prod', { PI: 'PI3 - One' }),
   child('F-2', 'E-2', 'Refinamento técnico', { PI: 'Não informado' }),
 
   /* --- E-3 (Squad B): épico vazio ----------------------------------------- */
@@ -136,17 +137,17 @@ const DATA = [
   child('F-4', 'E-4', 'Done'),
 
   /* --- E-5: outro PI, não pode aparecer no recorte de PI3 ---------------- */
-  epic('E-5', { Squad: 'Squad A', PI: 'PI2 - Afya One', Status: 'Done' }),
+  epic('E-5', { Squad: 'Squad A', PI: 'PI2 - One', Status: 'Done' }),
   child('F-5', 'E-5', 'Backlog'),
 
   /* --- E-6: transbordo, marcado pela label -------------------------------- */
-  epic('E-6', { Squad: 'Squad B', Status: 'Desenvolvimento', Labels: ['PI2AfyaOne', 'TransbordoPI2AfyaOne'] }),
+  epic('E-6', { Squad: 'Squad B', Status: 'Desenvolvimento', Labels: [jiraPiLabels.pi2One, jiraPiLabels.spilloverPi2One] }),
   child('F-6', 'E-6', 'Done'),
 ];
 
 T.DATA = DATA;
 // O PI vem do filtro do topo, não de um seletor próprio da aba.
-T.selections.PI.add('PI3 - Afya One');
+T.selections.PI.add('PI3 - One');
 const t = T.piBuildTracking();
 
 /* ---------- classificação de status ---------- */
@@ -227,14 +228,14 @@ assert.equal(k.epicsDone, 1, 'só E-2 está em status de conclusão');
 assert.equal(k.epicsDonePct, 25);
 
 /* ---------- janela e progresso do quarter ---------- */
-const win = T.piQuarterWindow('PI3 - Afya One');
+const win = T.piQuarterWindow('PI3 - One');
 assert.deepEqual({ q: win.quarter, y: win.year, s: win.start, e: win.end },
   { q: 'Q3', y: 2026, s: '2026-07-01', e: '2026-09-30' });
 // 01/07 a 30/09 = 92 dias; 15/08 é o 46º dia => 50%.
 assert.equal(T.piTimeProgress(win), 50);
 assert.equal(k.timeProgress, 50);
 assert.equal(Math.round(k.gap * 10) / 10, 7.1, 'gap = progresso de entrega menos o tempo decorrido');
-// Comparação estrita, como no afya-quarter: estar exatamente no ritmo do
+// Comparação estrita, como no painel legado: estar exatamente no ritmo do
 // calendário não conta como atrasado.
 assert.equal(k.squadsBehind, 0, 'Squad A com 50% não está abaixo de 50%; Squad B com 100% também não');
 
@@ -268,7 +269,7 @@ T.selections.Mes.clear();
 
 /* ---------- seletor de PI ---------- */
 const opcoes = T.piOptionsFromData();
-assert.deepEqual(opcoes, ['PI3 - Afya One', 'PI2 - Afya One'], 'mais recente primeiro; sem PI sem quarter');
+assert.deepEqual(opcoes, ['PI3 - One', 'PI2 - One'], 'mais recente primeiro; sem PI sem quarter');
 assert.equal(opcoes.includes('Não informado'), false);
 
 /* ---------- PI desconhecido não quebra a aba ---------- */
@@ -281,13 +282,13 @@ assert.equal(vazio.kpis.clusterProgress, 0);
 assert.equal(vazio.kpis.timeProgress, null, 'sem quarter conhecido, o KPI de tempo é nulo, não 0');
 assert.equal(vazio.kpis.gap, null);
 T.selections.PI.clear();
-T.selections.PI.add('PI3 - Afya One');
+T.selections.PI.add('PI3 - One');
 
 /* ---------- o PI vem do filtro do topo ----------
    Vazio = todos, como em qualquer filtro da barra. E com mais de um PI os KPIs
    temporais têm de sumir, não somar dois quarters. */
 T.selections.PI.clear();
-assert.deepEqual(T.piSelectedPis(), ['PI3 - Afya One', 'PI2 - Afya One'],
+assert.deepEqual(T.piSelectedPis(), ['PI3 - One', 'PI2 - One'],
   'filtro vazio significa todos os PIs reconhecidos');
 const todos = T.piBuildTracking();
 assert.equal(todos.kpis.totalEpics, 5, 'E-5 (PI2) entra quando nenhum PI está filtrado');
@@ -297,17 +298,17 @@ assert.equal(todos.kpis.gap, null);
 assert.equal(todos.kpis.squadsBehind, null, 'squads atrasadas depende da régua temporal');
 assert.ok(todos.kpis.clusterProgress > 0, 'o progresso de entrega continua valendo com vários PIs');
 
-T.selections.PI.add('PI3 - Afya One');
-T.selections.PI.add('PI2 - Afya One');
+T.selections.PI.add('PI3 - One');
+T.selections.PI.add('PI2 - One');
 const dois = T.piBuildTracking();
 assert.equal(dois.pis.length, 2);
 assert.equal(dois.window, null, 'dois PIs selecionados: nenhuma janela');
 assert.equal(dois.kpis.totalEpics, 5);
 
 T.selections.PI.clear();
-T.selections.PI.add('PI3 - Afya One');
+T.selections.PI.add('PI3 - One');
 const umSo = T.piBuildTracking();
-assert.deepEqual(umSo.pis, ['PI3 - Afya One']);
+assert.deepEqual(umSo.pis, ['PI3 - One']);
 assert.ok(umSo.window, 'um PI só volta a ter janela de quarter');
 assert.equal(umSo.kpis.timeProgress, 50);
 
@@ -328,12 +329,12 @@ for (const pi of pisConhecidos) {
 }
 // Um transbordo tem de cair no PI de DESTINO, nunca no de origem.
 const piDe = (label) => classificationRules.piRulesInPriorityOrder.find((r) => r.label === label).pi;
-assert.equal(piDe('TransbordoPI2AfyaOne'), 'PI3 - Afya One');
+assert.equal(piDe(jiraPiLabels.spilloverPi2One), 'PI3 - One');
 assert.equal(piDe('LegadoTransbordoP126'), 'PI2 - Legado');
 assert.equal(piDe('LegadoTransbordoP226'), 'PI3 - Legado');
 // E a ordem tem de fazer o transbordo vencer o label do PI de origem.
 const ordem = classificationRules.piRulesInPriorityOrder.map((r) => r.label);
-assert.ok(ordem.indexOf('TransbordoPI2AfyaOne') < ordem.indexOf('PI2AfyaOne'),
+assert.ok(ordem.indexOf(jiraPiLabels.spilloverPi2One) < ordem.indexOf(jiraPiLabels.pi2One),
   'transbordo precisa ser avaliado antes do PI de origem');
 assert.ok(ordem.indexOf('LegadoTransbordoP226') < ordem.indexOf('EpicoPI2Legado'));
 
@@ -401,16 +402,16 @@ assert.ok((getEl('pi-squads').innerHTML.match(CARD_RX) || [])
 
 // O recorte tem de aparecer no cabeçalho: com o filtro do topo aberto, o "3 PIs"
 // é a única coisa que dá contexto aos números.
-assert.ok(getEl('pi-recorte').innerHTML.includes('PI3 - Afya One'));
+assert.ok(getEl('pi-recorte').innerHTML.includes('PI3 - One'));
 assert.ok(getEl('pi-recorte').innerHTML.includes('Q3/2026'));
 
 // Com mais de um PI, os KPIs temporais dizem o que falta em vez de somar quarters.
-T.selections.PI.add('PI2 - Afya One');
+T.selections.PI.add('PI2 - One');
 T.renderPiTracking();
 assert.ok(getEl('pi-recorte').innerHTML.includes('2 PIs'));
 assert.ok(getEl('pi-kpis').innerHTML.includes('requer 1 PI selecionado'),
   'sem PI único o KPI deve explicar o que falta');
-T.selections.PI.delete('PI2 - Afya One');
+T.selections.PI.delete('PI2 - One');
 T.renderPiTracking();
 
 // Sem as regras do servidor a aba avisa em vez de calcular errado.

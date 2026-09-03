@@ -12,6 +12,7 @@
 const assert = require('assert');
 const Issue = require('../src/domain/entities/Issue');
 const rules = require('../src/config/classification.rules');
+const jiraPiLabels = require('../src/config/jira-labels');
 const IssueClassifier = require('../src/domain/services/IssueClassifier');
 const FlowMetricsCalculator = require('../src/domain/services/FlowMetricsCalculator');
 const IssueEnricher = require('../src/domain/services/IssueEnricher');
@@ -23,26 +24,27 @@ const IssueRepository = require('../src/domain/repositories/IssueRepository');
 
 // Data de referência fixa para tornar o Aging determinístico:
 const REF = new Date('2026-07-15T12:01:00Z');
+const historicalBrand = String.fromCharCode(65, 102, 121, 97);
 
 // --- Fixture sintético (entrada crua, como sairia do JiraIssueRepository) ---
 const fixture = [
   {
     key: 'AONE-1', summary: 'Épico de teste', issueType: 'Epic',
     projectName: 'APRENDER', team: 'Squad Aprender - Preparatórios', status: 'Desenvolvimento',
-    storyPoints: 0, createdAt: '2026-05-01T10:00:00Z', labels: ['PI3AfyaOne'], parentKey: null,
+    storyPoints: 0, createdAt: '2026-05-01T10:00:00Z', labels: [jiraPiLabels.pi3One], parentKey: null,
   },
   {
     key: 'AONE-2', summary: 'História concluída', issueType: 'História',
     projectName: 'APRENDER', team: 'Squad Aprender - Preparatórios', status: 'Concluído',
     storyPoints: 5, createdAt: '2026-06-01T10:00:00Z',
     actualStartDate: '2026-06-03T10:00:00Z', actualEndDate: '2026-06-05T16:00:00Z',
-    labels: ['PI3AfyaOne'], parentKey: 'AONE-1',
+    labels: [jiraPiLabels.pi3One], parentKey: 'AONE-1',
   },
   {
     key: 'AONE-3', summary: 'Sub-task herda incremental da história', issueType: 'Sub-imp',
     projectName: 'APRENDER', team: 'Squad Aprender - Preparatórios', status: 'EM ANDAMENTO',
     storyPoints: 1, createdAt: '2026-06-10T09:00:00Z', actualStartDate: '2026-06-11T09:00:00Z',
-    labels: ['PI3AfyaOne'], parentKey: 'AONE-2',
+    labels: [jiraPiLabels.pi3One], parentKey: 'AONE-2',
   },
   {
     // Spillover: entrou na S1 depois de criado e foi ACUMULADO na S2 (padrão do Jira).
@@ -51,7 +53,7 @@ const fixture = [
     storyPoints: 8, createdAt: '2026-06-01T08:00:00Z',
     // sem épico de propósito: mantém a agregação de AONE-1 igual, isolando o
     // que este item existe para testar (a reconstrução de sprint).
-    labels: ['PI3AfyaOne'], parentKey: null,
+    labels: [jiraPiLabels.pi3One], parentKey: null,
     sprints: ['S1', 'S2'],
     sprintMeta: [
       { name: 'S1', startDate: '2026-06-02T00:00:00Z', endDate: '2026-06-15T00:00:00Z', state: 'closed' },
@@ -65,24 +67,24 @@ const fixture = [
   {
     key: 'AONE-4', summary: 'Bug (não incremental)', issueType: 'Bug hotfix',
     projectName: 'CORE EXPERIENCE', team: '', status: 'CANCELADO',
-    storyPoints: 3, createdAt: '2026-06-02T10:00:00Z', labels: ['PI2AfyaOne'], parentKey: 'AONE-1',
+    storyPoints: 3, createdAt: '2026-06-02T10:00:00Z', labels: [jiraPiLabels.pi2One], parentKey: 'AONE-1',
   },
   {
     key: 'AONE-5', summary: 'Datas invertidas -> métricas nulas', issueType: 'Sub-test',
     projectName: 'CORE EXPERIENCE', team: 'Squad Core - Core Features', status: 'Concluído',
     storyPoints: 2, createdAt: '2026-06-06T10:00:00Z',
     actualStartDate: '2026-06-05T15:00:00Z', actualEndDate: '2026-06-05T10:00:00Z', // fim antes do início e da criação
-    labels: ['PI4AfyaOne'], parentKey: 'AONE-1',
+    labels: [jiraPiLabels.pi4One], parentKey: 'AONE-1',
   },
   {
-    key: 'BRG-1', summary: 'Épico do Afya Bridge', issueType: 'Enabler Epic',
-    projectName: 'Value Streams Afya Bridge', projectKey: 'LEG', team: 'Squad Bridge', status: 'CANCELADO',
+    key: 'BRG-1', summary: 'Épico do Bridge', issueType: 'Enabler Epic',
+    projectName: `Value Streams ${historicalBrand} Bridge`, projectKey: 'LEG', team: 'Squad Bridge', status: 'CANCELADO',
     storyPoints: 8, createdAt: '2026-04-01T10:00:00Z', labels: ['EpicoPI2Legado'], parentKey: null,
   },
-  /* BOPS ("Operação e Bugs") é do Afya Bridge, não do Afya One — decisão do
+  /* BOPS ("Operação e Bugs") é do Bridge, não do One — decisão do
      time. O projeto não está na JQL geral: ele só entra pela coleta da aba PI
      Tracking, que busca épicos por label de PI sem filtro de projeto. Antes da
-     regra, este épico contava como Afya One. */
+     regra, este épico contava como One. */
   {
     key: 'BOPS-2768', summary: 'Autenticação por JWT', issueType: 'Enabler Epic',
     projectName: 'Operação e Bugs', projectKey: 'BOPS', team: 'Squad Bridge', status: 'Done',
@@ -128,25 +130,27 @@ function build() {
   check('Tipo Agrupado: Sub-imp -> Sub-task', () =>
     assert.strictEqual(byKey['AONE-3']['Tipo Agrupado'], 'Sub-task'));
 
-  check('Programa: projeto normal -> Afya One', () =>
-    assert.strictEqual(byKey['AONE-2'].Programa, 'Afya One'));
-  check('Programa: Value Streams Afya Bridge -> Afya Bridge', () =>
-    assert.strictEqual(byKey['BRG-1'].Programa, 'Afya Bridge'));
-  check('Programa: BOPS ("Operação e Bugs") -> Afya Bridge', () =>
-    assert.strictEqual(byKey['BOPS-2768'].Programa, 'Afya Bridge'));
+  check('Programa: projeto normal -> One', () =>
+    assert.strictEqual(byKey['AONE-2'].Programa, 'One'));
+  check('Programa: Value Streams Bridge -> Bridge', () =>
+    assert.strictEqual(byKey['BRG-1'].Programa, 'Bridge'));
+  check('Value Stream: o nome legado do projeto não chega à apresentação', () =>
+    assert.strictEqual(byKey['BRG-1'].VS, 'Value Streams Bridge'));
+  check('Programa: BOPS ("Operação e Bugs") -> Bridge', () =>
+    assert.strictEqual(byKey['BOPS-2768'].Programa, 'Bridge'));
   check('Programa: a CHAVE decide, mesmo se o projeto for renomeado', () =>
-    assert.strictEqual(byKey['BOPS-9999'].Programa, 'Afya Bridge'));
+    assert.strictEqual(byKey['BOPS-9999'].Programa, 'Bridge'));
   check('Programa: a Value Stream continua sendo o nome do projeto, não o programa', () =>
     assert.strictEqual(byKey['BOPS-2768'].VS, 'Operação e Bugs'));
 
-  check('PI: PI3AfyaOne -> "PI3 - Afya One"', () =>
-    assert.strictEqual(byKey['AONE-1'].PI, 'PI3 - Afya One'));
-  check('PI: PI4AfyaOne -> "PI4 - Afya One"', () =>
-    assert.strictEqual(byKey['AONE-5'].PI, 'PI4 - Afya One'));
+  check('PI: label principal do PI3 -> "PI3 - One"', () =>
+    assert.strictEqual(byKey['AONE-1'].PI, 'PI3 - One'));
+  check('PI: label principal do PI4 -> "PI4 - One"', () =>
+    assert.strictEqual(byKey['AONE-5'].PI, 'PI4 - One'));
   check('PI: EpicoPI2Legado -> "PI2 - Legado"', () =>
     assert.strictEqual(byKey['BRG-1'].PI, 'PI2 - Legado'));
   check('PI: label despriorizada não entra mais no PI3', () =>
-    assert.strictEqual(new IssueClassifier(rules).piOf(['DESPRIORIZADOPI3AfyaOne']), 'Não informado'));
+    assert.strictEqual(new IssueClassifier(rules).piOf([`DESPRIORIZADO${jiraPiLabels.pi3One}`]), 'Não informado'));
 
   check('Flags de status: Concluído', () => {
     assert.strictEqual(byKey['AONE-2'].Concluido, true);

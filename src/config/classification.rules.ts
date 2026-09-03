@@ -1,5 +1,7 @@
 'use strict';
 
+import jiraPiLabels = require('./jira-labels');
+
 /**
  * Regras de classificação de issues.
  *
@@ -127,18 +129,18 @@ const broadlyDeliveredStatuses = doneStatuses;
  * Além do label "principal" de cada PI, entram aqui os labels de TRANSBORDO e
  * de item NOVO. Eles não são um PI à parte: marcam um
  * item que passou a ser acompanhado DENTRO de um PI, e é assim que a ferramenta
- * de quarter (afya-quarter, `label_options.py`) monta o conjunto de cada ciclo.
- * Um item com `PI2AfyaOne` + `TransbordoPI2AfyaOne` transbordou para o PI3 e é
+ * de quarter legado (`label_options.py`) monta o conjunto de cada ciclo. Um item com
+ * a label principal do PI2 mais a de transbordo passa a ser cobrado no PI3.
  * cobrado lá — por isso o label de transbordo vem ANTES do label do PI de
  * origem nesta lista.
  */
 const piRulesInPriorityOrder = [
-  { label: 'PI4AfyaOne', pi: 'PI4 - Afya One' },
-  { label: 'PI3AfyaOne', pi: 'PI3 - Afya One' },
-  { label: 'NOVOPI3AfyaOne', pi: 'PI3 - Afya One' },
-  { label: 'TransbordoPI2AfyaOne', pi: 'PI3 - Afya One' },
-  { label: 'PI2AfyaOne', pi: 'PI2 - Afya One' },
-  { label: 'PI1AfyaOne', pi: 'PI1 - Afya One' },
+  { label: jiraPiLabels.pi4One, pi: 'PI4 - One' },
+  { label: jiraPiLabels.pi3One, pi: 'PI3 - One' },
+  { label: jiraPiLabels.newPi3One, pi: 'PI3 - One' },
+  { label: jiraPiLabels.spilloverPi2One, pi: 'PI3 - One' },
+  { label: jiraPiLabels.pi2One, pi: 'PI2 - One' },
+  { label: jiraPiLabels.pi1One, pi: 'PI1 - One' },
   { label: 'EpicoPI3Legado', pi: 'PI3 - Legado' },
   { label: 'LegadoTransbordoP226', pi: 'PI3 - Legado' },
   { label: 'EpicoPI2Legado', pi: 'PI2 - Legado' },
@@ -150,24 +152,24 @@ const piRulesInPriorityOrder = [
 const defaultPi = 'Não informado';
 
 /**
- * Projetos que pertencem ao programa "Afya Bridge". Qualquer outro projeto é
- * considerado "Afya One".
+ * Projetos que pertencem ao programa "Bridge". Qualquer outro projeto é
+ * considerado "One".
  *
  * A checagem é feita primeiro pela CHAVE do projeto e só depois pelo nome. A
  * chave é o identificador estável no Jira — renomear um projeto muda o nome que
  * chega aqui, e um dashboard que classifica por nome passa a errar em silêncio a
  * partir do dia do rename.
  *
- * `BOPS` / `Operação e Bugs` entrou por decisão do time: ele é do Afya Bridge,
- * não do Afya One. O projeto NÃO está na JQL geral do dashboard, então ele só
+ * `BOPS` / `Operação e Bugs` entrou por decisão do time: ele é do Bridge,
+ * não do One. O projeto NÃO está na JQL geral do dashboard, então ele só
  * chega por um caminho: a coleta própria da aba PI Tracking, que busca épicos
  * por LABEL de PI sem filtro de projeto (`_piEpicJql`). Antes desta regra, o
  * único épico de BOPS com label de PI — `BOPS-2768`, "Autenticação por JWT",
- * com a label `EpicoPI1Legado` e 7 filhos — aparecia como Afya One, ou seja,
+ * com a label `EpicoPI1Legado` e 7 filhos — aparecia como One, ou seja,
  * um épico do Legado contado dentro do outro programa.
  */
 const bridgeProjectKeys = ['LEG', 'BOPS'];
-const bridgeValueStreamNames = ['Value Streams Afya Bridge', 'Operação e Bugs'];
+const bridgeValueStreamNames = ['Value Streams Bridge', 'Operação e Bugs'];
 
 const classificationRules = {
   issueTypeToGroup,

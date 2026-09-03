@@ -11,7 +11,7 @@ const fakeEmail = 'amplify-test@example.invalid';
 const fakeToken = 'amplify-test-token-not-a-secret';
 execFileSync(process.execPath, [path.join(root, 'dist', 'scripts', 'build-amplify.js')], {
   cwd: root,
-  env: { ...process.env, AWS_BRANCH: 'afya-metrics-dashboard', JIRA_EMAIL: fakeEmail,
+  env: { ...process.env, AWS_BRANCH: 'main', JIRA_EMAIL: fakeEmail,
     JIRA_API_TOKEN: fakeToken },
 });
 

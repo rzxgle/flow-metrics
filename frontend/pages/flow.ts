@@ -692,7 +692,7 @@ function renderCancelados(atual: DashboardIssue[]): void {
 function heatColor(v: number, max: number): string {
   if(max<=0 || v<=0) return '#F5F5F5';
   const t = Math.min(1, v/max);
-  // interpola do rosa claro (#FBE0EC) ao rosa Afya (#CE0058)
+  // interpola do rosa claro (#FBE0EC) ao rosa principal (#CE0058)
   const r1=251,g1=224,b1=236, r2=206,g2=0,b2=88;
   const r = Math.round(r1+(r2-r1)*t), g = Math.round(g1+(g2-g1)*t), b = Math.round(b1+(b2-b1)*t);
   return `rgb(${r},${g},${b})`;

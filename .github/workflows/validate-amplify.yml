@@ -2,7 +2,7 @@ name: Validate Amplify Compute
 
 on:
   push:
-    branches: [afya-metrics-dashboard]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

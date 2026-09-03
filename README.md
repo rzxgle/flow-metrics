@@ -1,4 +1,4 @@
-# Afya Metrics — Afya Bridge & Afya One
+# Flow Metrics
 
 Dashboard ágil (SAFe / Flow Metrics) que agora lê os dados **direto da API do
 Jira**, em vez de depender da exportação manual de uma planilha.
@@ -18,9 +18,9 @@ src/
 ├── main.js                     # Composition Root: instancia e injeta tudo
 ├── config/
 │   ├── index.js                # lê variáveis de ambiente (.env)
-│   ├── classification.rules.js # REGRAS de negócio como dados (Open/Closed)
-│   ├── quarter.rules.js        # regras da aba PI Tracking (outras, de propósito)
-│   └── dependency.rules.js     # tipos de link e nomes de time da aba Dependências
+│   ├── classification.rules.ts # REGRAS de negócio como dados (Open/Closed)
+│   ├── quarter.rules.ts        # regras da aba PI Tracking (outras, de propósito)
+│   └── dependency.rules.ts     # tipos de link e nomes de time da aba Dependências
 │
 ├── domain/                     # Regras de negócio puras (sem dependências)
 │   ├── entities/Issue.js
@@ -59,7 +59,7 @@ test/transform.spec.js          # Testa a transformação (regras de negócio)
 - **S** (Single Responsibility): cada serviço faz uma coisa (classificar, calcular
   tempo, resolver épico, agregar). Mudar a fórmula de Lead Time mexe em um arquivo só.
 - **O** (Open/Closed): as regras (tipos, status, PIs) vivem em
-  `config/classification.rules.js`. Novo tipo de item? Edita dados, não código.
+  `config/classification.rules.ts`. Novo tipo de item? Edita dados, não código.
 - **L** (Liskov): qualquer `IssueRepository` (Jira, CSV, mock de teste) é
   intercambiável sem quebrar o caso de uso.
 - **I** (Interface Segregation): a porta `IssueRepository` expõe só o que o caso
@@ -143,9 +143,9 @@ Acompanhamento dos épicos de um PI/quarter, agrupados por squad: progresso de
 cada épico, quantos itens estão pendentes / em andamento / concluídos, e o
 drill-down dos filhos com status e link para o Jira.
 
-**Ela usa outro conjunto de regras, de propósito.** `config/quarter.rules.js`
-replica status por status e tipo por tipo o painel de quarter que o time já usa
-nas cerimônias de PI (projeto `afya-quarter`), para os dois números não
+**Ela usa outro conjunto de regras, de propósito.** `config/quarter.rules.ts`
+replica status por status e tipo por tipo o painel de quarter legado que o time
+já usa nas cerimônias de PI, para os dois números não
 divergirem. Três diferenças em relação às outras abas:
 
 1. **sub-tarefas e o próprio épico ficam fora do denominador** — contá-los soma o
@@ -154,7 +154,7 @@ divergirem. Três diferenças em relação às outras abas:
 3. a comparação de status é **normalizada** e `Em Homologação`, `Pronto para
    Staging` e `Staging` contam como concluído.
 
-No dataset atual isso vale 15 pontos percentuais nos épicos de `PI3 - Afya One`:
+No dataset atual isso vale 15 pontos percentuais nos épicos de `PI3 - One`:
 **51,1%** pela regra do PI (499 itens) contra **66,2%** pela regra das outras
 abas (3.465 membros, dos quais 3.336 são sub-tarefas).
 
@@ -166,10 +166,9 @@ Três detalhes que valem saber:
 - **Os filhos não herdam o PI do épico.** As labels ficam no épico; 1.430 dos
   3.465 filhos dos épicos de PI3 têm PI "Não informado". A aba seleciona os
   **épicos** pela label e depois puxa **todos** os filhos pela cadeia de parent.
-- **Labels de transbordo entram no PI de destino.** `TransbordoPI2AfyaOne`,
-  `NOVOPI3AfyaOne`, `LegadoTransbordoP126` e
-  `LegadoTransbordoP226` passaram a ser reconhecidas em
-  `classification.rules.js` — antes caíam em "Não informado", **em todas as
+- **Labels de transbordo entram no PI de destino.** As labels históricas de
+  transbordo e de item novo passaram a ser reconhecidas em
+  `classification.rules.ts` — antes caíam em "Não informado", **em todas as
   abas**.
 - **O PI Tracking usa uma coleta dedicada.** Os épicos são buscados pelas labels
   de PI sem o corte `created >= startOfYear()` e seus filhos são consultados em
@@ -196,8 +195,8 @@ guardada. Como "quanto do quarter já passou" não tem resposta para dois quarte
 somados, os KPIs temporais só aparecem com **um** PI selecionado; com mais de um,
 avisam em vez de somar quarters.
 
-**O PI do quarter corrente vem marcado ao entrar na aba** (hoje, `PI3 - Afya
-One`) e é desmarcado ao sair. Ele não é padrão global de propósito: o PI é campo
+**O PI do quarter corrente vem marcado ao entrar na aba** (hoje, `PI3 - One`)
+e é desmarcado ao sair. Ele não é padrão global de propósito: o PI é campo
 de preenchimento manual, e 63,6% dos sub-itens e 57% dos bloqueios da base não
 têm label — pré-selecioná-lo na barra inteira deixaria 27% da base de pé
 (Bloqueios cairia de 421 para 61 itens). Aqui o recorte é de graça, porque a
@@ -319,7 +318,7 @@ Nada disso exigiu mudança no backend: `Status` e `TempoPorStatus` já bastam pa
 separar os três grupos no navegador.
 
 Ordem e cor das barras saem da **fase do status** (Pendente → Em andamento →
-Concluído → Cancelado), pelas listas de `classification.rules.js` que viajam no
+Concluído → Cancelado), pelas listas de `classification.rules.ts` que viajam no
 `meta` — nunca por pedaço do nome do status, que é a decisão travada em
 `test/drawer-status.spec.js`.
 
@@ -370,13 +369,13 @@ nulo e a aba inteira desaparecendo do filtro global de período, sem erro na tel
 "começa a trabalhar" nela. A duração é lead time (criação → conclusão), e a
 dependência aberta conta da abertura até hoje — recalculado no navegador, senão o
 snapshot em cache congelaria o envelhecimento. **Cancelada não soma dias**: no
-processo da Afya, cancelar significa que a dependência *deixou de ser
+processo do produto, cancelar significa que a dependência *deixou de ser
 necessária*, então ela conta como episódio sem duração medida.
 
 **3. Os dois campos de time escrevem a mesma squad de dois jeitos.** O `Team`
 grava `Squad Core - Core Features`; o `Time Demandante`, `Core Features`. O
 `DependencyResolver` canoniza os dois (remove o prefixo `Squad X - `, acentos e
-`&`) e resolve o que sobra por apelido em `config/dependency.rules.js` — sem
+`&`) e resolve o que sobra por apelido em `config/dependency.rules.ts` — sem
 isso, a matriz demandante × dependente sai com dois nós para a mesma squad. Só o
 **id canônico** viaja em cada linha do payload; os rótulos vão uma única vez em
 `meta.dependencyTeams`, porque repetir "Martech CDP & Tracking [Educon]" duas
@@ -404,7 +403,7 @@ a lista corrigível.
 O escopo (`Mesma VS` / `Outras VS`) sai do tipo de link oficial. Sem link oficial
 ele fica `Não informado` — dizer "mesma VS" por omissão seria inventar o dado.
 
-`Dependência` tem **grupo próprio** em `classification.rules.js`, e não o default
+`Dependência` tem **grupo próprio** em `classification.rules.ts`, e não o default
 `Sub-task`: ela é um acordo entre times, não trabalho de entrega. Deixá-la cair
 no default somaria as dependências ao velocity, ao burndown e ao `Incremental`.
 
@@ -455,7 +454,7 @@ escopo por `Criado` e desenhar a linha de escopo total; ficou para depois, para
 não trocar a leitura de "restante" no mesmo passo.
 
 Não confundir com o transbordo de **PI** da aba PI Tracking (`piIsTransbordo`),
-que vem de label (`TransbordoPI2AfyaOne` etc.). Unidades diferentes, mesma
+que vem de uma label própria. Unidades diferentes, mesma
 palavra — o vocabulário é o do time.
 
 ## Com o que a barra de filtros abre
@@ -465,26 +464,26 @@ Três padrões, todos desfazíveis num clique:
 | Filtro | Padrão | Escopo |
 |---|---|---|
 | Tipo de item | Enabler, Melhoria, Story, Technical Debt | global |
-| Programa | Afya One | global (a aba Sprint não usa Programa) |
+| Programa | One | global (a aba Sprint não usa Programa) |
 | Conclusão | últimos 30 dias (D-30 → hoje) | global; PI Tracking e Sprint ignoram |
 | PI | quarter corrente do Programa marcado | **só** na aba PI Tracking, entra ao abrir e sai ao fechar |
 
-**A lista de PI acompanha o Programa.** Com Afya One marcado aparecem só
-`PI1`–`PI4 - Afya One`; com Afya Bridge, os `PI* - Legado` (a label diz "Legado",
-o programa chama-se Afya Bridge). A correlação vive como dado em
-`config/quarter.rules.js`, ao lado da janela de cada quarter — casar por pedaço
-do nome quebraria em silêncio num `PI5 - AfyaOne` sem espaço. `Não informado`
+**A lista de PI acompanha o Programa.** Com One marcado aparecem só
+`PI1`–`PI4 - One`; com Bridge, os `PI* - Legado` (a label diz "Legado",
+o programa chama-se Bridge). A correlação vive como dado em
+`config/quarter.rules.ts`, ao lado da janela de cada quarter — casar por pedaço
+do nome quebraria em silêncio após qualquer alteração de grafia. `Não informado`
 fica sempre visível nas duas listas: são 57,8% dos itens da base, nos dois
 programas. Ao trocar de Programa, o PI marcado que saiu do recorte é removido da
 seleção, e dentro da aba PI Tracking o PI do quarter do novo programa entra no
-lugar — marcar Afya Bridge traz `PI3 - Legado`.
+lugar — marcar Bridge traz `PI3 - Legado`.
 
 ## Programa: de que projeto vem cada item
 
 O Jira não tem um campo "Programa" — ele é derivado do **projeto** da issue, em
-`config/classification.rules.js`. São **Afya Bridge** os projetos `LEG`
-(*Value Streams Afya Bridge*) e `BOPS` (*Operação e Bugs*); qualquer outro é
-**Afya One**.
+`config/classification.rules.ts`. São **Bridge** os projetos `LEG`
+(*Value Streams Bridge*) e `BOPS` (*Operação e Bugs*); qualquer outro é
+**One**.
 
 A comparação usa a **chave** do projeto, não o nome. A chave é o identificador
 estável no Jira: renomear um projeto muda o nome que chega aqui, e um dashboard
@@ -495,7 +494,7 @@ O nome segue aceito como segunda via, para issues montadas sem a chave.
 na JQL geral** do dashboard, então ele só chega por um caminho — a coleta
 própria da aba PI Tracking, que busca épicos por *label* de PI **sem filtro de
 projeto** (`_piEpicJql`). Antes da regra, o único épico de BOPS com label de PI
-(`BOPS-2768`, com `EpicoPI1Legado` e 7 filhos) era contado como Afya One: um
+(`BOPS-2768`, com `EpicoPI1Legado` e 7 filhos) era contado como One: um
 épico do Legado somado ao outro programa.
 
 ## Fidelidade da transformação
@@ -503,7 +502,7 @@ projeto** (`_piEpicJql`). Antes da regra, o único épico de BOPS com label de P
 As regras foram reconstruídas a partir do dataset original e **conferidas contra
 as 3.202 issues reais**: correspondência de **100%** nos campos usados pelo
 dashboard e **183/183** nas agregações de épico. As únicas diferenças
-intencionais: o label `PI4AfyaOne` agora é mapeado para `PI4 - Afya One` (o
+intencionais: a label principal do PI4 agora é mapeada para `PI4 - One` (o
 processo antigo ainda não tratava PI4).
 
 `npm run test:transform` valida todas as regras com um fixture sintético.
@@ -511,9 +510,9 @@ processo antigo ainda não tratava PI4).
 ## Onde ajustar as coisas
 
 - **Trocar/editar a JQL** → `JIRA_JQL` no `.env` (ou o padrão em `config/index.js`).
-- **Novo tipo de item, status ou PI** → `config/classification.rules.js`.
-- **Regras do acompanhamento de PI** → `config/quarter.rules.js`.
-- **Tipos de link e apelidos de time da aba Dependências** → `config/dependency.rules.js`.
+- **Novo tipo de item, status ou PI** → `config/classification.rules.ts`.
+- **Regras do acompanhamento de PI** → `config/quarter.rules.ts`.
+- **Tipos de link e apelidos de time da aba Dependências** → `config/dependency.rules.ts`.
 - **Fórmula de Lead/Cycle/Aging** → `domain/services/FlowMetricsCalculator.js`.
 - **Regra do tempo por status** → `domain/services/StatusTimeResolver.js`.
 - **Regra de saúde do épico** → `domain/services/EpicHealthEvaluator.js`.
@@ -523,7 +522,7 @@ processo antigo ainda não tratava PI4).
 ## Deploy no AWS Amplify
 
 O projeto suporta Amplify Hosting Compute com o HTML e a API Express no mesmo
-domínio. A branch de deploy é `afya-metrics-dashboard`; o botão **Atualizar dados**
+domínio. A branch de deploy é `main`; o botão **Atualizar dados**
 continua consultando o Jira em tempo real sem expor o token no navegador.
 
 Consulte `docs/AMPLIFY_DEPLOY.md` para cadastrar as variáveis de ambiente e

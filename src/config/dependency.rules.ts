@@ -12,7 +12,7 @@
  *     está FORA das nossas Value Streams (SSO, Ecommerce Engine, CaaS, RM...).
  *     Conferido contra a base: em 27 dos 29 casos ele repete o Team, ou seja,
  *     marca "de quem eu dependo está fora", não "quem me pediu está fora";
- *   - label do PI (`PI3AfyaOne`, ...) situa a dependência no ciclo;
+ *   - label do PI situa a dependência no ciclo;
  *   - o andamento é o próprio workflow: To Do / Backlog / EM ANDAMENTO / Done /
  *     CANCELADO — todos já classificados em `classification.rules.js`.
  *

@@ -34,7 +34,7 @@
  *    seleção é feita no ÉPICO, que tem a label, e os filhos entram pela cadeia
  *    de parent. A aba nunca sobrescreve nem apaga uma escolha do usuário, e não
  *    existe recorte de PI por dentro: desmarcar tem efeito de verdade.
- *    (O `Programa = Afya One` é outra coisa: padrão GLOBAL, verificado em
+ *    (O `Programa = One` é outra coisa: padrão GLOBAL, verificado em
  *    `filtros.spec.js`.)
  *
  * Rode com:  npm run test:pi-vs
@@ -108,7 +108,7 @@ vm.runInContext('isoToday = () => "2026-08-15";', sandbox);
 function issue(over) {
   return {
     Chave: 'X-0', Resumo: '', 'Tipo de item': 'Story', 'Tipo Agrupado': 'História',
-    Programa: 'Afya One', VS: 'APRENDER', Squad: 'Squad A', PI: 'Não informado',
+    Programa: 'One', VS: 'APRENDER', Squad: 'Squad A', PI: 'Não informado',
     Labels: [], Status: 'Backlog', EpicoChave: null, parentKey: null,
     Concluido: false, Cancelado: false, 'Story Points': 0,
     ...over,
@@ -116,7 +116,7 @@ function issue(over) {
 }
 const epico = (chave, over) => issue({
   Chave: chave, Resumo: `Épico ${chave}`, 'Tipo de item': 'Epic', 'Tipo Agrupado': 'Épico',
-  EpicoChave: chave, PI: 'PI3 - Afya One', Status: 'Desenvolvimento', ...over,
+  EpicoChave: chave, PI: 'PI3 - One', Status: 'Desenvolvimento', ...over,
 });
 const filho = (chave, epicKey, status, over) => issue({
   Chave: chave, EpicoChave: epicKey, parentKey: epicKey, Status: status, ...over,
@@ -145,12 +145,12 @@ const DATA = [
   filho('X-2', 'E-X2', 'Backlog'),
 
   /* Épico de outro Programa: só aparece se o filtro de Programa pedir. */
-  epico('E-BR', { VS: 'Value Streams Afya Bridge', Squad: 'Squad Bridge', Programa: 'Afya Bridge', PI: 'PI3 - Legado' }),
+  epico('E-BR', { VS: 'Value Streams Bridge', Squad: 'Squad Bridge', Programa: 'Bridge', PI: 'PI3 - Legado' }),
   filho('BR-1', 'E-BR', 'Done'),
 ];
 
 T.DATA = DATA;
-T.selections.PI.add('PI3 - Afya One');
+T.selections.PI.add('PI3 - One');
 const t = T.piBuildTracking();
 
 /* ---------- o guarda-chuva existe e fecha com o nível de baixo ---------- */
@@ -222,8 +222,8 @@ assert.equal(t.kpis.squadsBehind, 1,
 /* ---------- o PI do quarter que a aba escreve na barra ---------- */
 // Hoje é 15/08/2026 no cenário, dentro do Q3/2026.
 T.selections.PI.clear();
-assert.equal(T.piDoQuarterAtual(), 'PI3 - Afya One',
-  'sem Programa marcado, o desempate é pelo Afya One — o painel é orientado a ele');
+assert.equal(T.piDoQuarterAtual(), 'PI3 - One',
+  'sem Programa marcado, o desempate é pelo One — o painel é orientado a ele');
 
 // Fora da aba PI nada é escrito: é o que impede o recorte de PI de vazar para as
 // outras abas, onde ele derrubaria a base de quem não tem label.
@@ -235,7 +235,7 @@ assert.equal(T.selections.PI.size, 0);
 // precisa re-renderizar: trocar de aba, sozinho, não redesenha nada.
 T.activeTab = 'pi';
 assert.equal(T.piSincronizarPiPadrao(), true, 'entrar na aba muda o recorte e avisa');
-assert.deepEqual(Array.from(T.selections.PI), ['PI3 - Afya One']);
+assert.deepEqual(Array.from(T.selections.PI), ['PI3 - One']);
 assert.equal(T.piSincronizarPiPadrao(), false, 'aplicar de novo não faz nada');
 
 // Sair apaga o que a aba escreveu.
@@ -244,39 +244,39 @@ assert.equal(T.piSincronizarPiPadrao(), true, 'sair da aba também muda o recort
 assert.equal(T.selections.PI.size, 0, 'nenhuma outra aba herda o recorte de PI');
 
 /* O PI do quarter acompanha o Programa marcado: é o caso que o usuário deu como
-   exemplo — marcar Afya Bridge tem de trazer PI3 - Legado. */
+   exemplo — marcar Bridge tem de trazer PI3 - Legado. */
 T.selections.Programa.clear();
-T.selections.Programa.add('Afya Bridge');
+T.selections.Programa.add('Bridge');
 assert.equal(T.piDoQuarterAtual(), 'PI3 - Legado');
 T.activeTab = 'pi';
 assert.equal(T.piSincronizarPiPadrao(), true);
 assert.deepEqual(Array.from(T.selections.PI), ['PI3 - Legado']);
 const bridge = T.piBuildTracking();
 assert.deepEqual(bridge.epics.map((e) => e.epic.Chave), ['E-BR'],
-  'com Afya Bridge e o PI dele, a aba mostra o épico do Legado');
+  'com Bridge e o PI dele, a aba mostra o épico do Legado');
 
 /* Escolha do usuário vence o padrão nas duas pontas. Na barra real, mexer no
    filtro de PI desliga o padrão pelo handler do checkbox (coberto em
    filtros.spec.js, com DOM de verdade); aqui o vm não tem DOM, então a troca é
    simulada. */
 T.selections.PI.clear();
-T.selections.PI.add('PI2 - Afya One');
+T.selections.PI.add('PI2 - One');
 T.piPadraoAtivo = false;
 T.activeTab = 'exec';
 assert.equal(T.piSincronizarPiPadrao(), false, 'a aba não apaga uma escolha do usuário ao sair');
 T.activeTab = 'pi';
 assert.equal(T.piSincronizarPiPadrao(), false, 'nem a sobrescreve ao voltar');
-assert.deepEqual(Array.from(T.selections.PI), ['PI2 - Afya One']);
+assert.deepEqual(Array.from(T.selections.PI), ['PI2 - One']);
 
 /* Sem recorte por dentro: filtro de PI vazio mostra tudo o que o Programa
    permite. É o que garante que desmarcar tenha efeito. */
 T.selections.PI.clear();
 T.selections.Programa.clear();
-T.selections.Programa.add('Afya One');
+T.selections.Programa.add('One');
 const semPi = T.piBuildTracking();
 assert.ok(!semPi.epics.some((e) => e.epic.Chave === 'E-BR'),
-  'com Afya One marcado, o épico do Legado fica fora pelo Programa, não pelo PI');
-assert.ok(semPi.epics.length > 0, 'e os épicos de Afya One de todos os PIs aparecem');
+  'com One marcado, o épico do Legado fica fora pelo Programa, não pelo PI');
+assert.ok(semPi.epics.length > 0, 'e os épicos de One de todos os PIs aparecem');
 
 // Volta ao estado da aba para o bloco de renderização abaixo.
 T.selections.PI.clear();
@@ -290,9 +290,9 @@ const recorte = getEl('pi-recorte').innerHTML;
 // O padrão precisa estar DECLARADO: a barra de filtros continua mostrando
 // "Programa: nenhum", então esta linha é o único lugar onde o leitor descobre
 // que o recorte foi feito.
-assert.ok(recorte.includes('PI3 - Afya One') && recorte.includes('PI do quarter corrente'),
+assert.ok(recorte.includes('PI3 - One') && recorte.includes('PI do quarter corrente'),
   `o PI marcado pela aba tem de ser declarado na linha de recorte: ${recorte}`);
-assert.ok(recorte.includes('Programa') && recorte.includes('Afya One'),
+assert.ok(recorte.includes('Programa') && recorte.includes('One'),
   'e o Programa do recorte continua aparecendo');
 
 const VS_RX = /class="pi-vs( collapsed)?" data-pi-vs="([^"]*)"/g;

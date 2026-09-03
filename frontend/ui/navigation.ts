@@ -44,8 +44,6 @@ function syncFilterBarForTab(): void {
 const sidebarCollapse = navigationElement<HTMLElement>('sidebarCollapse');
 const sidebarMobileToggle = navigationElement<HTMLElement>('sidebarMobileToggle');
 const sidebarOverlay = navigationElement<HTMLElement>('sidebarOverlay');
-const topbarAfyaLogo = navigationElement<HTMLImageElement>('topbarAfyaLogo');
-topbarAfyaLogo.src = navigationElement<HTMLImageElement>('afyaLogo').src;
 
 function syncSidebarState(): void {
   const open = document.body.classList.contains('sidebar-open');
@@ -61,7 +59,6 @@ function closeMobileSidebar(): void {
 }
 
 document.body.classList.remove('sidebar-collapsed');
-try{localStorage.removeItem('afya-sidebar-collapsed');}catch(_){}
 syncSidebarState();
 
 sidebarCollapse.addEventListener('click', closeMobileSidebar);

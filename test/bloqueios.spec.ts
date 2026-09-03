@@ -71,7 +71,7 @@ const T = window.__T;
 const base = (o) => ({
   Chave: o.chave, chave: o.chave, Resumo: o.chave, 'Tipo de item': o.tipo,
   'Tipo Agrupado': o.tipo === 'Sub-block' ? 'Sub-task' : 'Bug',
-  Programa: 'Afya One', VS: 'VS X', Squad: 'Squad X', PI: 'PI3', Labels: [],
+  Programa: 'One', VS: 'VS X', Squad: 'Squad X', PI: 'PI3', Labels: [],
   Status: o.status, Concluido: !!o.concl, Cancelado: !!o.canc, WIP: !o.concl && !o.canc,
   FaseFluxo: o.concl ? 'Concluído' : (o.canc ? 'Cancelado' : 'Execução'),
   'Story Points': 0, Sprint: null, Sprints: [], SprintPeriodos: [], SprintHistoricoOk: true,

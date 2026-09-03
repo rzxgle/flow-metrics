@@ -1,12 +1,12 @@
 # Deploy no AWS Amplify Hosting Compute
 
-O dashboard e a API Express sao publicados juntos a partir da branch
-`afya-metrics-dashboard`. O build produz o bundle `.amplify-hosting/`.
+O dashboard e a API Express sao publicados juntos a partir da branch `main`.
+O build produz o bundle `.amplify-hosting/`.
 
 ## Variaveis de ambiente
 
 No app do Amplify, abra **Hosting > Environment variables > Manage variables**
-e cadastre as variaveis abaixo para a branch `afya-metrics-dashboard`:
+e cadastre as variaveis abaixo para a branch `main`:
 
 ```text
 JIRA_BASE_URL
@@ -43,7 +43,7 @@ forte, use Parameter Store ou o gerenciamento de segredos do Amplify.
 ## Criar o app
 
 1. Conecte o repositorio ao Amplify Hosting.
-2. Selecione a branch `afya-metrics-dashboard`.
+2. Selecione a branch `main`.
 3. Cadastre as variaveis antes do primeiro deploy.
 4. Use o `amplify.yml` versionado.
 5. Publique e valide `/api/health` e o botao **Atualizar dados**.

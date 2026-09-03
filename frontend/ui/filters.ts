@@ -36,12 +36,12 @@ let filterDocumentHandlerBound = false;
 // Filtro padrão de Tipo de item (recorte inicial): tipos crus de produção.
 const DEFAULT_TIPO: readonly string[] = ['Enabler','Melhoria','Story','Technical Debt'];
 DEFAULT_TIPO.forEach(t=> selections['Tipo de item'].add(t));
-/* Programa padrão: o painel é orientado ao Afya One. É seleção GLOBAL, como a de
+/* Programa padrão: o painel é orientado ao One. É seleção GLOBAL, como a de
    Tipo — a barra abre com o filtro marcado e ele vale em toda aba que usa
-   Programa (a Sprint não usa; o PI Tracking usa). Afya Bridge continua a um
+   Programa (a Sprint não usa; o PI Tracking usa). Bridge continua a um
    clique de distância: isto é padrão, não trava.
-   Medido: Afya Bridge são 3.416 dos 17.256 itens da base (19,8%). */
-const DEFAULT_PROGRAMA: readonly string[] = ['Afya One'];
+   Medido: Bridge são 3.416 dos 17.256 itens da base (19,8%). */
+const DEFAULT_PROGRAMA: readonly string[] = ['One'];
 DEFAULT_PROGRAMA.forEach(p=> selections['Programa'].add(p));
 // Abas que NÃO devem sofrer o filtro de Tipo (dependem de Sub-block/Sub-task).
 const SKIP_TIPO = new Set<string>(['Tipo de item']);
@@ -231,7 +231,7 @@ let sincronizarChipsDeTipo: () => void = ()=>{};
 /* ---- Correlação PI <-> Programa ----
    Cada PI pertence a um programa, e isso vive como DADO em `quarter.rules.js`
    (`piPeriods[pi].programa`), não num casamento por pedaço do nome: um
-   `PI5 - AfyaOne` sem espaço, ou um rename de label, quebraria a regra em
+   uma grafia diferente do nome, ou um rename de label, quebraria a regra em
    silêncio, enquanto uma entrada faltando na tabela aparece na hora — o PI some
    da lista.
 
@@ -277,7 +277,7 @@ function limparPisForaDoPrograma(): boolean {
 /** O que a troca de Programa dispara no filtro de PI, em ordem: tira da seleção
     o que saiu do recorte, esconde as opções do outro programa e, se a seleção
     esvaziou dentro da aba PI Tracking, entra o PI do quarter corrente do NOVO
-    programa — é o comportamento pedido: marcar Afya Bridge traz PI3 - Legado. */
+    programa — é o comportamento pedido: marcar Bridge traz PI3 - Legado. */
 function aplicarCorrelacaoDePi(): void {
   const esvaziou = limparPisForaDoPrograma();
   sincronizarOpcoesDePi();

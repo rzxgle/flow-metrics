@@ -3,7 +3,7 @@
 
    Esta aba NÃO usa as regras das outras abas. Ela replica, status por status e
    tipo por tipo, o painel de quarter que o time já usa nas cerimônias de PI
-   (projeto afya-quarter). Se os dois números divergissem, a aba perderia a
+   legado. Se os dois números divergissem, a aba perderia a
    função: ninguém confia em dois números para a mesma pergunta.
 
    As regras chegam do backend em `meta.quarterRules` (config/quarter.rules.js).
@@ -163,7 +163,7 @@ const PI_PHASE_COLORS = { done:'#CE0058', inprogress:'#0057B8', todo:'#D98E3B' }
 
 function piRules(): DashboardQuarterRules | null { return window.__QUARTER_RULES || null; }
 
-/** Comparação de status normalizada (trim + maiúsculas), como no afya-quarter. */
+/** Comparação de status normalizada (trim + maiúsculas), como no painel legado. */
 function piNorm(s: unknown): string { return String(s==null?'':s).trim().toUpperCase(); }
 function piInList(status: unknown, list: readonly unknown[] | null | undefined): boolean {
   const n = piNorm(status);
@@ -228,7 +228,7 @@ let piPadraoAtivo = false;
 
 /** PI cujo quarter contém a data de hoje, dentro do Programa do recorte.
     Devolve null quando não há um — em 2027 sem `piPeriods` atualizado, por
-    exemplo, ou no Q4 do Afya Bridge, que ainda não tem PI4 - Legado. */
+    exemplo, ou no Q4 do Bridge, que ainda não tem PI4 - Legado. */
 function piDoQuarterAtual(): string | null {
   const periods = piRules()?.piPeriods || {};
   const programas = selections['Programa'];
@@ -240,8 +240,8 @@ function piDoQuarterAtual(): string | null {
   });
   if(!candidatos.length) return null;
   // Com mais de um Programa marcado pode haver dois PIs no mesmo quarter; o
-  // painel é orientado ao Afya One, então ele desempata.
-  return candidatos.find(pi=>periods[pi].programa==='Afya One') || candidatos[0];
+  // painel é orientado ao One, então ele desempata.
+  return candidatos.find(pi=>periods[pi].programa==='One') || candidatos[0];
 }
 
 /**
@@ -307,7 +307,7 @@ function piQuarterWindow(pi: string): PiQuarterWindow | null {
 }
 
 /** Quanto do quarter já passou, em %. Mesma regra (dias inclusivos nas duas
-    pontas) de calculate_quarter_time_progress do afya-quarter. */
+    pontas) do cálculo usado pelo painel de quarter legado. */
 function piTimeProgress(win: PiQuarterWindow | null | undefined): number | null {
   if(!win) return null;
   const startMs = Date.parse(win.start+'T00:00:00Z');
@@ -335,7 +335,7 @@ function piBuildTracking(): PiTrackingResult {
   const epics = PI_DATA.filter(d=>
     d['Tipo Agrupado']==='Épico'
     && piSet.has(String(d.PI || ''))
-    && !piIsIgnored(d.Status)      // afya-quarter exclui épico cancelado na própria JQL
+    && !piIsIgnored(d.Status)      // o painel legado exclui épico cancelado na própria JQL
     && matchesPiTabFilters(d));
 
   // Índice de filhos por épico, montado uma vez (não por épico, que seria O(n²)).

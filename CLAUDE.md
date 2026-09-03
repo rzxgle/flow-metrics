@@ -4,7 +4,7 @@ Instruções para agentes trabalhando neste repositório.
 
 O `README.md` explica **o que o projeto é** (arquitetura, como rodar, deploy) e
 continua sendo a referência para isso. Este arquivo cobre o que não está lá: as
-**regras de processo**, as **regras de domínio da Afya** e as **convenções de
+**regras de processo**, as **regras de domínio do produto** e as **convenções de
 código** que já foram decididas e não devem ser redescobertas nem revertidas por
 engano.
 
@@ -37,25 +37,19 @@ commitar isso"), aí sim faça.
 
 🟢 **Commit não é push.** Sem pedido explícito, pare no commit local.
 
-🟢 **Push é sempre para duas branches.** O remoto de trabalho é `empresa`
-(`afya-educon/educon.agile.dashboard`); a branch local é `main-empresa`. Um push
-são sempre **dois** comandos, e o segundo não é opcional:
+🟢 **Push é para a branch principal do `origin`.** Antes de publicar, atualize a
+visão do remoto e confirme que a história é fast-forward:
 
 ```bash
-git push empresa main-empresa:main
-git push empresa main-empresa:afya-metrics-dashboard
+git fetch origin
+git push origin main
 ```
 
-As duas branches andam sempre no mesmo commit. Elas têm sido fast-forward
-sempre; se alguma vez **não** forem, isso significa que algo entrou no remoto por
-fora — **pare e avise**, nunca resolva com `--force`. Dê `git fetch empresa`
-logo antes de empurrar.
+Se a branch não estiver em fast-forward, isso significa que algo entrou no
+remoto por fora — **pare e avise**, nunca resolva com `--force`.
 
 🟢 **Não abrir PR.** Não há revisores humanos neste projeto. Push direto é o
 fluxo aceito, e sugerir PR ou branch de revisão é ruído.
-
-🟢 **O remoto `origin`** (fork pessoal `rzxgle/jira-flow-metrics`) só recebe push
-se ele pedir.
 
 ### O double check antes de publicar
 
@@ -118,7 +112,7 @@ Convenções que valem para toda spec nova:
 
 ## Regras de domínio
 
-Estas descrevem o processo da Afya. Mudar qualquer uma altera o significado dos
+Estas descrevem o processo do produto. Mudar qualquer uma altera o significado dos
 indicadores — confirme com o usuário antes.
 
 ### Níveis de trabalho
@@ -143,17 +137,17 @@ de Cycle Time contra ~5,2 de um item de entrega de 1 SP, e sub-itens são muito
 mais numerosos, então num recorte misturado são eles que mandam na média.
 Analisar separadamente é legítimo; fundir num agregado único, não.
 
-🟢 **Programa vem do projeto, e `BOPS` é Afya Bridge.** Não existe campo
+🟢 **Programa vem do projeto, e `BOPS` é Bridge.** Não existe campo
 "Programa" no Jira: ele é derivado do projeto em `classification.rules.js`. São
-Afya Bridge os projetos `LEG` (*Value Streams Afya Bridge*) e `BOPS`
-(*Operação e Bugs*); qualquer outro é Afya One. A comparação é pela **chave** do
+Bridge os projetos `LEG` (*Value Streams Bridge*) e `BOPS`
+(*Operação e Bugs*); qualquer outro é One. A comparação é pela **chave** do
 projeto, não pelo nome — rename no Jira quebraria a classificação em silêncio.
 `BOPS` não está na JQL geral e só chega pela coleta da aba PI Tracking, que busca
 épicos por label de PI **sem filtro de projeto**; era por aí que um épico do
-Legado (`BOPS-2768`) entrava contado como Afya One.
+Legado (`BOPS-2768`) entrava contado como One.
 
 🟢 **A barra abre com padrões, e o de PI é só da aba PI Tracking.** Tipo de item
-(tipos de produção), Programa (**Afya One**) e Conclusão (**D-30 → hoje**) são
+(tipos de produção), Programa (**One**) e Conclusão (**D-30 → hoje**) são
 padrões **globais**. O **PI do quarter corrente** entra ao abrir a aba PI
 Tracking e sai ao deixá-la — nunca global: 🔵 o PI é campo de preenchimento
 manual, 63,6% dos sub-itens e 57% dos bloqueios não têm label, e pré-selecioná-lo
@@ -181,7 +175,7 @@ num impedimento. Bloqueio aberto conta da criação até hoje. Cancelamento **n�
 encerra a contagem: só a conclusão fecha o episódio.
 
 🟢 **Ao rotular o resíduo de Lead Time menos Cycle Time, diga apenas "em
-espera"** — nunca "espera antes da execução". No fluxo da Afya existe espera
+espera"** — nunca "espera antes da execução". Neste fluxo existe espera
 **depois** do trabalho terminar (homologação integrada, deploy, ativação de
 valor), então localizar a espera antes do início é factualmente falso.
 

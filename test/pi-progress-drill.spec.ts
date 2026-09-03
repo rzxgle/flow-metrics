@@ -73,7 +73,7 @@ window.__QUARTER_RULES = quarterRules;
    Um épico com as três fases povoadas, um só com pendentes, e um vazio. */
 const issue = (over) => ({
   Chave: 'X-0', Resumo: '', 'Tipo de item': 'Story', 'Tipo Agrupado': 'História',
-  Programa: 'Afya One', VS: 'CORE EXPERIENCE', Squad: 'Squad A', PI: 'PI3 - Afya One',
+  Programa: 'One', VS: 'CORE EXPERIENCE', Squad: 'Squad A', PI: 'PI3 - One',
   Labels: [], Status: 'Backlog', EpicoChave: null, parentKey: null, Sprints: [],
   Concluido: false, Cancelado: false, 'Story Points': 0, ...over,
 });
